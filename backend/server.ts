@@ -310,6 +310,10 @@ app.post('/api/scheduled', async (req: Request, res: Response) => {
     }
 
     const uuid = uuidv4();
+    
+    // LOGIC UPDATE: Handle 'Unlimited' string, -1 number, or explicit null
+    const limitValue = (limit_per_user === 'Unlimited' || limit_per_user === -1 || limit_per_user === null) ? null : (parseInt(limit_per_user) || 1);
+    
     const result = await pool.query(
       `INSERT INTO scheduled_items (
         uuid, title, item_name, creator, creator_link, stock, 
@@ -330,7 +334,7 @@ app.post('/api/scheduled', async (req: Request, res: Response) => {
         game_link || null,
         item_link || null,
         image_url || null,
-        limit_per_user || 1,
+        limitValue,
         color || null,
       ]
     );
@@ -394,8 +398,17 @@ app.put('/api/scheduled/:id', async (req: Request, res: Response) => {
     // Build dynamic update query - exclude undefined, null, and empty strings
     allowedFields.forEach((field) => {
       const value = req.body[field];
-      if (value !== undefined && value !== null && value !== '') {
-        updates[field] = value;
+      if (value !== undefined) { 
+        // Special handling for limit_per_user
+        if (field === 'limit_per_user') {
+           if (value === 'Unlimited' || value === -1 || value === null) {
+             updates[field] = null;
+           } else {
+             updates[field] = parseInt(value);
+           }
+        } else if (value !== null && value !== '') {
+           updates[field] = value;
+        }
       }
     });
 

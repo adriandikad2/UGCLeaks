@@ -24,13 +24,32 @@ html, body {
   overflow-x: hidden;
 }
 
+*, *::before, *::after {
+  -webkit-user-select: none; /* Chrome, Safari, Opera */
+  -moz-user-select: none;    /* Firefox */
+  -ms-user-select: none;     /* IE */
+  user-select: none;         /* Standard */
+}
+
+/* 2. THE EXCEPTIONS: Re-enable for Inputs, Textareas, and your specific class */
+input, 
+textarea, 
+.select-text, 
+.select-text * { /* Includes children of the description box */
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  cursor: text;
+}
+
+/* Your Existing Body Styles */
 body {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
   background-size: 400% 400%;
   animation: gradientShift 8s ease infinite;
   font-family: 'Inter', sans-serif;
   color: #1a1a1a;
-  user-select: none;
 }
 
 @keyframes gradientShift {

@@ -18,8 +18,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        {/* 2. Wrap everything inside ThemeProvider */}
+      {/* 👇 Added 'select-none' here. This effectively disables highlighting globally. */}
+      <body className={`${inter.className} select-none`}>
         <ThemeProvider>
           <FloatingBlocks />
           <div className="relative z-10">

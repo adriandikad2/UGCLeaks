@@ -27,7 +27,7 @@ type UGCItem = {
   game_link?: string;
   item_link?: string;
   image_url?: string;
-  limit_per_user: number;
+  limit_per_user: number | null;
 };
 
 const generateRandomGradient = () => {
@@ -49,6 +49,9 @@ export default function SchedulePage() {
   
   // Theme Context
   const { isGrayscale, toggleTheme, buttonText } = useTheme();
+
+  // Internal state for "Unlimited" checkbox
+  const [isUnlimitedLimit, setIsUnlimitedLimit] = useState(false);
 
   const [formData, setFormData] = useState<UGCItem>({
     title: '',
@@ -104,22 +107,15 @@ export default function SchedulePage() {
 
     setIsLoading(true);
 
+    const payload = {
+        ...formData,
+        limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1)
+    };
+
     try {
       if (editingId) {
         // Update existing item
-        const result = await updateScheduledItem(editingId, {
-          title: formData.item_name,
-          item_name: formData.item_name,
-          creator: formData.creator,
-          stock: formData.stock,
-          release_date_time: formData.release_date_time,
-          method: formData.method,
-          instruction: formData.instruction,
-          game_link: formData.game_link,
-          item_link: formData.item_link,
-          image_url: formData.image_url,
-          limit_per_user: formData.limit_per_user,
-        });
+        const result = await updateScheduledItem(editingId, payload as any);
 
         if (result) {
           // Cast result to UGCItem to satisfy strict TypeScript checks
@@ -142,19 +138,7 @@ export default function SchedulePage() {
         }
       } else {
         // Create new item
-        const result = await createScheduledItem({
-          title: formData.item_name,
-          item_name: formData.item_name,
-          creator: formData.creator,
-          stock: formData.stock as number,
-          release_date_time: formData.release_date_time,
-          method: formData.method,
-          instruction: formData.instruction,
-          game_link: formData.game_link,
-          item_link: formData.item_link,
-          image_url: formData.image_url,
-          limit_per_user: formData.limit_per_user,
-        });
+        const result = await createScheduledItem(payload as any);
 
         if (result) {
           const typedResult = result as unknown as UGCItem; // Cast here
@@ -183,6 +167,10 @@ export default function SchedulePage() {
 
   const handleEditSchedule = (item: UGCItem) => {
     setEditingId(String(item.uuid || item.id || ''));
+
+    const isUnlimited = item.limit_per_user === null || item.limit_per_user === -1;
+    setIsUnlimitedLimit(isUnlimited);
+
     setFormData({
       title: item.item_name || item.title || '',
       item_name: item.item_name || item.title || '',
@@ -194,7 +182,7 @@ export default function SchedulePage() {
       game_link: item.game_link || '',
       item_link: item.item_link || '',
       image_url: item.image_url || 'https://placehold.co/400x400?text=img+placeholder',
-      limit_per_user: item.limit_per_user || 1,
+      limit_per_user: isUnlimited ? 1 : (item.limit_per_user || 1),
     });
     // Scroll to form section
     setTimeout(() => {
@@ -402,12 +390,26 @@ export default function SchedulePage() {
             {/* Limit Per User */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700 uppercase">Limit Per User</label>
-              <input
-                type="number"
-                value={formData.limit_per_user}
-                onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
-                className="w-full px-4 py-3 rounded-lg border-4 border-blue-500 font-bold text-gray-900 focus:outline-none"
-              />
+              <div className="flex gap-4 items-center">
+                 <input
+                    type="number"
+                    value={formData.limit_per_user || 1}
+                    onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
+                    disabled={isUnlimitedLimit} // Disable if checked
+                    className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
+                 />
+                 {/* The Checkbox Container */}
+                 <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                    <input 
+                        type="checkbox" 
+                        id="unlimited-check"
+                        checked={isUnlimitedLimit}
+                        onChange={(e) => setIsUnlimitedLimit(e.target.checked)}
+                        className="w-5 h-5 accent-blue-600"
+                    />
+                    <label htmlFor="unlimited-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unlimited</label>
+                 </div>
+              </div>
             </div>
 
             {/* Game Link */}
@@ -613,7 +615,7 @@ export default function SchedulePage() {
                         >
                           <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
                           <p className="font-black text-sm mt-1" style={{ color: gradient?.[3] || '#00ff41' }}>
-                            {item.limit_per_user}x {/* FIXED: limit_per_user */}
+                            {(item.limit_per_user === null || item.limit_per_user === -1) ? '∞' : `${item.limit_per_user}x`}
                           </p>
                         </div>
                       </div>
@@ -650,7 +652,7 @@ export default function SchedulePage() {
                       {/* Instructions */}
                       <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
                         <p className="text-xs font-bold text-gray-600 uppercase mb-2">📖 How to Get It</p>
-                        <div className="text-gray-700 text-sm font-medium break-words whitespace-pre-wrap">
+                        <div className="text-gray-700 text-sm font-medium break-words whitespace-pre-wrap select-text cursor-text">
                           <ClickableInstructions text={item.instruction || ''} color={gradient?.[0] || '#ff006e'} />
                         </div>
                       </div>

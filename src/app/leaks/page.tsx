@@ -508,7 +508,7 @@ export default function LeaksPage() {
 
                   <div className="mb-3 p-2 bg-gray-50 rounded border border-gray-200 flex-1 relative">
                     <p className="text-xs font-bold text-gray-600 uppercase mb-1">📖 Info</p>
-                    <p className="text-gray-700 text-xs font-medium break-words line-clamp-3">
+                    <p className="text-gray-700 text-xs font-medium break-words line-clamp-3 select-text cursor-text">
                       {item.instruction}
                     </p>
                     <div className="absolute bottom-0 left-0 w-full h-4 bg-gradient-to-t from-gray-50 to-transparent"></div>
@@ -587,7 +587,7 @@ export default function LeaksPage() {
                  {/* Full Description / Instruction */}
                  <div className="bg-blue-50 border-l-8 border-roblox-cyan p-6 rounded-r-xl text-left">
                     <h3 className="text-lg font-black text-gray-800 mb-2">Instructions & Details</h3>
-                    <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed">
+                    <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
                        {/* This allows full visibility of the description */}
                        <ClickableInstructions text={selectedItem.instruction} color={selectedItem.color || '#000'} />
                     </div>
