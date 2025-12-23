@@ -73,12 +73,17 @@ export default function SchedulePage() {
       const items = await getScheduledItems();
       setScheduledItems(items as unknown as UGCItem[]);
       
-      // Generate gradients
-      const newGradients: { [key: string]: string[] } = {};
-      items.forEach((item: any) => {
-        newGradients[item.uuid || item.id] = generateRandomGradient();
+      // Only generate gradients for new items, preserve existing ones
+      setGradients(prevGradients => {
+        const newGradients = { ...prevGradients };
+        items.forEach((item: any) => {
+          const key = item.uuid || item.id;
+          if (!newGradients[key]) {
+            newGradients[key] = generateRandomGradient();
+          }
+        });
+        return newGradients;
       });
-      setGradients(newGradients);
     } catch (error) {
       console.error('Failed to load scheduled items:', error);
       addToast('Failed to load scheduled items', 'error');
@@ -499,7 +504,7 @@ export default function SchedulePage() {
             <h2 className="text-3xl font-black text-white drop-shadow-lg">📋 Scheduled Items ({scheduledItems.length})</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {scheduledItems.map((item) => {
-                const gradient = gradients[item.id || item.uuid || ''];
+                const gradient = gradients[item.uuid || item.id || ''];
                 const gradientStr = gradient
                   ? `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]}, ${gradient[3]})`
                   : 'linear-gradient(135deg, #ff006e, #00d9ff)';
@@ -516,7 +521,7 @@ export default function SchedulePage() {
                     <div
                       className="h-3 w-full"
                       style={{
-                        background: gradientStr,
+                        backgroundImage: gradientStr,
                         backgroundSize: '400% 400%',
                         animation: 'random-gradient 6s ease infinite',
                       }}
