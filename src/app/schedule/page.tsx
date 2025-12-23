@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ClickableInstructions } from '../InstructionParser';
 import { ToastContainer, useToast } from '../Toast';
 import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
@@ -49,6 +49,7 @@ const generateRandomGradient = () => {
 };
 
 export default function SchedulePage() {
+  const formRef = useRef<HTMLDivElement>(null);
   const [userTimezone, setUserTimezone] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +65,7 @@ export default function SchedulePage() {
     instruction: '',
     game_link: '',
     item_link: '',
-    image_url: 'https://placehold.co/400x400?text=New+Item',
+    image_url: 'https://placehold.co/400x400?text=img+placeholder',
     limit_per_user: 1,
   });
 
@@ -126,6 +127,20 @@ export default function SchedulePage() {
           );
           addToast('Schedule updated successfully! ✨', 'success');
           setEditingId(null);
+          // Reset form only after successful update
+          setFormData({
+            title: '',
+            item_name: '',
+            creator: '',
+            stock: 1000,
+            release_date_time: new Date().toISOString().slice(0, 16),
+            method: UGCMethod.WebDrop,
+            instruction: '',
+            game_link: '',
+            item_link: '',
+            image_url: 'https://placehold.co/400x400?text=img+placeholder',
+            limit_per_user: 1,
+          });
         } else {
           addToast('Failed to update schedule', 'error');
         }
@@ -153,25 +168,24 @@ export default function SchedulePage() {
             [newId]: generateRandomGradient(),
           });
           addToast('Schedule created successfully! 🎉', 'success');
+          // Reset form only after successful creation
+          setFormData({
+            title: '',
+            item_name: '',
+            creator: '',
+            stock: 1000,
+            release_date_time: new Date().toISOString().slice(0, 16),
+            method: UGCMethod.WebDrop,
+            instruction: '',
+            game_link: '',
+            item_link: '',
+            image_url: 'https://placehold.co/400x400?text=img+placeholder',
+            limit_per_user: 1,
+          });
         } else {
           addToast('Failed to create schedule', 'error');
         }
       }
-
-      // Reset form
-      setFormData({
-        title: '',
-        item_name: '',
-        creator: '',
-        stock: 1000,
-        release_date_time: new Date().toISOString().slice(0, 16),
-        method: UGCMethod.WebDrop,
-        instruction: '',
-        game_link: '',
-        item_link: '',
-        image_url: 'https://placehold.co/400x400?text=New+Item',
-        limit_per_user: 1,
-      });
     } catch (error) {
       console.error('Error:', error);
       addToast('An unexpected error occurred', 'error');
@@ -183,18 +197,22 @@ export default function SchedulePage() {
   const handleEditSchedule = (item: any) => {
     setEditingId(item.uuid || item.id);
     setFormData({
-      title: item.item_name,
-      item_name: item.item_name,
-      creator: item.creator,
-      stock: item.stock,
-      release_date_time: item.release_date_time,
-      method: item.method,
-      instruction: item.instruction,
-      game_link: item.game_link,
-      item_link: item.item_link,
-      image_url: item.image_url,
-      limit_per_user: item.limit_per_user,
+      title: item.item_name || '',
+      item_name: item.item_name || '',
+      creator: item.creator || '',
+      stock: item.stock || 0,
+      release_date_time: item.release_date_time || '',
+      method: item.method || UGCMethod.WebDrop,
+      instruction: item.instruction || '',
+      game_link: item.game_link || '',
+      item_link: item.item_link || '',
+      image_url: item.image_url || 'https://placehold.co/400x400?text=img+placeholder',
+      limit_per_user: item.limit_per_user || 1,
     });
+    // Scroll to form section
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const handleCancelEdit = () => {
@@ -209,7 +227,7 @@ export default function SchedulePage() {
       instruction: '',
       game_link: '',
       item_link: '',
-      image_url: 'https://placehold.co/400x400?text=New+Item',
+      image_url: 'https://placehold.co/400x400?text=img+placeholder',
       limit_per_user: 1,
     });
   };
@@ -221,7 +239,29 @@ export default function SchedulePage() {
     try {
       const success = await deleteScheduledItem(id);
       if (success) {
-        setScheduledItems(items => items.filter(item => (item.uuid || item.id) !== id));
+        // Immediately update state
+        setScheduledItems(items => items.filter(item => {
+          const itemId = String(item.uuid || item.id);
+          const compareId = String(id);
+          return itemId !== compareId;
+        }));
+        // Reset editing state if the deleted item was being edited
+        if (editingId === id) {
+          setEditingId(null);
+          setFormData({
+            title: '',
+            item_name: '',
+            creator: '',
+            stock: 1000,
+            release_date_time: new Date().toISOString().slice(0, 16),
+            method: UGCMethod.WebDrop,
+            instruction: '',
+            game_link: '',
+            item_link: '',
+            image_url: 'https://placehold.co/400x400?text=img+placeholder',
+            limit_per_user: 1,
+          });
+        }
         addToast('Schedule deleted successfully', 'success');
       } else {
         addToast('Failed to delete schedule', 'error');
@@ -304,7 +344,7 @@ export default function SchedulePage() {
         </Link>
 
         {/* Creation Form */}
-        <div className="mb-12 p-8 bg-white rounded-2xl shadow-2xl blocky-shadow space-y-6">
+        <div ref={formRef} className="mb-12 p-8 bg-white rounded-2xl shadow-2xl blocky-shadow space-y-6">
           <h2 className="text-3xl font-black text-gray-900">{editingId ? '✏️ Edit Schedule' : '➕ Create New Schedule'}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
