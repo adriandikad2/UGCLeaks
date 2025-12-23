@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ClickableInstructions } from '../InstructionParser';
 import { ToastContainer, useToast } from '../Toast';
 import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
@@ -72,13 +72,7 @@ export default function SchedulePage() {
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
 
   // Load scheduled items from API
-  useEffect(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setUserTimezone(tz);
-    loadScheduledItems();
-  }, []);
-
-  const loadScheduledItems = async () => {
+  const loadScheduledItems = useCallback(async () => {
     try {
       const items = await getScheduledItems();
       setScheduledItems(items);
@@ -93,7 +87,13 @@ export default function SchedulePage() {
       console.error('Failed to load scheduled items:', error);
       addToast('Failed to load scheduled items', 'error');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setUserTimezone(tz);
+    loadScheduledItems();
+  }, [loadScheduledItems]);
 
   const handleAddSchedule = async () => {
     if (!formData.title || !formData.creator) {
@@ -234,29 +234,6 @@ export default function SchedulePage() {
     }
   };
 
-    let updatedItems: UGCItem[];
-    if (editingId) {
-      // Update existing item
-      updatedItems = scheduledItems.map(item => item.id === editingId ? { ...formData, id: editingId } : item);
-      setScheduledItems(updatedItems);
-      setEditingId(null);
-    } else {
-      // Add new item
-      const newItem = {
-        ...formData,
-        id: Math.random().toString(),
-      };
-      updatedItems = [...scheduledItems, newItem];
-      setScheduledItems(updatedItems);
-      setGradients({
-        ...gradients,
-        [newItem.id]: generateRandomGradient(),
-      });
-    }
-
-    // Save to localStorage
-    localStorage.setItem('scheduledItems', JSON.stringify(updatedItems));
-
   const handleFormChange = (field: keyof UGCItem, value: any) => {
     setFormData(prev => ({
       ...prev,
@@ -340,6 +317,18 @@ export default function SchedulePage() {
                 onChange={(e) => handleFormChange('title', e.target.value)}
                 placeholder="e.g., Red Valkyrie Helm"
                 className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan"
+              />
+            </div>
+
+            {/* Item Name */}
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-gray-700 uppercase">Item Name</label>
+              <input
+                type="text"
+                value={formData.item_name}
+                onChange={(e) => handleFormChange('item_name', e.target.value)}
+                placeholder="e.g., Red Valkyrie Helm"
+                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-yellow font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan"
               />
             </div>
 
