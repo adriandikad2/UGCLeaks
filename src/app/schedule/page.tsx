@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { ClickableInstructions, NoLinkTemplate } from '../InstructionParser';
+import { ClickableInstructions } from '../InstructionParser';
+import { ToastContainer, useToast } from '../Toast';
+import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
@@ -11,19 +13,19 @@ enum UGCMethod {
 }
 
 type UGCItem = {
-  id: string;
+  id?: string;
+  uuid?: string;
   title: string;
-  itemName: string;
+  item_name: string;
   creator: string;
-  creatorLink?: string;
-  stock: number | 'OUT OF STOCK';
-  releaseDateTime: string;
+  stock?: number | 'OUT OF STOCK';
+  release_date_time: string;
   method: UGCMethod;
-  instruction: string;
-  gameLink: string;
-  itemLink: string;
-  imageUrl: string;
-  limitPerUser: number;
+  instruction?: string;
+  game_link?: string;
+  item_link?: string;
+  image_url?: string;
+  limit_per_user: number;
 };
 
 const generateRandomGradient = () => {
@@ -48,72 +50,212 @@ const generateRandomGradient = () => {
 
 export default function SchedulePage() {
   const [userTimezone, setUserTimezone] = useState<string>('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toasts, addToast, removeToast } = useToast();
+
   const [formData, setFormData] = useState<UGCItem>({
-    id: Math.random().toString(),
     title: '',
-    itemName: '',
+    item_name: '',
     creator: '',
-    creatorLink: '',
     stock: 1000,
-    releaseDateTime: new Date().toISOString().slice(0, 16),
+    release_date_time: new Date().toISOString().slice(0, 16),
     method: UGCMethod.WebDrop,
     instruction: '',
-    gameLink: '',
-    itemLink: '',
-    imageUrl: 'https://placehold.co/400x400?text=New+Item',
-    limitPerUser: 1,
+    game_link: '',
+    item_link: '',
+    image_url: 'https://placehold.co/400x400?text=New+Item',
+    limit_per_user: 1,
   });
 
-  const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]);
+  const [scheduledItems, setScheduledItems] = useState<any[]>([]);
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
 
+  // Load scheduled items from API
   useEffect(() => {
-    // Set user timezone
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     setUserTimezone(tz);
+    loadScheduledItems();
   }, []);
 
-  const handleAddSchedule = () => {
+  const loadScheduledItems = async () => {
+    try {
+      const items = await getScheduledItems();
+      setScheduledItems(items);
+      
+      // Generate gradients
+      const newGradients: { [key: string]: string[] } = {};
+      items.forEach((item: any) => {
+        newGradients[item.uuid || item.id] = generateRandomGradient();
+      });
+      setGradients(newGradients);
+    } catch (error) {
+      console.error('Failed to load scheduled items:', error);
+      addToast('Failed to load scheduled items', 'error');
+    }
+  };
+
+  const handleAddSchedule = async () => {
     if (!formData.title || !formData.creator) {
-      alert('Please fill in title and creator');
+      addToast('Please fill in title and creator', 'error');
       return;
     }
 
-    const newItem = {
-      ...formData,
-      id: Math.random().toString(),
-    };
+    setIsLoading(true);
 
-    setScheduledItems([...scheduledItems, newItem]);
-    setGradients({
-      ...gradients,
-      [newItem.id]: generateRandomGradient(),
-    });
+    try {
+      if (editingId) {
+        // Update existing item
+        const result = await updateScheduledItem(editingId, {
+          title: formData.title,
+          item_name: formData.item_name,
+          creator: formData.creator,
+          stock: formData.stock,
+          release_date_time: formData.release_date_time,
+          method: formData.method,
+          instruction: formData.instruction,
+          game_link: formData.game_link,
+          item_link: formData.item_link,
+          image_url: formData.image_url,
+          limit_per_user: formData.limit_per_user,
+        });
 
-    // Reset form
+        if (result) {
+          setScheduledItems(items =>
+            items.map(item => (item.uuid === editingId || item.id === editingId) ? result : item)
+          );
+          addToast('Schedule updated successfully! ✨', 'success');
+          setEditingId(null);
+        } else {
+          addToast('Failed to update schedule', 'error');
+        }
+      } else {
+        // Create new item
+        const result = await createScheduledItem({
+          title: formData.title,
+          item_name: formData.item_name,
+          creator: formData.creator,
+          stock: formData.stock as number,
+          release_date_time: formData.release_date_time,
+          method: formData.method,
+          instruction: formData.instruction,
+          game_link: formData.game_link,
+          item_link: formData.item_link,
+          image_url: formData.image_url,
+          limit_per_user: formData.limit_per_user,
+        });
+
+        if (result) {
+          const newId = String(result.uuid || result.id);
+          setScheduledItems([...scheduledItems, result]);
+          setGradients({
+            ...gradients,
+            [newId]: generateRandomGradient(),
+          });
+          addToast('Schedule created successfully! 🎉', 'success');
+        } else {
+          addToast('Failed to create schedule', 'error');
+        }
+      }
+
+      // Reset form
+      setFormData({
+        title: '',
+        item_name: '',
+        creator: '',
+        stock: 1000,
+        release_date_time: new Date().toISOString().slice(0, 16),
+        method: UGCMethod.WebDrop,
+        instruction: '',
+        game_link: '',
+        item_link: '',
+        image_url: 'https://placehold.co/400x400?text=New+Item',
+        limit_per_user: 1,
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      addToast('An unexpected error occurred', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditSchedule = (item: any) => {
+    setEditingId(item.uuid || item.id);
     setFormData({
-      id: Math.random().toString(),
+      title: item.title,
+      item_name: item.item_name,
+      creator: item.creator,
+      stock: item.stock,
+      release_date_time: item.release_date_time,
+      method: item.method,
+      instruction: item.instruction,
+      game_link: item.game_link,
+      item_link: item.item_link,
+      image_url: item.image_url,
+      limit_per_user: item.limit_per_user,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({
       title: '',
-      itemName: '',
+      item_name: '',
       creator: '',
-      creatorLink: '',
       stock: 1000,
-      releaseDateTime: new Date().toISOString().slice(0, 16),
+      release_date_time: new Date().toISOString().slice(0, 16),
       method: UGCMethod.WebDrop,
       instruction: '',
-      gameLink: '',
-      itemLink: '',
-      imageUrl: 'https://placehold.co/400x400?text=New+Item',
-      limitPerUser: 1,
+      game_link: '',
+      item_link: '',
+      image_url: 'https://placehold.co/400x400?text=New+Item',
+      limit_per_user: 1,
     });
   };
 
-  const handleRemoveSchedule = (id: string) => {
-    setScheduledItems(scheduledItems.filter(item => item.id !== id));
-    const newGradients = { ...gradients };
-    delete newGradients[id];
-    setGradients(newGradients);
+  const handleRemoveSchedule = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this schedule?')) return;
+
+    setIsLoading(true);
+    try {
+      const success = await deleteScheduledItem(id);
+      if (success) {
+        setScheduledItems(items => items.filter(item => (item.uuid || item.id) !== id));
+        addToast('Schedule deleted successfully', 'success');
+      } else {
+        addToast('Failed to delete schedule', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting:', error);
+      addToast('Error deleting schedule', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+    let updatedItems: UGCItem[];
+    if (editingId) {
+      // Update existing item
+      updatedItems = scheduledItems.map(item => item.id === editingId ? { ...formData, id: editingId } : item);
+      setScheduledItems(updatedItems);
+      setEditingId(null);
+    } else {
+      // Add new item
+      const newItem = {
+        ...formData,
+        id: Math.random().toString(),
+      };
+      updatedItems = [...scheduledItems, newItem];
+      setScheduledItems(updatedItems);
+      setGradients({
+        ...gradients,
+        [newItem.id]: generateRandomGradient(),
+      });
+    }
+
+    // Save to localStorage
+    localStorage.setItem('scheduledItems', JSON.stringify(updatedItems));
 
   const handleFormChange = (field: keyof UGCItem, value: any) => {
     setFormData(prev => ({
@@ -162,6 +304,7 @@ export default function SchedulePage() {
 
   return (
     <div className="min-h-screen py-12 relative">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       <div className="max-w-7xl mx-auto px-4 relative z-10">
         {/* Header */}
         <div className="mb-12 text-center space-y-4 pop-in">
@@ -185,7 +328,7 @@ export default function SchedulePage() {
 
         {/* Creation Form */}
         <div className="mb-12 p-8 bg-white rounded-2xl shadow-2xl blocky-shadow space-y-6">
-          <h2 className="text-3xl font-black text-gray-900">➕ Create New Schedule</h2>
+          <h2 className="text-3xl font-black text-gray-900">{editingId ? '✏️ Edit Schedule' : '➕ Create New Schedule'}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Title */}
@@ -212,29 +355,17 @@ export default function SchedulePage() {
               />
             </div>
 
-            {/* Creator Profile Link */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Creator Profile Link</label>
-              <input
-                type="url"
-                value={formData.creatorLink}
-                onChange={(e) => handleFormChange('creatorLink', e.target.value)}
-                placeholder="https://www.roblox.com/users/[ID]/profile"
-                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-lime font-bold text-gray-900 focus:outline-none focus:border-roblox-orange"
-              />
-            </div>
-
             {/* Release Date & Time */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700 uppercase">Release Date & Time</label>
               <input
                 type="datetime-local"
-                value={formData.releaseDateTime}
-                onChange={(e) => handleFormChange('releaseDateTime', e.target.value)}
+                value={formData.release_date_time}
+                onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border-4 border-roblox-yellow font-bold text-gray-900 focus:outline-none focus:border-roblox-purple"
               />
               <p className="text-xs text-gray-600 mt-1">
-                Local: {formatLocalDateTime(formData.releaseDateTime)}
+                Local: {formatLocalDateTime(formData.release_date_time)}
               </p>
             </div>
 
@@ -268,8 +399,8 @@ export default function SchedulePage() {
               <label className="block text-sm font-bold text-gray-700 uppercase">Limit Per User</label>
               <input
                 type="number"
-                value={formData.limitPerUser}
-                onChange={(e) => handleFormChange('limitPerUser', parseInt(e.target.value))}
+                value={formData.limit_per_user}
+                onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
                 className="w-full px-4 py-3 rounded-lg border-4 border-blue-500 font-bold text-gray-900 focus:outline-none"
               />
             </div>
@@ -279,8 +410,8 @@ export default function SchedulePage() {
               <label className="block text-sm font-bold text-gray-700 uppercase">Game Link</label>
               <input
                 type="url"
-                value={formData.gameLink}
-                onChange={(e) => handleFormChange('gameLink', e.target.value)}
+              value={formData.game_link}
+              onChange={(e) => handleFormChange('game_link', e.target.value)}
                 placeholder="https://www.roblox.com/games/..."
                 className="w-full px-4 py-3 rounded-lg border-4 border-indigo-500 font-bold text-gray-900 focus:outline-none"
               />
@@ -291,8 +422,8 @@ export default function SchedulePage() {
               <label className="block text-sm font-bold text-gray-700 uppercase">Item Link</label>
               <input
                 type="url"
-                value={formData.itemLink}
-                onChange={(e) => handleFormChange('itemLink', e.target.value)}
+              value={formData.item_link}
+              onChange={(e) => handleFormChange('item_link', e.target.value)}
                 placeholder="https://www.roblox.com/catalog/..."
                 className="w-full px-4 py-3 rounded-lg border-4 border-violet-500 font-bold text-gray-900 focus:outline-none"
               />
@@ -315,8 +446,8 @@ export default function SchedulePage() {
             <label className="block text-sm font-bold text-gray-700 uppercase">Image URL</label>
             <input
               type="url"
-              value={formData.imageUrl}
-              onChange={(e) => handleFormChange('imageUrl', e.target.value)}
+              value={formData.image_url}
+              onChange={(e) => handleFormChange('image_url', e.target.value)}
               placeholder="https://..."
               className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
             />
@@ -328,26 +459,38 @@ export default function SchedulePage() {
               <p className="text-sm font-bold text-gray-600 uppercase">Preview</p>
               <div className="flex items-center gap-4">
                 <img
-                  src={formData.imageUrl}
+                  src={formData.image_url}
                   alt="Preview"
                   className="w-24 h-24 object-contain rounded-lg border-2 border-gray-300"
                 />
                 <div>
                   <p className="font-black text-lg text-gray-900">{formData.title}</p>
                   <p className="text-sm text-gray-600">by {formData.creator}</p>
-                  <p className="text-xs text-gray-500 mt-2">{formatLocalDateTime(formData.releaseDateTime)}</p>
+                  <p className="text-xs text-gray-500 mt-2">{formatLocalDateTime(formData.release_date_time)}</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* Add Button */}
-          <button
-            onClick={handleAddSchedule}
-            className="w-full gradient-button px-8 py-4 text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover"
-          >
-            ✨ Add to Schedule ✨
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={handleAddSchedule}
+              disabled={isLoading}
+              className="flex-1 gradient-button px-8 py-4 text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isLoading ? '⏳ Processing...' : editingId ? '💾 Update Schedule' : '✨ Add to Schedule ✨'}
+            </button>
+            {editingId && (
+              <button
+                onClick={handleCancelEdit}
+                disabled={isLoading}
+                className="px-8 py-4 bg-gray-400 hover:bg-gray-500 text-white text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ❌ Cancel
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Scheduled Items */}
@@ -409,22 +552,9 @@ export default function SchedulePage() {
                         </h2>
                       </Link>
 
-                      {/* Creator - With optional link */}
+                      {/* Creator - Display only, no link */}
                       <p className="text-center text-sm font-bold text-gray-600 mb-4">
-                        by{' '}
-                        {item.creatorLink ? (
-                          <Link
-                            href={item.creatorLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: gradient?.[0] || '#ff006e' }}
-                            className="hover:underline cursor-pointer"
-                          >
-                            {item.creator}
-                          </Link>
-                        ) : (
-                          <span style={{ color: gradient?.[0] || '#ff006e' }}>{item.creator}</span>
-                        )}
+                        by <span style={{ color: gradient?.[0] || '#ff006e' }}>{item.creator}</span>
                       </p>
 
                       {/* Data Grid */}
@@ -553,12 +683,20 @@ export default function SchedulePage() {
                           </button>
                         )}
 
-                        <button
-                          onClick={() => handleRemoveSchedule(item.id)}
-                          className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide bg-red-600 hover:bg-red-700"
-                        >
-                          🗑️ Remove
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditSchedule(item)}
+                            className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-blue-600 hover:bg-blue-700"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={() => handleRemoveSchedule(item.id)}
+                            className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-red-600 hover:bg-red-700"
+                          >
+                            🗑️ Remove
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

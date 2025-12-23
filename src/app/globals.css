@@ -30,6 +30,7 @@ body {
   animation: gradientShift 8s ease infinite;
   font-family: 'Inter', sans-serif;
   color: #1a1a1a;
+  user-select: none;
 }
 
 @keyframes gradientShift {
@@ -108,7 +109,19 @@ body {
   }
 }
 
-@keyframes pop-in {
+/**
+ * Allow text selection only for descriptions and text content
+ */
+p, span, a, label, h1, h2, h3, h4, h5, h6, div {
+  user-select: text;
+}
+
+/* Descriptions should be selectable */
+.description, .text-content, .info, article {
+  user-select: text;
+}
+
+@keyframes scale-rotate {
   0% {
     transform: scale(0) rotateZ(-180deg);
     opacity: 0;
