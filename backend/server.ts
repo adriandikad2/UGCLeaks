@@ -396,15 +396,18 @@ app.put('/api/scheduled/:id', async (req: Request, res: Response) => {
       .map((field, index) => `${field} = $${index + 1}`)
       .join(', ');
     const updateValues = Object.values(updates);
-    updateValues.push(id);
 
-    // Try to parse ID as integer first, then use as string for UUID
-    const numId = parseInt(id as string);
-    const isNumeric = !isNaN(numId);
+    // Check if ID is a UUID (contains hyphens) or numeric
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-    const query = isNumeric
-      ? `UPDATE scheduled_items SET ${updateFields}, updated_at = CURRENT_TIMESTAMP WHERE id = $${updateValues.length} RETURNING *`
-      : `UPDATE scheduled_items SET ${updateFields}, updated_at = CURRENT_TIMESTAMP WHERE uuid = $${updateValues.length} RETURNING *`;
+    let query: string;
+    if (isUUID) {
+      updateValues.push(id);
+      query = `UPDATE scheduled_items SET ${updateFields}, updated_at = CURRENT_TIMESTAMP WHERE uuid = $${updateValues.length} RETURNING *`;
+    } else {
+      updateValues.push(parseInt(id));
+      query = `UPDATE scheduled_items SET ${updateFields}, updated_at = CURRENT_TIMESTAMP WHERE id = $${updateValues.length} RETURNING *`;
+    }
 
     const result = await pool.query(query, updateValues);
 

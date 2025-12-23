@@ -717,7 +717,7 @@ export default function SchedulePage() {
                             ✏️ Edit
                           </button>
                           <button
-                            onClick={() => handleRemoveSchedule(item.id)}
+                            onClick={() => handleRemoveSchedule(item.uuid || item.id)}
                             className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-red-600 hover:bg-red-700"
                           >
                             🗑️ Remove
