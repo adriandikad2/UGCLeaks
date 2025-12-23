@@ -8,6 +8,11 @@ interface ClickableInstructionsProps {
 }
 
 export function ClickableInstructions({ text, color = '#ff006e' }: ClickableInstructionsProps) {
+  // Safety check to prevent .split() on null/undefined
+  if (!text) {
+    return null;
+  }
+
   const parts = text.split(urlRegex);
   
   return (

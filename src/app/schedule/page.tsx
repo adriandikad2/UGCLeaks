@@ -96,8 +96,8 @@ export default function SchedulePage() {
   }, [loadScheduledItems]);
 
   const handleAddSchedule = async () => {
-    if (!formData.title || !formData.creator) {
-      addToast('Please fill in title and creator', 'error');
+    if (!formData.item_name || !formData.creator) {
+      addToast('Please fill in item name and creator', 'error');
       return;
     }
 
@@ -107,7 +107,7 @@ export default function SchedulePage() {
       if (editingId) {
         // Update existing item
         const result = await updateScheduledItem(editingId, {
-          title: formData.title,
+          title: formData.item_name,
           item_name: formData.item_name,
           creator: formData.creator,
           stock: formData.stock,
@@ -132,7 +132,7 @@ export default function SchedulePage() {
       } else {
         // Create new item
         const result = await createScheduledItem({
-          title: formData.title,
+          title: formData.item_name,
           item_name: formData.item_name,
           creator: formData.creator,
           stock: formData.stock as number,
@@ -183,7 +183,7 @@ export default function SchedulePage() {
   const handleEditSchedule = (item: any) => {
     setEditingId(item.uuid || item.id);
     setFormData({
-      title: item.title,
+      title: item.item_name,
       item_name: item.item_name,
       creator: item.creator,
       stock: item.stock,
@@ -308,18 +308,6 @@ export default function SchedulePage() {
           <h2 className="text-3xl font-black text-gray-900">{editingId ? '✏️ Edit Schedule' : '➕ Create New Schedule'}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Title */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Item Title</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleFormChange('title', e.target.value)}
-                placeholder="e.g., Red Valkyrie Helm"
-                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan"
-              />
-            </div>
-
             {/* Item Name */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700 uppercase">Item Name</label>
@@ -328,7 +316,7 @@ export default function SchedulePage() {
                 value={formData.item_name}
                 onChange={(e) => handleFormChange('item_name', e.target.value)}
                 placeholder="e.g., Red Valkyrie Helm"
-                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-yellow font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan"
+                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan"
               />
             </div>
 
@@ -532,14 +520,23 @@ export default function SchedulePage() {
                       </div>
 
                       {/* Item Title - Clickable Link */}
-                      <Link href={item.itemLink} target="_blank" rel="noopener noreferrer">
+                      {item.itemLink ? (
+                        <Link href={item.itemLink} target="_blank" rel="noopener noreferrer">
+                          <h2
+                            className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all"
+                            style={{ color: gradient?.[0] || '#ff006e' }}
+                          >
+                            {item.title}
+                          </h2>
+                        </Link>
+                      ) : (
                         <h2
-                          className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all"
+                          className="text-2xl font-black mb-1 text-center transition-all"
                           style={{ color: gradient?.[0] || '#ff006e' }}
                         >
                           {item.title}
                         </h2>
-                      </Link>
+                      )}
 
                       {/* Creator - Display only, no link */}
                       <p className="text-center text-sm font-bold text-gray-600 mb-4">
