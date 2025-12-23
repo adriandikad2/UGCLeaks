@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ClickableInstructions } from '../InstructionParser';
 import { ToastContainer, useToast } from '../Toast';
 import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
+import { useTheme } from '../components/ThemeContext'; // <--- Import Global Theme
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
@@ -12,13 +13,14 @@ enum UGCMethod {
   Unknown = 'Unknown'
 }
 
+// Ensure this matches your API response exactly
 type UGCItem = {
-  id?: string;
+  id?: string | number;
   uuid?: string;
   title: string;
   item_name: string;
   creator: string;
-  stock?: number | 'OUT OF STOCK';
+  stock?: number | string | 'OUT OF STOCK';
   release_date_time: string;
   method: UGCMethod;
   instruction?: string;
@@ -30,20 +32,10 @@ type UGCItem = {
 
 const generateRandomGradient = () => {
   const colors = [
-    '#ff006e',
-    '#00d9ff',
-    '#ffbe0b',
-    '#00ff41',
-    '#b54eff',
-    '#ff8c42',
-    '#ff1744',
-    '#2196f3',
-    '#667eea',
-    '#764ba2',
-    '#f093fb',
-    '#4facfe'
+    '#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff',
+    '#ff8c42', '#ff1744', '#2196f3', '#667eea', '#764ba2',
+    '#f093fb', '#4facfe'
   ];
-  
   const shuffled = [...colors].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 4);
 };
@@ -54,6 +46,9 @@ export default function SchedulePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
+  
+  // Theme Context
+  const { isGrayscale, toggleTheme, buttonText } = useTheme();
 
   const [formData, setFormData] = useState<UGCItem>({
     title: '',
@@ -69,14 +64,14 @@ export default function SchedulePage() {
     limit_per_user: 1,
   });
 
-  const [scheduledItems, setScheduledItems] = useState<any[]>([]);
+  const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]); // Typed correctly
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
 
   // Load scheduled items from API
   const loadScheduledItems = useCallback(async () => {
     try {
       const items = await getScheduledItems();
-      setScheduledItems(items);
+      setScheduledItems(items as unknown as UGCItem[]);
       
       // Generate gradients
       const newGradients: { [key: string]: string[] } = {};
@@ -88,7 +83,7 @@ export default function SchedulePage() {
       console.error('Failed to load scheduled items:', error);
       addToast('Failed to load scheduled items', 'error');
     }
-  }, []);
+  }, [addToast]);
 
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -122,25 +117,21 @@ export default function SchedulePage() {
         });
 
         if (result) {
+          // Cast result to UGCItem to satisfy strict TypeScript checks
+          const typedResult = result as unknown as UGCItem;
+
           setScheduledItems(items =>
-            items.map(item => (item.uuid === editingId || item.id === editingId) ? result : item)
+            items.map(item => {
+              // Compare IDs as strings to be safe
+              const currentId = String(item.uuid || item.id);
+              const targetId = String(editingId);
+              return (currentId === targetId) ? typedResult : item;
+            })
           );
+
           addToast('Schedule updated successfully! ✨', 'success');
           setEditingId(null);
-          // Reset form only after successful update
-          setFormData({
-            title: '',
-            item_name: '',
-            creator: '',
-            stock: 1000,
-            release_date_time: new Date().toISOString().slice(0, 16),
-            method: UGCMethod.WebDrop,
-            instruction: '',
-            game_link: '',
-            item_link: '',
-            image_url: 'https://placehold.co/400x400?text=img+placeholder',
-            limit_per_user: 1,
-          });
+          handleCancelEdit(); // Reset form
         } else {
           addToast('Failed to update schedule', 'error');
         }
@@ -161,27 +152,18 @@ export default function SchedulePage() {
         });
 
         if (result) {
-          const newId = String(result.uuid || result.id);
-          setScheduledItems([...scheduledItems, result]);
+          const typedResult = result as unknown as UGCItem; // Cast here
+          const newId = String(typedResult.uuid || typedResult.id);
+          
+          setScheduledItems([...scheduledItems, typedResult]);
+          
           setGradients({
             ...gradients,
             [newId]: generateRandomGradient(),
           });
+
           addToast('Schedule created successfully! 🎉', 'success');
-          // Reset form only after successful creation
-          setFormData({
-            title: '',
-            item_name: '',
-            creator: '',
-            stock: 1000,
-            release_date_time: new Date().toISOString().slice(0, 16),
-            method: UGCMethod.WebDrop,
-            instruction: '',
-            game_link: '',
-            item_link: '',
-            image_url: 'https://placehold.co/400x400?text=img+placeholder',
-            limit_per_user: 1,
-          });
+          handleCancelEdit(); // Reset form
         } else {
           addToast('Failed to create schedule', 'error');
         }
@@ -194,11 +176,11 @@ export default function SchedulePage() {
     }
   };
 
-  const handleEditSchedule = (item: any) => {
-    setEditingId(item.uuid || item.id);
+  const handleEditSchedule = (item: UGCItem) => {
+    setEditingId(String(item.uuid || item.id || ''));
     setFormData({
-      title: item.item_name || '',
-      item_name: item.item_name || '',
+      title: item.item_name || item.title || '',
+      item_name: item.item_name || item.title || '',
       creator: item.creator || '',
       stock: item.stock || 0,
       release_date_time: item.release_date_time || '',
@@ -239,28 +221,14 @@ export default function SchedulePage() {
     try {
       const success = await deleteScheduledItem(id);
       if (success) {
-        // Immediately update state
         setScheduledItems(items => items.filter(item => {
           const itemId = String(item.uuid || item.id);
           const compareId = String(id);
           return itemId !== compareId;
         }));
-        // Reset editing state if the deleted item was being edited
+        
         if (editingId === id) {
-          setEditingId(null);
-          setFormData({
-            title: '',
-            item_name: '',
-            creator: '',
-            stock: 1000,
-            release_date_time: new Date().toISOString().slice(0, 16),
-            method: UGCMethod.WebDrop,
-            instruction: '',
-            game_link: '',
-            item_link: '',
-            image_url: 'https://placehold.co/400x400?text=img+placeholder',
-            limit_per_user: 1,
-          });
+          handleCancelEdit();
         }
         addToast('Schedule deleted successfully', 'success');
       } else {
@@ -282,11 +250,13 @@ export default function SchedulePage() {
   };
 
   const formatRelativeTime = (dateTimeString: string): string => {
+    if (!dateTimeString) return 'No Date';
     try {
       const releaseDate = new Date(dateTimeString);
       const now = new Date();
       const diff = releaseDate.getTime() - now.getTime();
 
+      if (isNaN(diff)) return 'Invalid Date';
       if (diff < 0) return 'Already dropped';
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -303,8 +273,10 @@ export default function SchedulePage() {
   };
 
   const formatLocalDateTime = (dateTimeString: string): string => {
+    if (!dateTimeString) return 'No Date Set';
     try {
       const date = new Date(dateTimeString);
+      if (isNaN(date.getTime())) return 'Invalid Date'; // Check for valid date object
       return date.toLocaleString('en-US', {
         year: 'numeric',
         month: '2-digit',
@@ -320,8 +292,19 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="min-h-screen py-12 relative">
+    <div className={`min-h-screen py-12 relative transition-all duration-700 ${isGrayscale ? 'grayscale bg-gray-900' : ''}`}>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      
+       {/* --- GLOBAL THEME BUTTON (Synced) --- */}
+       <button 
+        onClick={toggleTheme}
+        className="fixed top-6 right-6 z-40 px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
+      >
+        <span className="animate-pulse group-hover:animate-none">
+          {buttonText}
+        </span>
+      </button>
+
       <div className="max-w-7xl mx-auto px-4 relative z-10">
         {/* Header */}
         <div className="mb-12 text-center space-y-4 pop-in">
@@ -427,8 +410,8 @@ export default function SchedulePage() {
               <label className="block text-sm font-bold text-gray-700 uppercase">Game Link</label>
               <input
                 type="url"
-              value={formData.game_link}
-              onChange={(e) => handleFormChange('game_link', e.target.value)}
+                value={formData.game_link}
+                onChange={(e) => handleFormChange('game_link', e.target.value)}
                 placeholder="https://www.roblox.com/games/..."
                 className="w-full px-4 py-3 rounded-lg border-4 border-indigo-500 font-bold text-gray-900 focus:outline-none"
               />
@@ -439,8 +422,8 @@ export default function SchedulePage() {
               <label className="block text-sm font-bold text-gray-700 uppercase">Item Link</label>
               <input
                 type="url"
-              value={formData.item_link}
-              onChange={(e) => handleFormChange('item_link', e.target.value)}
+                value={formData.item_link}
+                onChange={(e) => handleFormChange('item_link', e.target.value)}
                 placeholder="https://www.roblox.com/catalog/..."
                 className="w-full px-4 py-3 rounded-lg border-4 border-violet-500 font-bold text-gray-900 focus:outline-none"
               />
@@ -471,7 +454,7 @@ export default function SchedulePage() {
           </div>
 
           {/* Preview */}
-          {formData.title && (
+          {formData.item_name && (
             <div className="p-6 bg-gray-50 rounded-xl border-4 border-dashed border-gray-300 space-y-3">
               <p className="text-sm font-bold text-gray-600 uppercase">Preview</p>
               <div className="flex items-center gap-4">
@@ -481,7 +464,7 @@ export default function SchedulePage() {
                   className="w-24 h-24 object-contain rounded-lg border-2 border-gray-300"
                 />
                 <div>
-                  <p className="font-black text-lg text-gray-900">{formData.title}</p>
+                  <p className="font-black text-lg text-gray-900">{formData.item_name}</p>
                   <p className="text-sm text-gray-600">by {formData.creator}</p>
                   <p className="text-xs text-gray-500 mt-2">{formatLocalDateTime(formData.release_date_time)}</p>
                 </div>
@@ -516,14 +499,14 @@ export default function SchedulePage() {
             <h2 className="text-3xl font-black text-white drop-shadow-lg">📋 Scheduled Items ({scheduledItems.length})</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {scheduledItems.map((item) => {
-                const gradient = gradients[item.id];
+                const gradient = gradients[item.id || item.uuid || ''];
                 const gradientStr = gradient
                   ? `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]}, ${gradient[3]})`
                   : 'linear-gradient(135deg, #ff006e, #00d9ff)';
 
                 return (
                   <div
-                    key={item.id}
+                    key={item.id || item.uuid}
                     className="pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:scale-105"
                     style={{
                       borderColor: gradient ? gradient[0] : '#ff006e',
@@ -550,8 +533,8 @@ export default function SchedulePage() {
                           }}
                         >
                           <img
-                            src={item.imageUrl}
-                            alt={item.title}
+                            src={item.image_url} /* FIXED: Uses image_url (snake_case) */
+                            alt={item.item_name} /* FIXED: Uses item_name */
                             className="w-32 h-32 object-contain rounded"
                             width={128}
                             height={128}
@@ -559,14 +542,14 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                      {/* Item Title - Clickable Link */}
-                      {item.itemLink ? (
-                        <Link href={item.itemLink} target="_blank" rel="noopener noreferrer">
+                      {/* Item Title */}
+                      {item.item_link ? (
+                        <Link href={item.item_link} target="_blank" rel="noopener noreferrer">
                           <h2
                             className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all"
                             style={{ color: gradient?.[0] || '#ff006e' }}
                           >
-                            {item.title}
+                            {item.item_name} {/* FIXED: item_name */}
                           </h2>
                         </Link>
                       ) : (
@@ -574,11 +557,11 @@ export default function SchedulePage() {
                           className="text-2xl font-black mb-1 text-center transition-all"
                           style={{ color: gradient?.[0] || '#ff006e' }}
                         >
-                          {item.title}
+                          {item.item_name} {/* FIXED: item_name */}
                         </h2>
                       )}
 
-                      {/* Creator - Display only, no link */}
+                      {/* Creator */}
                       <p className="text-center text-sm font-bold text-gray-600 mb-4">
                         by <span style={{ color: gradient?.[0] || '#ff006e' }}>{item.creator}</span>
                       </p>
@@ -603,7 +586,7 @@ export default function SchedulePage() {
                         >
                           <p className="text-xs font-bold text-gray-600 uppercase">⏰ In</p>
                           <p className="font-black text-sm mt-1" style={{ color: gradient?.[1] || '#00d9ff' }}>
-                            {formatRelativeTime(item.releaseDateTime)}
+                            {formatRelativeTime(item.release_date_time)} {/* FIXED: release_date_time */}
                           </p>
                         </div>
 
@@ -625,7 +608,7 @@ export default function SchedulePage() {
                         >
                           <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
                           <p className="font-black text-sm mt-1" style={{ color: gradient?.[3] || '#00ff41' }}>
-                            {item.limitPerUser}x
+                            {item.limit_per_user}x {/* FIXED: limit_per_user */}
                           </p>
                         </div>
                       </div>
@@ -633,21 +616,23 @@ export default function SchedulePage() {
                       {/* Exact Date & Time */}
                       <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
                         <p className="text-xs font-bold text-gray-600 uppercase mb-2">📅 Exact Time</p>
-                        <p className="text-gray-700 text-sm font-medium">{formatLocalDateTime(item.releaseDateTime)}</p>
+                        <p className="text-gray-700 text-sm font-medium">
+                            {formatLocalDateTime(item.release_date_time)} {/* FIXED: release_date_time */}
+                        </p>
                       </div>
 
                       {/* Game Link */}
                       <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
                         <p className="text-xs font-bold text-gray-600 uppercase mb-2">🔗 Game Link</p>
-                        {item.gameLink ? (
+                        {item.game_link ? ( /* FIXED: game_link */
                           <a
-                            href={item.gameLink}
+                            href={item.game_link} /* FIXED: game_link */
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm font-bold break-all hover:underline"
                             style={{ color: gradient?.[0] || '#ff006e' }}
                           >
-                            {item.gameLink}
+                            {item.game_link} {/* FIXED: game_link */ }
                           </a>
                         ) : (
                           <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">
@@ -661,14 +646,14 @@ export default function SchedulePage() {
                       <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
                         <p className="text-xs font-bold text-gray-600 uppercase mb-2">📖 How to Get It</p>
                         <div className="text-gray-700 text-sm font-medium break-words whitespace-pre-wrap">
-                          <ClickableInstructions text={item.instruction} color={gradient?.[0] || '#ff006e'} />
+                          <ClickableInstructions text={item.instruction || ''} color={gradient?.[0] || '#ff006e'} />
                         </div>
                       </div>
 
                       {/* Action Buttons */}
                       <div className="flex flex-col gap-3 mt-auto">
-                        {item.itemLink ? (
-                          <Link href={item.itemLink} target="_blank" rel="noopener noreferrer" className="w-full">
+                        {item.item_link ? ( /* FIXED: item_link */
+                          <Link href={item.item_link} target="_blank" rel="noopener noreferrer" className="w-full">
                             <button
                               className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
                               style={{
@@ -688,8 +673,8 @@ export default function SchedulePage() {
                           </button>
                         )}
 
-                        {item.gameLink ? (
-                          <Link href={item.gameLink} target="_blank" rel="noopener noreferrer" className="w-full">
+                        {item.game_link ? ( /* FIXED: game_link */
+                          <Link href={item.game_link} target="_blank" rel="noopener noreferrer" className="w-full">
                             <button
                               className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
                               style={{
@@ -717,7 +702,7 @@ export default function SchedulePage() {
                             ✏️ Edit
                           </button>
                           <button
-                            onClick={() => handleRemoveSchedule(item.uuid || item.id)}
+                            onClick={() => handleRemoveSchedule(String(item.uuid || item.id || ''))}
                             className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-red-600 hover:bg-red-700"
                           >
                             🗑️ Remove

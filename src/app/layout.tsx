@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { FloatingBlocks } from './FloatingBlocks'
+import { ThemeProvider } from './components/ThemeContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -18,10 +19,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <FloatingBlocks />
-        <div className="relative z-10">
-          {children}
-        </div>
+        {/* 2. Wrap everything inside ThemeProvider */}
+        <ThemeProvider>
+          <FloatingBlocks />
+          <div className="relative z-10">
+            {children}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   )

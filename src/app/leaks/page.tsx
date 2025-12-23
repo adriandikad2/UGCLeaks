@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { ClickableInstructions, NoLinkTemplate } from '../InstructionParser';
+import { useTheme } from '../components/ThemeContext';
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
@@ -51,6 +52,13 @@ export default function LeaksPage() {
   const [items, setItems] = useState<UGCItem[]>([]);
   const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]);
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
+
+  // Use Global Theme Context
+  const { isGrayscale, toggleTheme, buttonText } = useTheme(); 
+
+  // Viewport/Modal States
+  const [selectedItem, setSelectedItem] = useState<UGCItem | null>(null);
+  const [timers, setTimers] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     // Initialize mock data with random colors
@@ -261,6 +269,40 @@ export default function LeaksPage() {
     setGradients(newGradients);
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const allItems = [...items, ...scheduledItems];
+      const newTimers: { [key: string]: string } = {};
+
+      allItems.forEach(item => {
+        const releaseTime = new Date(item.releaseDateTime).getTime();
+        const nowTime = new Date().getTime();
+        const diff = releaseTime - nowTime;
+
+        if (diff > 0) {
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          if (days > 0) newTimers[item.id] = `${days}d ${hours}h away`;
+          else if (hours > 0) newTimers[item.id] = `${hours}h ${mins}m away`;
+          else newTimers[item.id] = `${mins}m away`;
+        } else {
+          const elapsed = Math.abs(diff);
+          const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((elapsed % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const mins = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+          const secs = Math.floor((elapsed % (1000 * 60)) / 1000);
+          if (days > 0) newTimers[item.id] = `${days}d ${hours}h ago`;
+          else if (hours > 0) newTimers[item.id] = `${hours}h ${mins}m ago`;
+          else if (mins > 0) newTimers[item.id] = `${mins}m ${secs}s ago`;
+          else newTimers[item.id] = `${secs}s ago`;
+        }
+      });
+      setTimers(newTimers);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [items, scheduledItems]);
+
   const filteredItems = [...items, ...scheduledItems]
     .filter(item => {
       const matchesSearch = 
@@ -285,10 +327,30 @@ export default function LeaksPage() {
       return 0;
     });
 
+  const openModal = (item: UGCItem) => {
+    setSelectedItem(item);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeModal = () => {
+    setSelectedItem(null);
+    document.body.style.overflow = 'unset';
+  };
+
   return (
-    <div className="min-h-screen p-6 md:p-10">
+    <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'grayscale bg-gray-900' : ''}`}>
+      
+      {/* --- GLOBAL THEME BUTTON (Synced) --- */}
+      <button 
+        onClick={toggleTheme}
+        className="fixed top-6 right-6 z-40 px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
+      >
+        <span className="animate-pulse group-hover:animate-none">
+          {buttonText}
+        </span>
+      </button>
+
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
         <div className="text-center space-y-4 pop-in">
           <h1 className="text-5xl md:text-6xl font-black rainbow-text drop-shadow-2xl">
             🔥 UGC LEAKS 🔥
@@ -299,7 +361,6 @@ export default function LeaksPage() {
           </p>
         </div>
 
-        {/* Schedule Button */}
         <div className="flex justify-center">
           <Link href="/schedule">
             <button className="px-8 py-4 bg-gradient-to-r from-roblox-purple to-roblox-pink text-white font-black rounded-xl blocky-shadow-hover text-lg uppercase tracking-wide hover:scale-105 transition-all">
@@ -308,10 +369,8 @@ export default function LeaksPage() {
           </Link>
         </div>
 
-        {/* Controls */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search */}
-          <div className="space-y-2">
+           <div className="space-y-2">
             <label className="text-white font-bold uppercase text-sm">🔍 Search</label>
             <input
               type="text"
@@ -322,7 +381,6 @@ export default function LeaksPage() {
             />
           </div>
 
-          {/* Filter by Method */}
           <div className="space-y-2">
             <label className="text-white font-bold uppercase text-sm">🎯 Method</label>
             <select
@@ -337,7 +395,6 @@ export default function LeaksPage() {
             </select>
           </div>
 
-          {/* Sort */}
           <div className="space-y-2">
             <label className="text-white font-bold uppercase text-sm">📊 Sort</label>
             <select
@@ -352,7 +409,7 @@ export default function LeaksPage() {
           </div>
         </div>
 
-        {/* Cards Grid - 5 Columns */}
+        {/* --- GRID --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {filteredItems.map((item) => {
             const gradient = gradients[item.id];
@@ -364,10 +421,10 @@ export default function LeaksPage() {
             return (
               <div
                 key={item.id}
-                className="pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-shadow duration-300 hover:shadow-xl"
+                onClick={() => openModal(item)}
+                className="cursor-pointer pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                 style={{ borderColor: outlineColor }}
               >
-                {/* Animated Gradient Top Bar */}
                 <div
                   className="h-3 w-full"
                   style={{
@@ -378,7 +435,6 @@ export default function LeaksPage() {
                 ></div>
 
                 <div className="p-4 flex-1 flex flex-col">
-                  {/* Item Image */}
                   <div className="flex justify-center mb-3">
                     <div
                       className="p-3 rounded-lg border-3"
@@ -397,46 +453,18 @@ export default function LeaksPage() {
                     </div>
                   </div>
 
-                  {/* Item Title - Clickable Link */}
-                  {item.itemLink ? (
-                    <Link href={item.itemLink} target="_blank" rel="noopener noreferrer">
-                      <h2
-                        className="text-lg font-black text-center hover:underline cursor-pointer transition-all line-clamp-2"
-                        style={{ color: outlineColor }}
-                      >
-                        {item.title}
-                      </h2>
-                    </Link>
-                  ) : (
-                    <h2
-                      className="text-lg font-black text-center line-clamp-2"
-                      style={{ color: outlineColor }}
-                    >
-                      {item.title}
-                    </h2>
-                  )}
+                  <h2
+                    className="text-lg font-black text-center line-clamp-2 mb-1"
+                    style={{ color: outlineColor }}
+                  >
+                    {item.title}
+                  </h2>
 
-                  {/* Creator - With optional link */}
                   <p className="text-center text-xs font-bold text-gray-600 mb-3">
-                    by{' '}
-                    {item.creatorLink ? (
-                      <Link
-                        href={item.creatorLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: outlineColor }}
-                        className="hover:underline cursor-pointer"
-                      >
-                        {item.creator}
-                      </Link>
-                    ) : (
-                      <span style={{ color: outlineColor }}>{item.creator}</span>
-                    )}
+                    by <span style={{ color: outlineColor }}>{item.creator}</span>
                   </p>
 
-                  {/* Data Grid */}
                   <div className="grid grid-cols-2 gap-2 mb-3">
-                    {/* Stock */}
                     <div
                       className="p-2 rounded-lg border-2 border-gray-300"
                       style={{ backgroundColor: (gradient?.[0] || outlineColor) + '15' }}
@@ -447,18 +475,16 @@ export default function LeaksPage() {
                       </p>
                     </div>
 
-                    {/* Method */}
                     <div
                       className="p-2 rounded-lg border-2 border-gray-300"
                       style={{ backgroundColor: (gradient?.[1] || outlineColor) + '15' }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
                       <p className="font-black text-xs mt-1 line-clamp-2" style={{ color: gradient?.[1] || outlineColor }}>
-                        {item.method === UGCMethod.WebDrop ? '🌐 Web Drop' : item.method === UGCMethod.InGame ? '🎮 In-Game' : '❓ Unknown'}
+                        {item.method === UGCMethod.WebDrop ? 'Web Drop' : 'In-Game'}
                       </p>
                     </div>
 
-                    {/* Limit */}
                     <div
                       className="p-2 rounded-lg border-2 border-gray-300"
                       style={{ backgroundColor: (gradient?.[2] || outlineColor) + '15' }}
@@ -469,77 +495,34 @@ export default function LeaksPage() {
                       </p>
                     </div>
 
-                    {/* Release Date */}
                     <div
                       className="p-2 rounded-lg border-2 border-gray-300"
                       style={{ backgroundColor: (gradient?.[3] || outlineColor) + '15' }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">📅 Release</p>
-                      <p className="font-black text-xs mt-1" style={{ color: gradient?.[3] || outlineColor }}>
-                        {new Date(item.releaseDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: gradient?.[3] || outlineColor }}>
+                        {timers[item.id] || 'Loading...'} 
                       </p>
                     </div>
                   </div>
 
-                  {/* Instructions */}
-                  <div className="mb-3 p-2 bg-gray-50 rounded border border-gray-200 flex-1">
+                  <div className="mb-3 p-2 bg-gray-50 rounded border border-gray-200 flex-1 relative">
                     <p className="text-xs font-bold text-gray-600 uppercase mb-1">📖 Info</p>
                     <p className="text-gray-700 text-xs font-medium break-words line-clamp-3">
-                      <ClickableInstructions text={item.instruction} color={outlineColor} />
+                      {item.instruction}
                     </p>
+                    <div className="absolute bottom-0 left-0 w-full h-4 bg-gradient-to-t from-gray-50 to-transparent"></div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col gap-2 mt-auto">
-                    {item.itemLink ? (
-                      <Link href={item.itemLink} target="_blank" rel="noopener noreferrer" className="w-full">
-                        <button
-                          className="w-full px-3 py-2 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-xs uppercase tracking-wide"
-                          style={{
-                            background: `linear-gradient(135deg, ${gradient?.[0] || outlineColor}, ${gradient?.[1] || outlineColor})`,
-                            boxShadow: `0 4px 12px ${gradient?.[0] || outlineColor}80`,
-                          }}
-                        >
-                          🛍️ View Item
-                        </button>
-                      </Link>
-                    ) : (
-                      <button
-                        disabled
-                        className="w-full px-3 py-2 text-gray-400 font-black rounded-lg text-xs uppercase tracking-wide bg-gray-200 cursor-not-allowed"
-                      >
-                        🛍️ View Item
-                      </button>
-                    )}
-
-                    {item.gameLink ? (
-                      <Link href={item.gameLink} target="_blank" rel="noopener noreferrer" className="w-full">
-                        <button
-                          className="w-full px-3 py-2 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-xs uppercase tracking-wide"
-                          style={{
-                            background: `linear-gradient(135deg, ${gradient?.[2] || outlineColor}, ${gradient?.[3] || outlineColor})`,
-                            boxShadow: `0 4px 12px ${gradient?.[2] || outlineColor}80`,
-                          }}
-                        >
-                          🎮 Game
-                        </button>
-                      </Link>
-                    ) : (
-                      <button
-                        disabled
-                        className="w-full px-3 py-2 text-gray-400 font-black rounded-lg text-xs uppercase tracking-wide bg-gray-200 cursor-not-allowed"
-                      >
-                        🎮 Game
-                      </button>
-                    )}
-                  </div>
+                   <div className="mt-auto text-center">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Click for Details</span>
+                   </div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Empty State */}
         {filteredItems.length === 0 && (
           <div className="text-center py-20 bg-white rounded-2xl shadow-2xl pop-in">
             <div className="text-6xl mb-4">🔍</div>
@@ -548,6 +531,89 @@ export default function LeaksPage() {
           </div>
         )}
       </div>
+
+      {/* --- DETAILED VIEWPORT MODAL --- */}
+      {selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+           {/* Backdrop */}
+           <div 
+             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+             onClick={closeModal}
+           ></div>
+
+           {/* Modal Content */}
+           <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in animate-float-up">
+              
+              {/* Modal Header Gradient */}
+              <div 
+                className="h-24 w-full relative flex items-center justify-center"
+                style={{
+                  background: gradients[selectedItem.id] 
+                    ? `linear-gradient(135deg, ${gradients[selectedItem.id].join(', ')})` 
+                    : selectedItem.color
+                }}
+              >
+                 <button 
+                   onClick={closeModal}
+                   className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white rounded-full p-2 transition-all"
+                 >
+                   ✕ Close
+                 </button>
+                 
+                 {/* Floating Image in Header */}
+                 <div className="absolute -bottom-12 p-2 bg-white rounded-xl shadow-lg">
+                    <img 
+                      src={selectedItem.imageUrl} 
+                      className="w-32 h-32 object-contain rounded-lg" 
+                      alt={selectedItem.title} 
+                    />
+                 </div>
+              </div>
+
+              <div className="pt-16 pb-8 px-8 text-center space-y-6">
+                 <div>
+                    <h2 className="text-3xl font-black text-gray-900">{selectedItem.title}</h2>
+                    <p className="text-gray-500 font-bold">by {selectedItem.creator}</p>
+                 </div>
+
+                 {/* Timer Large Display */}
+                 <div className="bg-gray-100 rounded-xl p-4 inline-block">
+                    <p className="text-sm font-bold text-gray-500 uppercase">Status</p>
+                    <p className="text-xl font-black text-roblox-purple">
+                       {timers[selectedItem.id] || 'Updating...'}
+                    </p>
+                 </div>
+
+                 {/* Full Description / Instruction */}
+                 <div className="bg-blue-50 border-l-8 border-roblox-cyan p-6 rounded-r-xl text-left">
+                    <h3 className="text-lg font-black text-gray-800 mb-2">Instructions & Details</h3>
+                    <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed">
+                       {/* This allows full visibility of the description */}
+                       <ClickableInstructions text={selectedItem.instruction} color={selectedItem.color || '#000'} />
+                    </div>
+                 </div>
+
+                 {/* Links Section */}
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                    {selectedItem.itemLink && (
+                       <Link href={selectedItem.itemLink} target="_blank" className="w-full">
+                          <button className="w-full py-4 bg-roblox-pink text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                             🛍️ View on Roblox
+                          </button>
+                       </Link>
+                    )}
+                    {selectedItem.gameLink && (
+                       <Link href={selectedItem.gameLink} target="_blank" className="w-full">
+                          <button className="w-full py-4 bg-roblox-purple text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                             🎮 Join Game
+                          </button>
+                       </Link>
+                    )}
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 }

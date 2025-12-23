@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useTheme } from './components/ThemeContext'; // <--- Import hook
 
 export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const { isGrayscale, toggleTheme, buttonText } = useTheme(); // <--- Theme context
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -14,10 +16,20 @@ export default function Home() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const colors = ['#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff'];
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden transition-all duration-700 ${isGrayscale ? 'grayscale bg-gray-900' : ''}`}>
+      
+      {/* --- GLOBAL THEME BUTTON --- */}
+      <button 
+        onClick={toggleTheme}
+        className="absolute top-6 right-6 z-50 px-6 py-2 rounded-full border-2 border-white/50 text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
+      >
+        <span className="animate-pulse group-hover:animate-none">
+          {buttonText}
+        </span>
+      </button>
+
+      {/* ... (The rest of your JSX remains exactly the same as before) ... */}
       {/* Decorative floating blocks */}
       <div className="absolute top-10 left-10 w-20 h-20 bg-roblox-pink opacity-20 rounded-lg floating-block-slow glow-pink"></div>
       <div className="absolute top-1/4 right-20 w-24 h-24 bg-roblox-cyan opacity-20 rounded-lg floating-block glow-cyan" style={{ animationDelay: '1s' }}></div>
@@ -26,7 +38,6 @@ export default function Home() {
       <div className="absolute top-1/3 right-10 w-32 h-12 bg-roblox-lime opacity-15 rounded-lg floating-block-slow" style={{ animationDelay: '2s' }}></div>
 
       <div className="max-w-3xl w-full text-center space-y-8 z-10 pop-in">
-        {/* Main Title with Rainbow Effect */}
         <div className="space-y-4">
           <h1 className="text-7xl md:text-8xl font-black rainbow-text drop-shadow-2xl">
             UGC LEAKS
@@ -34,7 +45,6 @@ export default function Home() {
           <div className="h-2 w-64 mx-auto bg-gradient-to-r from-roblox-pink via-roblox-cyan to-roblox-yellow rounded-full glow-pink blocky-shadow"></div>
         </div>
 
-        {/* Subtitle */}
         <div className="space-y-3">
           <p className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">
             🎮 Track Daily Roblox Limiteds 🎮
@@ -44,7 +54,6 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Colorful Stat Boxes */}
         <div className="grid grid-cols-3 gap-3 md:gap-6 my-8 px-2">
           <div className="bg-white rounded-lg p-4 md:p-6 blocky-shadow-hover border-4 border-roblox-pink">
             <div className="text-3xl md:text-4xl font-black text-roblox-pink">5+</div>
@@ -60,7 +69,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Main CTA Button */}
         <div className="pt-6 flex flex-col sm:flex-row gap-4 justify-center">
           <Link href="/leaks" passHref>
             <button className="gradient-button px-12 py-6 text-xl rounded-2xl font-bold transition-all duration-300 blocky-shadow-hover text-white uppercase tracking-wider hover:shadow-blocky-lg">
@@ -72,7 +80,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Feature Highlights */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12 px-2">
           <div className="bg-white rounded-xl p-6 blocky-shadow border-l-8 border-roblox-pink">
             <div className="text-4xl mb-2">⚡</div>
@@ -97,7 +104,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Decorative corner elements */}
       <div className="absolute bottom-0 right-0 w-40 h-40 bg-gradient-to-tl from-roblox-orange opacity-10 rounded-full"></div>
       <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-roblox-pink opacity-10 rounded-full"></div>
     </div>
