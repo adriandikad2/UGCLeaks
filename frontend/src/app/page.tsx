@@ -95,7 +95,7 @@ export default function Home() {
 
         <div className="grid grid-cols-3 gap-3 md:gap-6 my-8 px-2">
           <div className="bg-white rounded-lg p-4 md:p-6 blocky-shadow-hover border-4 border-roblox-pink">
-            <div className="text-3xl md:text-4xl font-black text-roblox-pink">5+</div>
+            <div className="text-3xl md:text-4xl font-black text-roblox-pink">New</div>
             <div className="text-xs md:text-sm font-bold text-gray-700 mt-1">Items Daily</div>
           </div>
           <div className="bg-white rounded-lg p-4 md:p-6 blocky-shadow-hover border-4 border-roblox-cyan">
