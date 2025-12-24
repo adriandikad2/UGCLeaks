@@ -688,8 +688,8 @@ app.post('/api/auth/grant-access', async (req: Request, res: Response) => {
     const { targetUserId, newRole } = req.body;
 
     // Validate new role
-    if (!['editor', 'owner'].includes(newRole)) {
-      return res.status(400).json({ error: 'Invalid role. Must be "editor" or "owner"' });
+    if (!['user', 'editor', 'owner'].includes(newRole)) {
+      return res.status(400).json({ error: 'Invalid role. Must be "user", "editor", or "owner"' });
     }
 
     // Verify token and check if user is owner
