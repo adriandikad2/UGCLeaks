@@ -60,6 +60,17 @@ const generateRandomGradient = (id: string) => {
   return shuffled.slice(0, 4);
 };
 
+// Helper: Convert a UTC Date string to "YYYY-MM-DDTHH:mm" (Local time) for inputs
+const toLocalInputString = (isoString: string) => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  // Get the offset in minutes (e.g., -300 for GMT-5)
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  // Adjust the time to "local" ms, then standardise to ISO
+  const localDate = new Date(date.getTime() - offsetMs);
+  return localDate.toISOString().slice(0, 16);
+};
+
 export default function SchedulePage() {
   const router = useRouter();
   const formRef = useRef<HTMLDivElement>(null);
@@ -130,9 +141,13 @@ export default function SchedulePage() {
 
     setIsLoading(true);
 
+    // Convert the Local Input Time to an Absolute UTC String
+    const utcDate = new Date(formData.release_date_time).toISOString();
+
     const payload = {
         ...formData,
         title: formData.item_name, // Use item_name as title
+        release_date_time: utcDate, // Overwrite with UTC
         limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1)
     };
 
@@ -199,8 +214,9 @@ export default function SchedulePage() {
       title: item.item_name || item.title || '',
       item_name: item.item_name || item.title || '',
       creator: item.creator || '',
-      stock: item.stock || 0,
-      release_date_time: item.release_date_time || '',
+      stock: typeof item.stock === 'number' ? item.stock : 1000,
+      // Convert UTC Database Time -> Local Input Format
+      release_date_time: item.release_date_time ? toLocalInputString(item.release_date_time) : '',
       method: item.method || UGCMethod.WebDrop,
       instruction: item.instruction || '',
       game_link: item.game_link || '',
@@ -393,7 +409,7 @@ export default function SchedulePage() {
                 className="w-full px-4 py-3 rounded-lg border-4 border-roblox-yellow font-bold text-gray-900 focus:outline-none focus:border-roblox-purple"
               />
               <p className="text-xs text-gray-600 mt-1">
-                Local: {formatLocalDateTime(formData.release_date_time)}
+                Equivalent UTC: {formData.release_date_time ? new Date(formData.release_date_time).toUTCString() : 'Set a date'}
               </p>
             </div>
 
