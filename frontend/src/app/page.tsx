@@ -2,16 +2,31 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useTheme } from './components/ThemeContext'; // <--- Import hook
+import { useTheme } from './components/ThemeContext';
+import { isAuthenticated, signout } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const { isGrayscale, toggleTheme, buttonText } = useTheme(); // <--- Theme context
+  const [authenticated, setAuthenticated] = useState(false);
+  const { isGrayscale, toggleTheme, buttonText } = useTheme();
+  const router = useRouter();
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({ x: e.clientX, y: e.clientY });
-    };
+    setAuthenticated(isAuthenticated());
+  }, []);
+
+  const handleMouseMove = (e: MouseEvent) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleSignout = async () => {
+    await signout();
+    setAuthenticated(false);
+    router.push('/');
+  };
+
+  useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
@@ -29,7 +44,31 @@ export default function Home() {
         </span>
       </button>
 
-      {/* ... (The rest of your JSX remains exactly the same as before) ... */}
+      {/* --- AUTH BUTTONS --- */}
+      <div className="absolute top-6 left-6 z-50 flex gap-3">
+        {authenticated ? (
+          <button
+            onClick={handleSignout}
+            className="px-6 py-2 rounded-full bg-red-500 text-white font-bold hover:bg-red-600 transition-all"
+          >
+            🚪 Sign Out
+          </button>
+        ) : (
+          <>
+            <Link href="/auth/signin">
+              <button className="px-6 py-2 rounded-full bg-blue-500 text-white font-bold hover:bg-blue-600 transition-all">
+                🔑 Sign In
+              </button>
+            </Link>
+            <Link href="/auth/signup">
+              <button className="px-6 py-2 rounded-full bg-green-500 text-white font-bold hover:bg-green-600 transition-all">
+                ✨ Sign Up
+              </button>
+            </Link>
+          </>
+        )}
+      </div>
+
       {/* Decorative floating blocks */}
       <div className="absolute top-10 left-10 w-20 h-20 bg-roblox-pink opacity-20 rounded-lg floating-block-slow glow-pink"></div>
       <div className="absolute top-1/4 right-20 w-24 h-24 bg-roblox-cyan opacity-20 rounded-lg floating-block glow-cyan" style={{ animationDelay: '1s' }}></div>
@@ -75,9 +114,13 @@ export default function Home() {
               ✨ VIEW LEAKS ✨
             </button>
           </Link>
-          <button className="px-12 py-6 text-xl rounded-2xl font-bold transition-all duration-300 blocky-shadow-hover text-white bg-gradient-to-r from-roblox-purple to-roblox-indigo uppercase tracking-wider hover:shadow-blocky-lg">
-            📖 Learn More
-          </button>
+          {authenticated && (
+            <Link href="/schedule" passHref>
+              <button className="px-12 py-6 text-xl rounded-2xl font-bold transition-all duration-300 blocky-shadow-hover text-white bg-gradient-to-r from-roblox-orange to-roblox-red uppercase tracking-wider hover:shadow-blocky-lg">
+                📅 SCHEDULE
+              </button>
+            </Link>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12 px-2">

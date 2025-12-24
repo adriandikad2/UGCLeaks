@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ClickableInstructions, NoLinkTemplate } from '../InstructionParser';
 import { useTheme } from '../components/ThemeContext';
+import { hasAccess, isAuthenticated, signout, getUserRole } from '@/lib/auth';
+import { ToastContainer, useToast } from '@/app/Toast';
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
@@ -52,9 +55,23 @@ export default function LeaksPage() {
   const [items, setItems] = useState<UGCItem[]>([]);
   const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]);
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
+  const [authenticated, setAuthenticated] = useState(false);
 
-  // Use Global Theme Context
-  const { isGrayscale, toggleTheme, buttonText } = useTheme(); 
+  // Hooks
+  const router = useRouter();
+  const { toasts, addToast, removeToast } = useToast();
+  const { isGrayscale, toggleTheme, buttonText } = useTheme();
+
+  useEffect(() => {
+    setAuthenticated(isAuthenticated());
+  }, []);
+
+  const handleSignout = async () => {
+    await signout();
+    setAuthenticated(false);
+    addToast('Signed out successfully', 'success');
+    router.push('/');
+  }; 
 
   // Viewport/Modal States
   const [selectedItem, setSelectedItem] = useState<UGCItem | null>(null);
@@ -339,16 +356,50 @@ export default function LeaksPage() {
 
   return (
     <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'grayscale bg-gray-900' : ''}`}>
-      
-      {/* --- GLOBAL THEME BUTTON (Synced) --- */}
-      <button 
-        onClick={toggleTheme}
-        className="fixed top-6 right-6 z-40 px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
-      >
-        <span className="animate-pulse group-hover:animate-none">
-          {buttonText}
-        </span>
-      </button>
+      {/* --- THEME & AUTH CONTROLS --- */}
+      <div className="fixed top-6 right-6 z-40 flex gap-3">
+        <button 
+          onClick={toggleTheme}
+          className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
+        >
+          <span className="animate-pulse group-hover:animate-none">
+            {buttonText}
+          </span>
+        </button>
+      </div>
+
+      {/* --- NAVIGATION BUTTONS --- */}
+      <div className="fixed top-6 left-6 z-40 flex gap-3">
+        <Link href="/">
+          <button className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300">
+            ← Home
+          </button>
+        </Link>
+        {authenticated ? (
+          <button
+            onClick={handleSignout}
+            className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-red-600 hover:border-red-600 transition-all duration-300"
+          >
+            🚪 Sign Out
+          </button>
+        ) : (
+          <>
+            <Link href="/auth/signin">
+              <button className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-blue-600 hover:border-blue-600 transition-all duration-300">
+                🔓 Sign In
+              </button>
+            </Link>
+            <Link href="/auth/signup">
+              <button className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-green-600 hover:border-green-600 transition-all duration-300">
+                ✍️ Sign Up
+              </button>
+            </Link>
+          </>
+        )}
+      </div>
+
+      {/* --- TOAST NOTIFICATIONS --- */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="text-center space-y-4 pop-in">
@@ -362,11 +413,13 @@ export default function LeaksPage() {
         </div>
 
         <div className="flex justify-center">
-          <Link href="/schedule">
-            <button className="px-8 py-4 bg-gradient-to-r from-roblox-purple to-roblox-pink text-white font-black rounded-xl blocky-shadow-hover text-lg uppercase tracking-wide hover:scale-105 transition-all">
-              📅 Create Schedule
-            </button>
-          </Link>
+          {hasAccess('editor') && (
+            <Link href="/schedule">
+              <button className="px-8 py-4 bg-gradient-to-r from-roblox-purple to-roblox-pink text-white font-black rounded-xl blocky-shadow-hover text-lg uppercase tracking-wide hover:scale-105 transition-all">
+                📅 Create Schedule
+              </button>
+            </Link>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

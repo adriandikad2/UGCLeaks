@@ -271,40 +271,60 @@ animation: random-gradient 6s ease infinite
 UGC Leaks/
 │
 ├── frontend/
-│   ├── src/                    (symlink to ../../src)
+│   ├── src/                     (All frontend source code)
+│   │   ├── app/
+│   │   │   ├── auth/
+│   │   │   │   ├── signin/
+│   │   │   │   │   └── page.tsx (Login page)
+│   │   │   │   └── signup/
+│   │   │   │       └── page.tsx (Registration page)
+│   │   │   ├── components/      (React components)
+│   │   │   │   ├── InstructionParser.tsx
+│   │   │   │   └── ThemeContext.tsx
+│   │   │   ├── leaks/
+│   │   │   │   └── page.tsx     (5-column grid display)
+│   │   │   ├── schedule/
+│   │   │   │   ├── layout.tsx   (Protected route)
+│   │   │   │   └── page.tsx     (Schedule creation)
+│   │   │   ├── FloatingBlocks.tsx
+│   │   │   ├── globals.css
+│   │   │   ├── InstructionParser.tsx
+│   │   │   ├── layout.tsx       (Root layout)
+│   │   │   ├── page.tsx         (Home page)
+│   │   │   ├── theme-provider.tsx
+│   │   │   ├── theme-toggle.tsx
+│   │   │   └── Toast.tsx        (Toast notifications)
+│   │   └── lib/
+│   │       ├── api.ts          (API client utilities)
+│   │       └── auth.ts         (Authentication utilities)
 │   ├── .gitignore
 │   ├── package.json           (Next.js 14, React 18, axios)
 │   ├── postcss.config.js
 │   ├── tailwind.config.js    (Roblox colors)
-│   └── tsconfig.json
+│   └── tsconfig.json         (Path aliases configured)
 │
 ├── backend/
-│   ├── server.ts              (Express API server - 280+ lines)
+│   ├── server.ts              (Express API server - 700+ lines)
 │   ├── .gitignore
-│   ├── package.json           (Express, PostgreSQL, CORS)
+│   ├── package.json           (Express, PostgreSQL, CORS, bcrypt, JWT)
 │   └── tsconfig.json
 │
-├── src/                         (Shared frontend source)
-│   ├── app/
-│   │   ├── leaks/
-│   │   │   └── page.tsx        (5-column grid, random colors)
-│   │   ├── schedule/
-│   │   │   └── page.tsx        (Schedule creation)
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
-│   ├── InstructionParser.tsx   (URL parsing utility)
-│   ├── FloatingBlocks.tsx      (Animated background)
-│   └── lib/
-│       └── api.ts             (API client utilities)
-│
-├── database.sql                 (PostgreSQL schema)
-├── .env.example                 (Environment template)
-├── .env.local                   (Local secrets - gitignored)
-├── README.md                    (Full documentation)
-├── SETUP.md                     (Quick start guide)
-└── IMPLEMENTATION.md            (Detailed summary)
+├── next-env.d.ts              (Next.js types - root level)
+├── tsconfig.json              (Root TypeScript config - deprecated)
+├── package.json               (Root package.json - deprecated)
+├── postcss.config.js          (Root PostCSS config - deprecated)
+├── tailwind.config.js         (Root Tailwind config - deprecated)
+├── database.sql               (PostgreSQL schema)
+├── .env.example               (Environment template)
+├── .env.local                 (Local secrets - gitignored)
+├── AUTH_SYSTEM.md             (Authentication documentation)
+├── QUICK_START.md             (Quick reference guide)
+├── README.md                  (Full documentation)
+├── SETUP.md                   (Setup instructions)
+├── IMPLEMENTATION.md          (Implementation details)
+└── DELIVERY.md               (This file - project summary)
 ```
+
 
 ---
 

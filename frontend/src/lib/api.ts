@@ -61,7 +61,7 @@ export async function getItems(params?: {
 export async function getItem(id: string): Promise<UGCItem | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/items/${id}`);
-    if (!response.ok) throw new Error('Item not found');
+    if (!response.ok) throw new Error('Failed to fetch item');
     return await response.json();
   } catch (error) {
     console.error('Error fetching item:', error);
@@ -162,7 +162,10 @@ export async function createScheduledItem(item: UGCItem): Promise<UGCItem | null
       },
       body: JSON.stringify(item),
     });
-    if (!response.ok) throw new Error('Failed to create scheduled item');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create scheduled item');
+    }
     return await response.json();
   } catch (error) {
     console.error('Error creating scheduled item:', error);
@@ -182,7 +185,10 @@ export async function updateScheduledItem(id: string, updates: Partial<UGCItem>)
       },
       body: JSON.stringify(updates),
     });
-    if (!response.ok) throw new Error('Failed to update scheduled item');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update scheduled item');
+    }
     return await response.json();
   } catch (error) {
     console.error('Error updating scheduled item:', error);

@@ -3,12 +3,15 @@ import cors from 'cors';
 import { Pool, QueryResult } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 // Load environment variables
 dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.BACKEND_PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
 // Initialize PostgreSQL connection pool
 const pool = new Pool({
@@ -443,6 +446,238 @@ app.put('/api/scheduled/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error updating scheduled item:', error);
     res.status(500).json({ error: 'Failed to update scheduled item' });
+  }
+});
+
+// ==================== AUTH ENDPOINTS ====================
+
+/**
+ * POST /api/auth/signup
+ * Register a new user account
+ */
+app.post('/api/auth/signup', async (req: Request, res: Response) => {
+  try {
+    const { username, email, password } = req.body;
+
+    // Validation
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    // Check if user already exists
+    const existingUser = await pool.query(
+      'SELECT * FROM users WHERE email = $1 OR username = $2',
+      [email, username]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ error: 'User already exists with that email or username' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Check if this is the first user (they should be owner)
+    const userCount = await pool.query('SELECT COUNT(*) FROM users');
+    const isFirstUser = parseInt(userCount.rows[0].count) === 0;
+    const role = isFirstUser ? 'owner' : 'user';
+
+    // Create user
+    const userId = uuidv4();
+    const newUser = await pool.query(
+      'INSERT INTO users (id, username, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, role, created_at',
+      [userId, username, email, hashedPassword, role]
+    );
+
+    res.status(201).json({
+      message: `Account created successfully! ${isFirstUser ? 'You are now the owner.' : 'Welcome!'}`,
+      user: newUser.rows[0],
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'Signup failed' });
+  }
+});
+
+/**
+ * POST /api/auth/signin
+ * Authenticate user and return JWT token
+ */
+app.post('/api/auth/signin', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Find user by email
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Compare password
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Generate JWT token (expires in 7 days)
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Create session record
+    const sessionId = uuidv4();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+    await pool.query(
+      'INSERT INTO sessions (id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+      [sessionId, user.id, token, expiresAt]
+    );
+
+    res.json({
+      message: 'Signed in successfully',
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Signin error:', error);
+    // Return more detailed error for debugging
+    res.status(500).json({ 
+      error: 'Signin failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/signout
+ * Logout user and invalidate token
+ */
+app.post('/api/auth/signout', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // Delete session
+    await pool.query('DELETE FROM sessions WHERE token = $1', [token]);
+
+    res.json({ message: 'Signed out successfully' });
+  } catch (error) {
+    console.error('Signout error:', error);
+    res.status(500).json({ error: 'Signout failed' });
+  }
+});
+
+/**
+ * GET /api/auth/me
+ * Get current user info from token
+ */
+app.get('/api/auth/me', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // Verify token
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+    // Get user from database
+    const userResult = await pool.query(
+      'SELECT id, username, email, role FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: userResult.rows[0] });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+});
+
+/**
+ * POST /api/auth/grant-access
+ * Owner grants editor or owner role to another user
+ */
+app.post('/api/auth/grant-access', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { targetUserId, newRole } = req.body;
+
+    // Validate new role
+    if (!['editor', 'owner'].includes(newRole)) {
+      return res.status(400).json({ error: 'Invalid role. Must be "editor" or "owner"' });
+    }
+
+    // Verify token and check if user is owner
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (decoded.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owners can grant access' });
+    }
+
+    // Update target user's role
+    const updatedUser = await pool.query(
+      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role',
+      [newRole, targetUserId]
+    );
+
+    if (updatedUser.rows.length === 0) {
+      return res.status(404).json({ error: 'Target user not found' });
+    }
+
+    // Log the action in audit log
+    await pool.query(
+      'INSERT INTO audit_log (action, user_id, target_user_id, details) VALUES ($1, $2, $3, $4)',
+      [
+        'GRANT_ACCESS',
+        decoded.userId,
+        targetUserId,
+        JSON.stringify({ newRole, previousRole: 'user' }),
+      ]
+    );
+
+    res.json({
+      message: `User role updated to ${newRole}`,
+      user: updatedUser.rows[0],
+    });
+  } catch (error) {
+    console.error('Grant access error:', error);
+    res.status(500).json({ error: 'Failed to grant access' });
   }
 });
 

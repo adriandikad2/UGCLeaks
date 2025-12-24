@@ -80,6 +80,46 @@ CREATE INDEX idx_creators_name ON creators(creator_name);
 CREATE INDEX idx_color_gradients_item ON color_gradients(item_id);
 CREATE INDEX idx_color_gradients_scheduled ON color_gradients(scheduled_item_id);
 
+-- ============ AUTHENTICATION TABLES ============
+
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username VARCHAR(255) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'editor', 'owner')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Sessions table
+CREATE TABLE IF NOT EXISTS sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL,
+  expires_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP + INTERVAL '7 days',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Audit log table
+CREATE TABLE IF NOT EXISTS audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  action VARCHAR(255) NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  target_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  details JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for authentication tables
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_token ON sessions(token);
+CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
+CREATE INDEX idx_audit_log_action ON audit_log(action);
+
 -- Sample data for testing
 INSERT INTO ugc_items (title, item_name, creator, creator_link, stock, release_date_time, method, instruction, game_link, item_link, image_url, limit_per_user, color, is_published)
 VALUES
