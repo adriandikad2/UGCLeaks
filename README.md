@@ -253,5 +253,3 @@ For issues or questions:
 4. Ensure both servers are running on correct ports
 
 ---
-
-Built with ❤️ for Roblox enthusiasts
