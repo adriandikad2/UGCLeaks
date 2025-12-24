@@ -44,7 +44,7 @@ export default function ManageRolesPage() {
     setLoading(true);
     try {
       const token = getToken();
-      const response = await fetch(`http://localhost:5000/api/users/search?username=${encodeURIComponent(searchTerm)}`, {
+      const response = await fetch(`/api/users/search?username=${encodeURIComponent(searchTerm)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -80,7 +80,7 @@ export default function ManageRolesPage() {
     setLoading(true);
     try {
       const token = getToken();
-      const response = await fetch('http://localhost:5000/api/auth/grant-access', {
+      const response = await fetch('/api/auth/grant-access', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

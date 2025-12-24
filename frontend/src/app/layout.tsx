@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { FloatingBlocks } from './FloatingBlocks';
 import { ThemeProvider } from './components/ThemeContext';
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -26,6 +27,7 @@ export default function RootLayout({
           <div className="relative z-10">
             {children}
           </div>
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
