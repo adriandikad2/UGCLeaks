@@ -3,7 +3,8 @@
  * Frontend utilities for calling backend API endpoints
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+// Use relative paths - Next.js handles routing to src/app/api
+const API_BASE_URL = '/api';
 
 // ==================== UGC ITEMS ====================
 
