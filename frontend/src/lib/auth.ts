@@ -2,7 +2,7 @@
  * Authentication utilities for user sign in/up
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/auth';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 
 export interface User {
   id: string;
