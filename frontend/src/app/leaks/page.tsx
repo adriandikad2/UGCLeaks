@@ -147,6 +147,8 @@ export default function LeaksPage() {
       const newTimers: { [key: string]: string } = {};
 
       allItems.forEach(item => {
+        if (!item.releaseDateTime) return;
+        
         const releaseTime = new Date(item.releaseDateTime).getTime();
         const nowTime = new Date().getTime();
         const diff = releaseTime - nowTime;
@@ -155,9 +157,10 @@ export default function LeaksPage() {
           const days = Math.floor(diff / (1000 * 60 * 60 * 24));
           const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
           const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-          if (days > 0) newTimers[item.id] = `${days}d ${hours}h away`;
-          else if (hours > 0) newTimers[item.id] = `${hours}h ${mins}m away`;
-          else newTimers[item.id] = `${mins}m away`;
+          const secs = Math.floor((diff % (1000 * 60)) / 1000);
+          if (days > 0) newTimers[item.id] = `in ${days}d ${hours}h`;
+          else if (hours > 0) newTimers[item.id] = `in ${hours}h ${mins}m`;
+          else newTimers[item.id] = `in ${mins}m ${secs}s`;
         } else {
           const elapsed = Math.abs(diff);
           const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
