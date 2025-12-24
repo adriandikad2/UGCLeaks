@@ -561,10 +561,9 @@ app.post('/api/auth/signin', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Signin error:', error);
-    // Return more detailed error for debugging
+    // Don't expose internal error details to prevent exploitation
     res.status(500).json({ 
-      error: 'Signin failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Signin failed. Please try again.'
     });
   }
 });
@@ -622,6 +621,47 @@ app.get('/api/auth/me', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get user error:', error);
     res.status(401).json({ error: 'Invalid or expired token' });
+  }
+});
+
+/**
+ * GET /api/users/search
+ * Search for users by username (owner only)
+ */
+app.get('/api/users/search', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { username } = req.query;
+
+    // Verify token and check if user is owner
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (decoded.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owners can search users' });
+    }
+
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    // Search for user by username
+    const result = await pool.query(
+      'SELECT id, username, email, role FROM users WHERE username = $1',
+      [username as string]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('User search error:', error);
+    res.status(500).json({ error: 'Failed to search users' });
   }
 });
 

@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signin } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
-import { useTheme } from '../components/ThemeContext';
+import { useTheme } from '../../components/ThemeContext';
+
+// Prevent static generation for this page
+export const dynamic = 'force-dynamic';
 
 export default function SigninPage() {
   const router = useRouter();

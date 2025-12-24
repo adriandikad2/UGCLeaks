@@ -5,12 +5,19 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signup } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
-import { useTheme } from '../components/ThemeContext';
+
+// Lazy load theme to avoid SSG issues
+const useThemeLocal = () => {
+  const [isGrayscale, setIsGrayscale] = useState(false);
+  const [buttonText, setButtonText] = useState('SWITCH TO B&W');
+  const [toggleTheme] = useState(() => () => {});
+  return { isGrayscale, toggleTheme, buttonText };
+};
 
 export default function SignupPage() {
   const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
-  const { isGrayscale, toggleTheme, buttonText } = useTheme();
+  const { isGrayscale, toggleTheme, buttonText } = useThemeLocal();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: '',

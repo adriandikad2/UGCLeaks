@@ -6,6 +6,7 @@ import { ClickableInstructions } from '../InstructionParser';
 import { ToastContainer, useToast } from '../Toast';
 import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
 import { useTheme } from '../components/ThemeContext'; // <--- Import Global Theme
+import { hasAccess } from '@/lib/auth';
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
@@ -318,6 +319,15 @@ export default function SchedulePage() {
             ← Back to Leaks
           </button>
         </Link>
+
+        {/* --- MANAGE ROLES BUTTON (OWNER ONLY) --- */}
+        {hasAccess('owner') && (
+          <Link href="/schedule/manage-roles" passHref>
+            <button className="mb-8 ml-3 px-6 py-3 bg-purple-600 text-white font-bold rounded-lg blocky-shadow hover:scale-105 transition-all">
+              👥 Manage User Roles
+            </button>
+          </Link>
+        )}
 
         {/* Creation Form */}
         <div ref={formRef} className="mb-12 p-8 bg-white rounded-2xl shadow-2xl blocky-shadow space-y-6">
