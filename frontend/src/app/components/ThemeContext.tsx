@@ -30,8 +30,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // 2. Apply class immediately to body
     if (shouldBeGrayscale) {
       document.body.classList.add('grayscale');
-    } else {
-      document.body.classList.remove('grayscale');
     }
     
     setIsMounted(true);
@@ -56,7 +54,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     // FIX: Provider must ALWAYS wrap children, even before mount
     <ThemeContext.Provider value={{ isGrayscale, toggleTheme, buttonText }}>
-      <div style={{ visibility: isMounted ? 'visible' : 'hidden' }}>
+      <div style={{ opacity: isMounted ? 1 : 0, transition: 'opacity 0.2s' }}>
         {children}
       </div>
     </ThemeContext.Provider>

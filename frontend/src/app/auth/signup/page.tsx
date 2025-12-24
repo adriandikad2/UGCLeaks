@@ -5,19 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signup } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
+import { useTheme } from '../../components/ThemeContext';
 
-// Lazy load theme to avoid SSG issues
-const useThemeLocal = () => {
-  const [isGrayscale, setIsGrayscale] = useState(false);
-  const [buttonText, setButtonText] = useState('SWITCH TO B&W');
-  const [toggleTheme] = useState(() => () => {});
-  return { isGrayscale, toggleTheme, buttonText };
-};
+// Prevent static generation for this page
+export const dynamic = 'force-dynamic';
 
 export default function SignupPage() {
   const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
-  const { isGrayscale, toggleTheme, buttonText } = useThemeLocal();
+  const { isGrayscale, toggleTheme, buttonText } = useTheme();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: '',

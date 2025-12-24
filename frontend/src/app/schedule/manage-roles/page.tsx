@@ -98,8 +98,7 @@ export default function ManageRolesPage() {
         return;
       }
 
-      const updated = await response.json();
-      setSelectedUser(updated);
+      setSelectedUser(prev => prev ? { ...prev, role: selectedRole } : null);
       setConfirmMode(false);
       addToast(`Successfully updated ${selectedUser.username} to ${selectedRole}`, 'success');
     } catch (error) {
@@ -181,7 +180,8 @@ export default function ManageRolesPage() {
             <div className="mb-6">
               <label className="block text-white font-bold mb-3 uppercase tracking-wide">Current Role</label>
               <p className="inline-block px-4 py-2 bg-blue-600 text-white rounded-full font-bold">
-                {selectedUser.role.toUpperCase()}
+                {/* FIX 2: Add Optional Chaining just in case */}
+                {selectedUser.role?.toUpperCase() || 'UNKNOWN'}
               </p>
             </div>
 
@@ -190,8 +190,11 @@ export default function ManageRolesPage() {
               <label className="block text-white font-bold mb-3 uppercase tracking-wide">New Role</label>
               <select
                 value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as 'user' | 'editor' | 'owner')}
-                disabled={loading || selectedRole === selectedUser.role}
+                onChange={(e) => {
+                    setSelectedRole(e.target.value as 'user' | 'editor' | 'owner');
+                    setConfirmMode(false); // Reset confirmation when selection changes
+                }}
+                disabled={loading}
                 className="w-full px-4 py-3 rounded-lg border-2 border-blue-400 focus:outline-none focus:border-blue-600 text-gray-800 font-semibold disabled:opacity-50"
               >
                 <option value="user">👤 User (Read-only)</option>
@@ -202,11 +205,12 @@ export default function ManageRolesPage() {
 
             {/* --- CONFIRMATION CHECKBOX --- */}
             <div className="mb-6">
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className={`flex items-center gap-3 cursor-pointer ${selectedRole === selectedUser.role ? 'opacity-50' : 'opacity-100'}`}>
                 <input
                   type="checkbox"
                   checked={confirmMode}
                   onChange={(e) => setConfirmMode(e.target.checked)}
+                  // Keep checkbox disabled if roles are identical (no change to confirm)
                   disabled={selectedRole === selectedUser.role}
                   className="w-5 h-5 rounded cursor-pointer"
                 />

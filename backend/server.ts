@@ -315,7 +315,15 @@ app.post('/api/scheduled', async (req: Request, res: Response) => {
     const uuid = uuidv4();
     
     // LOGIC UPDATE: Handle 'Unlimited' string, -1 number, or explicit null
-    const limitValue = (limit_per_user === 'Unlimited' || limit_per_user === -1 || limit_per_user === null) ? null : (parseInt(limit_per_user) || 1);
+    let limitValue: number | null = 1;
+    if (limit_per_user === 'Unlimited' || limit_per_user === -1 || limit_per_user === null || limit_per_user === undefined) {
+      limitValue = null;
+    } else if (typeof limit_per_user === 'string') {
+      const parsed = parseInt(limit_per_user);
+      limitValue = isNaN(parsed) ? null : parsed;
+    } else if (typeof limit_per_user === 'number') {
+      limitValue = limit_per_user === -1 ? null : limit_per_user;
+    }
     
     const result = await pool.query(
       `INSERT INTO scheduled_items (

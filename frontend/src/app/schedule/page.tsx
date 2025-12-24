@@ -1,7 +1,10 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { ClickableInstructions } from '../InstructionParser';
 import { ToastContainer, useToast } from '../Toast';
 import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
@@ -31,21 +34,39 @@ type UGCItem = {
   limit_per_user: number | null;
 };
 
-const generateRandomGradient = () => {
+// Seeded random function for deterministic gradient generation
+const seededRandom = (seed: string) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % 1000 / 1000; // Return 0-1
+};
+
+const generateRandomGradient = (id: string) => {
   const colors = [
     '#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff',
     '#ff8c42', '#ff1744', '#2196f3', '#667eea', '#764ba2',
     '#f093fb', '#4facfe'
   ];
-  const shuffled = [...colors].sort(() => Math.random() - 0.5);
+  // Use seeded sort for deterministic shuffling
+  const shuffled = [...colors].sort((a, b) => {
+    const seedA = seededRandom(id + a);
+    const seedB = seededRandom(id + b);
+    return seedA - seedB;
+  });
   return shuffled.slice(0, 4);
 };
 
 export default function SchedulePage() {
+  const router = useRouter();
   const formRef = useRef<HTMLDivElement>(null);
   const [userTimezone, setUserTimezone] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
   
   // Theme Context
@@ -83,7 +104,7 @@ export default function SchedulePage() {
         items.forEach((item: any) => {
           const key = item.uuid || item.id;
           if (!newGradients[key]) {
-            newGradients[key] = generateRandomGradient();
+            newGradients[key] = generateRandomGradient(key);
           }
         });
         return newGradients;
@@ -97,6 +118,7 @@ export default function SchedulePage() {
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     setUserTimezone(tz);
+    setIsOwner(hasAccess('owner'));
     loadScheduledItems();
   }, [loadScheduledItems]);
 
@@ -110,6 +132,7 @@ export default function SchedulePage() {
 
     const payload = {
         ...formData,
+        title: formData.item_name, // Use item_name as title
         limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1)
     };
 
@@ -149,7 +172,7 @@ export default function SchedulePage() {
           
           setGradients({
             ...gradients,
-            [newId]: generateRandomGradient(),
+            [newId]: generateRandomGradient(newId),
           });
 
           addToast('Schedule created successfully! 🎉', 'success');
@@ -314,19 +337,21 @@ export default function SchedulePage() {
           <div className="h-1 w-96 mx-auto bg-gradient-to-r from-roblox-pink via-roblox-cyan to-roblox-yellow rounded-full glow-pink"></div>
         </div>
 
-        <Link href="/leaks" passHref>
-          <button className="mb-8 px-6 py-3 bg-white text-gray-900 font-bold rounded-lg blocky-shadow hover:scale-105 transition-all">
-            ← Back to Leaks
-          </button>
-        </Link>
+        <button 
+          onClick={() => router.push('/leaks')}
+          className="mb-8 px-6 py-3 bg-white text-gray-900 font-bold rounded-lg blocky-shadow hover:scale-105 transition-all"
+        >
+          ← Back to Leaks
+        </button>
 
         {/* --- MANAGE ROLES BUTTON (OWNER ONLY) --- */}
-        {hasAccess('owner') && (
-          <Link href="/schedule/manage-roles" passHref>
-            <button className="mb-8 ml-3 px-6 py-3 bg-purple-600 text-white font-bold rounded-lg blocky-shadow hover:scale-105 transition-all">
-              👥 Manage User Roles
-            </button>
-          </Link>
+        {isOwner && (
+          <button 
+            onClick={() => router.push('/schedule/manage-roles')}
+            className="mb-8 ml-3 px-6 py-3 bg-purple-600 text-white font-bold rounded-lg blocky-shadow hover:scale-105 transition-all"
+          >
+            👥 Manage User Roles
+          </button>
         )}
 
         {/* Creation Form */}

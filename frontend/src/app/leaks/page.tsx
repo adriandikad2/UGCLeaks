@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -37,14 +39,30 @@ const generateRandomColor = () => {
   return OUTLINE_COLORS[Math.floor(Math.random() * OUTLINE_COLORS.length)];
 };
 
-const generateRandomGradient = () => {
+// Seeded random function for deterministic gradient generation
+const seededRandom = (seed: string) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % 1000 / 1000; // Return 0-1
+};
+
+const generateRandomGradient = (id: string) => {
   const colors = [
     '#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff',
     '#ff8c42', '#ff1744', '#2196f3', '#667eea', '#764ba2',
     '#f093fb', '#4facfe'
   ];
   
-  const shuffled = [...colors].sort(() => Math.random() - 0.5);
+  // Use seeded sort for deterministic shuffling
+  const shuffled = [...colors].sort((a, b) => {
+    const seedA = seededRandom(id + a);
+    const seedB = seededRandom(id + b);
+    return seedA - seedB;
+  });
   return shuffled.slice(0, 4);
 };
 
@@ -55,7 +73,10 @@ export default function LeaksPage() {
   const [items, setItems] = useState<UGCItem[]>([]);
   const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]);
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
+  const [isMounted, setIsMounted] = useState(false);
+
   const [authenticated, setAuthenticated] = useState(false);
+  const [isEditor, setIsEditor] = useState(false);
 
   // Hooks
   const router = useRouter();
@@ -64,6 +85,7 @@ export default function LeaksPage() {
 
   useEffect(() => {
     setAuthenticated(isAuthenticated());
+    setIsEditor(hasAccess('editor'));
   }, []);
 
   const handleSignout = async () => {
@@ -78,6 +100,7 @@ export default function LeaksPage() {
   const [timers, setTimers] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
+    setIsMounted(true);
     // Initialize mock data with random colors
     const mockItems: UGCItem[] = [
       {
@@ -240,6 +263,13 @@ export default function LeaksPage() {
 
     setItems(mockItems);
 
+    // Generate random colors ONLY after mount
+    const newGradients: { [key: string]: string[] } = {};
+    mockItems.forEach(item => {
+      newGradients[item.id] = generateRandomGradient(item.id);
+    });
+    setGradients(prev => ({ ...prev, ...newGradients }));
+
     // Load scheduled items from API
     const loadScheduledItems = async () => {
       try {
@@ -265,11 +295,11 @@ export default function LeaksPage() {
           setScheduledItems(converted);
           
           // Generate gradients for scheduled items
-          const newGradients: { [key: string]: string[] } = {};
+          const apiGradients: { [key: string]: string[] } = {};
           converted.forEach((item: any) => {
-            newGradients[item.id] = generateRandomGradient();
+            apiGradients[item.id] = generateRandomGradient(item.id);
           });
-          setGradients(prev => ({ ...prev, ...newGradients }));
+          setGradients(prev => ({ ...prev, ...apiGradients }));
         }
       } catch (error) {
         console.error('Failed to load scheduled items from API:', error);
@@ -277,13 +307,6 @@ export default function LeaksPage() {
     };
 
     loadScheduledItems();
-
-    // Generate gradients for mock items
-    const newGradients: { [key: string]: string[] } = {};
-    mockItems.forEach(item => {
-      newGradients[item.id] = generateRandomGradient();
-    });
-    setGradients(newGradients);
   }, []);
 
   useEffect(() => {
@@ -370,11 +393,12 @@ export default function LeaksPage() {
 
       {/* --- NAVIGATION BUTTONS --- */}
       <div className="fixed top-6 left-6 z-40 flex gap-3">
-        <Link href="/">
-          <button className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300">
-            ← Home
-          </button>
-        </Link>
+        <button 
+          onClick={() => router.push('/')}
+          className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300"
+        >
+          ← Home
+        </button>
         {authenticated ? (
           <button
             onClick={handleSignout}
@@ -384,16 +408,18 @@ export default function LeaksPage() {
           </button>
         ) : (
           <>
-            <Link href="/auth/signin">
-              <button className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-blue-600 hover:border-blue-600 transition-all duration-300">
-                🔓 Sign In
-              </button>
-            </Link>
-            <Link href="/auth/signup">
-              <button className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-green-600 hover:border-green-600 transition-all duration-300">
-                ✍️ Sign Up
-              </button>
-            </Link>
+            <button 
+              onClick={() => router.push('/auth/signin')}
+              className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-blue-600 hover:border-blue-600 transition-all duration-300"
+            >
+              🔓 Sign In
+            </button>
+            <button 
+              onClick={() => router.push('/auth/signup')}
+              className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-green-600 hover:border-green-600 transition-all duration-300"
+            >
+              ✍️ Sign Up
+            </button>
           </>
         )}
       </div>
@@ -413,12 +439,13 @@ export default function LeaksPage() {
         </div>
 
         <div className="flex justify-center">
-          {hasAccess('editor') && (
-            <Link href="/schedule">
-              <button className="px-8 py-4 bg-gradient-to-r from-roblox-purple to-roblox-pink text-white font-black rounded-xl blocky-shadow-hover text-lg uppercase tracking-wide hover:scale-105 transition-all">
-                📅 Create Schedule
-              </button>
-            </Link>
+          {isEditor && (
+            <button 
+              onClick={() => router.push('/schedule')}
+              className="px-8 py-4 bg-gradient-to-r from-roblox-purple to-roblox-pink text-white font-black rounded-xl blocky-shadow-hover text-lg uppercase tracking-wide hover:scale-105 transition-all"
+            >
+              📅 Create Schedule
+            </button>
           )}
         </div>
 
@@ -465,11 +492,11 @@ export default function LeaksPage() {
         {/* --- GRID --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {filteredItems.map((item) => {
-            const gradient = gradients[item.id];
-            const gradientStr = gradient
-              ? `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]}, ${gradient[3]})`
-              : 'linear-gradient(135deg, #ff006e, #00d9ff)';
-            const outlineColor = item.color || '#ff006e';
+            const gradientColors = isMounted ? gradients[item.id] : ['#ccc', '#ccc', '#ccc', '#ccc'];
+            const gradientStr = gradientColors 
+                ? `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]}, ${gradientColors[2]}, ${gradientColors[3]})`
+                : 'linear-gradient(135deg, #ccc, #ccc)';
+            const outlineColor = gradientColors ? gradientColors[0] : '#ccc';
 
             return (
               <div
@@ -481,7 +508,7 @@ export default function LeaksPage() {
                 <div
                   className="h-3 w-full"
                   style={{
-                    background: gradientStr,
+                    backgroundImage: gradientStr,
                     backgroundSize: '400% 400%',
                     animation: 'random-gradient 6s ease infinite',
                   }}
@@ -520,40 +547,40 @@ export default function LeaksPage() {
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div
                       className="p-2 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: (gradient?.[0] || outlineColor) + '15' }}
+                      style={{ backgroundColor: gradientColors[0] + '15' }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">📦 Stock</p>
-                      <p className="font-black text-xs mt-1" style={{ color: gradient?.[0] || outlineColor }}>
+                      <p className="font-black text-xs mt-1" style={{ color: gradientColors[0] || outlineColor }}>
                         {typeof item.stock === 'number' ? item.stock : 'OUT'}
                       </p>
                     </div>
 
                     <div
                       className="p-2 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: (gradient?.[1] || outlineColor) + '15' }}
+                      style={{ backgroundColor: gradientColors[1] + '15' }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
-                      <p className="font-black text-xs mt-1 line-clamp-2" style={{ color: gradient?.[1] || outlineColor }}>
+                      <p className="font-black text-xs mt-1 line-clamp-2" style={{ color: gradientColors[1] || outlineColor }}>
                         {item.method === UGCMethod.WebDrop ? 'Web Drop' : 'In-Game'}
                       </p>
                     </div>
 
                     <div
                       className="p-2 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: (gradient?.[2] || outlineColor) + '15' }}
+                      style={{ backgroundColor: gradientColors[2] + '15' }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
-                      <p className="font-black text-xs mt-1" style={{ color: gradient?.[2] || outlineColor }}>
+                      <p className="font-black text-xs mt-1" style={{ color: gradientColors[2] || outlineColor }}>
                         {item.limitPerUser}x
                       </p>
                     </div>
 
                     <div
                       className="p-2 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: (gradient?.[3] || outlineColor) + '15' }}
+                      style={{ backgroundColor: gradientColors[3] + '15' }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">📅 Release</p>
-                      <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: gradient?.[3] || outlineColor }}>
+                      <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: gradientColors[3] || outlineColor }}>
                         {timers[item.id] || 'Loading...'} 
                       </p>
                     </div>

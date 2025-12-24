@@ -1,15 +1,15 @@
-import './globals.css'
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import { FloatingBlocks } from './FloatingBlocks'
-import { ThemeProvider } from './components/ThemeContext'
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { FloatingBlocks } from './FloatingBlocks';
+import { ThemeProvider } from './components/ThemeContext';
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'UGC Leaks - Track Daily Roblox Limiteds',
   description: 'Get the latest information on Roblox UGC drops and leaks',
-}
+};
 
 export default function RootLayout({
   children,
@@ -18,9 +18,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      {/* 👇 Added 'select-none' here. This effectively disables highlighting globally. */}
+      {/* 'select-none' prevents text highlighting as requested */}
       <body className={`${inter.className} select-none`}>
         <ThemeProvider>
+          {/* ThemeProvider now handles the mounting/opacity logic internally */}
           <FloatingBlocks />
           <div className="relative z-10">
             {children}
@@ -28,5 +29,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }
