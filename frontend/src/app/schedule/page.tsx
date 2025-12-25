@@ -64,11 +64,27 @@ const generateRandomGradient = (id: string) => {
 const toLocalInputString = (isoString: string) => {
   if (!isoString) return '';
   const date = new Date(isoString);
-  // Get the offset in minutes (e.g., -300 for GMT-5)
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  // Adjust the time to "local" ms, then standardise to ISO
-  const localDate = new Date(date.getTime() - offsetMs);
-  return localDate.toISOString().slice(0, 16);
+  if (isNaN(date.getTime())) return '';
+
+  // Format the local time components directly (Date methods return local time by default)
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+// Helper: Get current local time as "YYYY-MM-DDTHH:mm" for datetime-local inputs
+const getCurrentLocalDateTime = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
 export default function SchedulePage() {
@@ -79,7 +95,7 @@ export default function SchedulePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
-  
+
   // Theme Context
   const { isGrayscale, toggleTheme, buttonText } = useTheme();
 
@@ -91,7 +107,7 @@ export default function SchedulePage() {
     item_name: '',
     creator: '',
     stock: 1000,
-    release_date_time: new Date().toISOString().slice(0, 16),
+    release_date_time: getCurrentLocalDateTime(),
     method: UGCMethod.WebDrop,
     instruction: '',
     game_link: '',
@@ -108,7 +124,7 @@ export default function SchedulePage() {
     try {
       const items = await getScheduledItems();
       setScheduledItems(items as unknown as UGCItem[]);
-      
+
       // Only generate gradients for new items, preserve existing ones
       setGradients(prevGradients => {
         const newGradients = { ...prevGradients };
@@ -145,10 +161,10 @@ export default function SchedulePage() {
     const utcDate = new Date(formData.release_date_time).toISOString();
 
     const payload = {
-        ...formData,
-        title: formData.item_name, // Use item_name as title
-        release_date_time: utcDate, // Overwrite with UTC
-        limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1)
+      ...formData,
+      title: formData.item_name, // Use item_name as title
+      release_date_time: utcDate, // Overwrite with UTC
+      limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1)
     };
 
     try {
@@ -182,9 +198,9 @@ export default function SchedulePage() {
         if (result) {
           const typedResult = result as unknown as UGCItem; // Cast here
           const newId = String(typedResult.uuid || typedResult.id);
-          
+
           setScheduledItems([...scheduledItems, typedResult]);
-          
+
           setGradients({
             ...gradients,
             [newId]: generateRandomGradient(newId),
@@ -237,7 +253,7 @@ export default function SchedulePage() {
       item_name: '',
       creator: '',
       stock: 1000,
-      release_date_time: new Date().toISOString().slice(0, 16),
+      release_date_time: getCurrentLocalDateTime(),
       method: UGCMethod.WebDrop,
       instruction: '',
       game_link: '',
@@ -259,7 +275,7 @@ export default function SchedulePage() {
           const compareId = String(id);
           return itemId !== compareId;
         }));
-        
+
         if (editingId === id) {
           handleCancelEdit();
         }
@@ -325,11 +341,11 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className={`min-h-screen py-12 relative transition-all duration-700 ${isGrayscale ? 'grayscale bg-gray-900' : ''}`}>
+    <div className={`min-h-screen py-12 relative transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-      
-       {/* --- GLOBAL THEME BUTTON (Synced) --- */}
-       <button 
+
+      {/* --- GLOBAL THEME BUTTON (Synced) --- */}
+      <button
         onClick={toggleTheme}
         className="fixed top-6 right-6 z-40 px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
       >
@@ -353,7 +369,7 @@ export default function SchedulePage() {
           <div className="h-1 w-96 mx-auto bg-gradient-to-r from-roblox-pink via-roblox-cyan to-roblox-yellow rounded-full glow-pink"></div>
         </div>
 
-        <button 
+        <button
           onClick={() => router.push('/leaks')}
           className="mb-8 px-6 py-3 bg-white text-gray-900 font-bold rounded-lg blocky-shadow hover:scale-105 transition-all"
         >
@@ -362,7 +378,7 @@ export default function SchedulePage() {
 
         {/* --- MANAGE ROLES BUTTON (OWNER ONLY) --- */}
         {isOwner && (
-          <button 
+          <button
             onClick={() => router.push('/schedule/manage-roles')}
             className="mb-8 ml-3 px-6 py-3 bg-purple-600 text-white font-bold rounded-lg blocky-shadow hover:scale-105 transition-all"
           >
@@ -442,24 +458,24 @@ export default function SchedulePage() {
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700 uppercase">Limit Per User</label>
               <div className="flex gap-4 items-center">
-                 <input
-                    type="number"
-                    value={formData.limit_per_user || 1}
-                    onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
-                    disabled={isUnlimitedLimit} // Disable if checked
-                    className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
-                 />
-                 {/* The Checkbox Container */}
-                 <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
-                    <input 
-                        type="checkbox" 
-                        id="unlimited-check"
-                        checked={isUnlimitedLimit}
-                        onChange={(e) => setIsUnlimitedLimit(e.target.checked)}
-                        className="w-5 h-5 accent-blue-600"
-                    />
-                    <label htmlFor="unlimited-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unlimited</label>
-                 </div>
+                <input
+                  type="number"
+                  value={formData.limit_per_user || 1}
+                  onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
+                  disabled={isUnlimitedLimit} // Disable if checked
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
+                />
+                {/* The Checkbox Container */}
+                <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                  <input
+                    type="checkbox"
+                    id="unlimited-check"
+                    checked={isUnlimitedLimit}
+                    onChange={(e) => setIsUnlimitedLimit(e.target.checked)}
+                    className="w-5 h-5 accent-blue-600"
+                  />
+                  <label htmlFor="unlimited-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unlimited</label>
+                </div>
               </div>
             </div>
 
@@ -675,7 +691,7 @@ export default function SchedulePage() {
                       <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
                         <p className="text-xs font-bold text-gray-600 uppercase mb-2">📅 Exact Time</p>
                         <p className="text-gray-700 text-sm font-medium">
-                            {formatLocalDateTime(item.release_date_time)} {/* FIXED: release_date_time */}
+                          {formatLocalDateTime(item.release_date_time)} {/* FIXED: release_date_time */}
                         </p>
                       </div>
 
@@ -690,7 +706,7 @@ export default function SchedulePage() {
                             className="text-sm font-bold break-all hover:underline"
                             style={{ color: gradient?.[0] || '#ff006e' }}
                           >
-                            {item.game_link} {/* FIXED: game_link */ }
+                            {item.game_link} {/* FIXED: game_link */}
                           </a>
                         ) : (
                           <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">

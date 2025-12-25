@@ -116,7 +116,7 @@ export default function ManageRolesPage() {
   };
 
   return (
-    <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'grayscale bg-gray-900' : 'bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600'}`}>
+    <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600'}`}>
       {/* --- THEME TOGGLE --- */}
       <button
         onClick={toggleTheme}
@@ -191,8 +191,8 @@ export default function ManageRolesPage() {
               <select
                 value={selectedRole}
                 onChange={(e) => {
-                    setSelectedRole(e.target.value as 'user' | 'editor' | 'owner');
-                    setConfirmMode(false); // Reset confirmation when selection changes
+                  setSelectedRole(e.target.value as 'user' | 'editor' | 'owner');
+                  setConfirmMode(false); // Reset confirmation when selection changes
                 }}
                 disabled={loading}
                 className="w-full px-4 py-3 rounded-lg border-2 border-blue-400 focus:outline-none focus:border-blue-600 text-gray-800 font-semibold disabled:opacity-50"

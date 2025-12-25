@@ -14,24 +14,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Initialize with false, but this will be corrected on mount
   const [isGrayscale, setIsGrayscale] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  
+
   // --- UPDATED LOGIC FOR DYNAMIC TEXT ---
   // If grayscale is active, show "COLOR". If not, show "B&W".
-  const buttonText = isGrayscale ? "SWITCH TO COLOR" : "SWITCH TO B&W"; 
+  const buttonText = isGrayscale ? "SWITCH TO COLOR" : "SWITCH TO B&W";
 
   // Load from localStorage on mount BEFORE rendering and apply to body
   useEffect(() => {
     // 1. Read from local storage
     const savedTheme = localStorage.getItem('ugc-theme-grayscale');
     const shouldBeGrayscale = savedTheme === 'true';
-    
+
     setIsGrayscale(shouldBeGrayscale);
-    
+
     // 2. Apply class immediately to body
     if (shouldBeGrayscale) {
-      document.body.classList.add('grayscale');
+      document.body.classList.add('theme-bw');
     }
-    
+
     setIsMounted(true);
   }, []);
 
@@ -39,14 +39,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setIsGrayscale((prev) => {
       const newValue = !prev;
       localStorage.setItem('ugc-theme-grayscale', String(newValue));
-      
+
       // Update body class
       if (newValue) {
-        document.body.classList.add('grayscale');
+        document.body.classList.add('theme-bw');
       } else {
-        document.body.classList.remove('grayscale');
+        document.body.classList.remove('theme-bw');
       }
-      
+
       return newValue;
     });
   };

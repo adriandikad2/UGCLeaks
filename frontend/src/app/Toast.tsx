@@ -33,7 +33,7 @@ function Toast({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => vo
   useEffect(() => {
     const timer = setTimeout(() => {
       onRemove(toast.id);
-    }, 4000);
+    }, 2500); // 2.5 seconds auto-dismiss
 
     return () => clearTimeout(timer);
   }, [toast.id, onRemove]);

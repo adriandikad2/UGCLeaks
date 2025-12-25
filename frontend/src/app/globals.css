@@ -18,19 +18,28 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
 }
 
-*, *::before, *::after {
-  -webkit-user-select: none; /* Chrome, Safari, Opera */
-  -moz-user-select: none;    /* Firefox */
-  -ms-user-select: none;     /* IE */
-  user-select: none;         /* Standard */
-  -webkit-touch-callout: none; /* Disable iOS callout menu */
-  -webkit-user-drag: none;     /* Disable user drag */
+*,
+*::before,
+*::after {
+  -webkit-user-select: none;
+  /* Chrome, Safari, Opera */
+  -moz-user-select: none;
+  /* Firefox */
+  -ms-user-select: none;
+  /* IE */
+  user-select: none;
+  /* Standard */
+  -webkit-touch-callout: none;
+  /* Disable iOS callout menu */
+  -webkit-user-drag: none;
+  /* Disable user drag */
 }
 
 /* Scrollbar styling - apply grayscale when needed */
@@ -52,22 +61,48 @@ html, body {
   background: rgba(255, 255, 255, 0.6);
 }
 
-/* Apply grayscale to scrollbars when body has grayscale class */
-body.grayscale ::-webkit-scrollbar-thumb {
+/* Apply grayscale to scrollbars when body has theme-bw class */
+body.theme-bw ::-webkit-scrollbar-thumb {
   background: rgba(100, 100, 100, 0.4) !important;
   filter: grayscale(100%);
 }
 
-body.grayscale ::-webkit-scrollbar-thumb:hover {
+body.theme-bw ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 100, 100, 0.6) !important;
   filter: grayscale(100%);
 }
 
+/* Apply grayscale filter to ThemeProvider's wrapper div.
+   ToolBelt is OUTSIDE ThemeProvider in layout.tsx, so it won't be affected.
+   
+   SOLUTION: Use an overlay pseudo-element with mix-blend-mode to apply grayscale
+   visually WITHOUT creating a containing block that breaks fixed positioning.
+   The overlay sits on top and desaturates everything below it. */
+
+/* The grayscale overlay - sits on top of everything and desaturates */
+body.theme-bw::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  /* Click-through */
+  background: white;
+  mix-blend-mode: saturation;
+  /* This creates the grayscale effect */
+}
+
+/* Apply dark background to body when in B&W mode */
+body.theme-bw {
+  background: #1a1a1a;
+}
+
 /* 2. THE EXCEPTIONS: Re-enable for Inputs, Textareas, and your specific class */
-input, 
-textarea, 
-.select-text, 
-.select-text * { /* Includes children of the description box */
+input,
+textarea,
+.select-text,
+.select-text * {
+  /* Includes children of the description box */
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   -ms-user-select: text !important;
@@ -89,9 +124,11 @@ body {
   0% {
     background-position: 0% 50%;
   }
+
   50% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0% 50%;
   }
@@ -99,63 +136,84 @@ body {
 
 /* Floating Block Animations */
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) rotateX(0deg) rotateY(0deg);
   }
+
   50% {
     transform: translateY(-20px) rotateX(20deg) rotateY(20deg);
   }
 }
 
 @keyframes float-slow {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) rotateX(0deg) rotateY(0deg);
   }
+
   50% {
     transform: translateY(-30px) rotateX(-15deg) rotateY(-15deg);
   }
 }
 
 @keyframes float-fast {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) rotateX(0deg) rotateY(0deg);
   }
+
   50% {
     transform: translateY(-15px) rotateX(25deg) rotateY(-25deg);
   }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px 0 rgba(255, 0, 110, 0.5);
   }
+
   50% {
     box-shadow: 0 0 30px 10px rgba(255, 0, 110, 0.8);
   }
 }
 
 @keyframes pulse-glow-cyan {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px 0 rgba(0, 217, 255, 0.5);
   }
+
   50% {
     box-shadow: 0 0 30px 10px rgba(0, 217, 255, 0.8);
   }
 }
 
 @keyframes pulse-glow-yellow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px 0 rgba(255, 190, 11, 0.5);
   }
+
   50% {
     box-shadow: 0 0 30px 10px rgba(255, 190, 11, 0.8);
   }
 }
 
 @keyframes pulse-glow-purple {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px 0 rgba(181, 78, 255, 0.5);
   }
+
   50% {
     box-shadow: 0 0 30px 10px rgba(181, 78, 255, 0.8);
   }
@@ -164,12 +222,25 @@ body {
 /**
  * Allow text selection only for descriptions and text content
  */
-p, span, a, label, h1, h2, h3, h4, h5, h6, div {
+p,
+span,
+a,
+label,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+div {
   user-select: text;
 }
 
 /* Descriptions should be selectable */
-.description, .text-content, .info, article {
+.description,
+.text-content,
+.info,
+article {
   user-select: text;
 }
 
@@ -178,6 +249,7 @@ p, span, a, label, h1, h2, h3, h4, h5, h6, div {
     transform: scale(0) rotateZ(-180deg);
     opacity: 0;
   }
+
   100% {
     transform: scale(1) rotateZ(0deg);
     opacity: 1;
@@ -185,15 +257,20 @@ p, span, a, label, h1, h2, h3, h4, h5, h6, div {
 }
 
 @keyframes bounce-rotate {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0) rotateZ(0deg);
   }
+
   25% {
     transform: translateY(-10px) rotateZ(5deg);
   }
+
   50% {
     transform: translateY(-20px) rotateZ(0deg);
   }
+
   75% {
     transform: translateY(-10px) rotateZ(-5deg);
   }
@@ -204,6 +281,7 @@ p, span, a, label, h1, h2, h3, h4, h5, h6, div {
     transform: translateX(-100px);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -215,6 +293,7 @@ p, span, a, label, h1, h2, h3, h4, h5, h6, div {
     transform: translateX(100px);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -225,6 +304,7 @@ p, span, a, label, h1, h2, h3, h4, h5, h6, div {
   0% {
     background-position: 0% center;
   }
+
   100% {
     background-position: 200% center;
   }
@@ -234,9 +314,11 @@ p, span, a, label, h1, h2, h3, h4, h5, h6, div {
   0% {
     background-position: 0% 50%;
   }
+
   50% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0% 50%;
   }
@@ -357,14 +439,31 @@ p, span, a, label, h1, h2, h3, h4, h5, h6, div {
 
 /* Hammer Shake Animation (Safe Version) */
 @keyframes hammer-shake {
-  0% { transform: translate(0, 0); }
-  25% { transform: translate(-5px, 5px); }  /* Reduced from 15px */
-  50% { transform: translate(5px, -5px); }  /* Reduced from 15px */
-  75% { transform: translate(-5px, -5px); } /* Reduced from 15px */
-  100% { transform: translate(0, 0); }
+  0% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-5px, 5px);
+  }
+
+  /* Reduced from 15px */
+  50% {
+    transform: translate(5px, -5px);
+  }
+
+  /* Reduced from 15px */
+  75% {
+    transform: translate(-5px, -5px);
+  }
+
+  /* Reduced from 15px */
+  100% {
+    transform: translate(0, 0);
+  }
 }
 
 .shake-screen {
-  animation: hammer-shake 0.15s ease-in-out !important; 
+  animation: hammer-shake 0.15s ease-in-out !important;
   /* Removed 'position: relative' as it might conflict with 'fixed' container */
 }

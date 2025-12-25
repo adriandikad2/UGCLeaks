@@ -676,14 +676,14 @@ export default function PlaygroundCanvas() {
                 {activeTool === 'paintball' && (
                     <>
                         {/* The Gun */}
-                        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-67 h-81 pointer-events-none origin-bottom z-50 transition-transform duration-75"
+                        <div className="absolute -bottom-16 left-1/2 w-48 h-64 md:w-64 md:h-80 pointer-events-none origin-bottom z-50 transition-transform duration-75"
                             style={{ transform: `translateX(-50%) rotate(${gunAngle}deg) ${isClicking ? 'translateY(10px)' : ''}` }}>
                             <img src={ASSETS.gun} alt="gun" className="w-full h-full object-contain" />
                         </div>
                         {/* The Crosshair */}
                         <div className="absolute pointer-events-none z-50 -translate-x-1/2 -translate-y-1/2"
                             style={{ left: mousePos.x, top: mousePos.y }}>
-                            <img src={ASSETS.crosshair} alt="target" className="w-8 h-8 opacity-80" />
+                            <img src={ASSETS.crosshair} alt="target" className="w-6 h-6 md:w-8 md:h-8 opacity-80" />
                         </div>
                     </>
                 )}

@@ -33,12 +33,12 @@ export default function Home() {
   }, []);
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden transition-all duration-700 ${isGrayscale ? 'grayscale bg-gray-900' : ''}`}>
-      
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
+
       {/* --- GLOBAL THEME BUTTON --- */}
-      <button 
+      <button
         onClick={toggleTheme}
-        className="absolute top-6 right-6 z-50 px-6 py-2 rounded-full border-2 border-white/50 text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
+        className="absolute top-4 right-4 md:top-6 md:right-6 z-50 px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
       >
         <span className="animate-pulse group-hover:animate-none">
           {buttonText}
@@ -46,24 +46,24 @@ export default function Home() {
       </button>
 
       {/* --- AUTH BUTTONS --- */}
-      <div className="absolute top-6 left-6 z-50 flex gap-3">
+      <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50 flex gap-2 md:gap-3">
         {authenticated ? (
           <button
             onClick={handleSignout}
-            className="px-6 py-2 rounded-full bg-red-500 text-white font-bold hover:bg-red-600 transition-all"
+            className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full bg-red-500 text-white font-bold hover:bg-red-600 transition-all"
           >
-            🚪 Sign Out
+            <span className="hidden md:inline">🚪 </span>Sign Out
           </button>
         ) : (
           <>
             <Link href="/auth/signin">
-              <button className="px-6 py-2 rounded-full bg-blue-500 text-white font-bold hover:bg-blue-600 transition-all">
-                🔑 Sign In
+              <button className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full bg-blue-500 text-white font-bold hover:bg-blue-600 transition-all">
+                <span className="hidden md:inline">🔑 </span>Sign In
               </button>
             </Link>
             <Link href="/auth/signup">
-              <button className="px-6 py-2 rounded-full bg-green-500 text-white font-bold hover:bg-green-600 transition-all">
-                ✨ Sign Up
+              <button className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full bg-green-500 text-white font-bold hover:bg-green-600 transition-all">
+                <span className="hidden md:inline">✨ </span>Sign Up
               </button>
             </Link>
           </>

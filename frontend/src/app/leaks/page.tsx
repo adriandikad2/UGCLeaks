@@ -56,7 +56,7 @@ const generateRandomGradient = (id: string) => {
     '#ff8c42', '#ff1744', '#2196f3', '#667eea', '#764ba2',
     '#f093fb', '#4facfe'
   ];
-  
+
   // Use seeded sort for deterministic shuffling
   const shuffled = [...colors].sort((a, b) => {
     const seedA = seededRandom(id + a);
@@ -69,11 +69,13 @@ const generateRandomGradient = (id: string) => {
 export default function LeaksPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMethod, setFilterMethod] = useState<UGCMethod | 'All'>('All');
-  const [sortBy, setSortBy] = useState<'recent' | 'stock' | 'limit'>('recent');
+  const [sortBy, setSortBy] = useState<'recent' | 'stock' | 'limit' | 'upcoming'>('upcoming');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [items, setItems] = useState<UGCItem[]>([]);
   const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]);
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
   const [isMounted, setIsMounted] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [authenticated, setAuthenticated] = useState(false);
   const [isEditor, setIsEditor] = useState(false);
@@ -93,51 +95,58 @@ export default function LeaksPage() {
     setAuthenticated(false);
     addToast('Signed out successfully', 'success');
     router.push('/');
-  }; 
+  };
 
   // Viewport/Modal States
   const [selectedItem, setSelectedItem] = useState<UGCItem | null>(null);
   const [timers, setTimers] = useState<{ [key: string]: string }>({});
 
+  // Extract load function so it can be called for refresh
+  const loadScheduledItems = async () => {
+    try {
+      const { getScheduledItems } = await import('@/lib/api');
+      const scheduled = await getScheduledItems();
+      if (scheduled && scheduled.length > 0) {
+        const converted = scheduled.map((item: any) => ({
+          id: item.uuid || item.id,
+          title: item.title,
+          itemName: item.item_name,
+          creator: item.creator,
+          creatorLink: item.creator_link,
+          stock: item.stock,
+          releaseDateTime: item.release_date_time,
+          method: item.method,
+          instruction: item.instruction,
+          gameLink: item.game_link,
+          itemLink: item.item_link,
+          imageUrl: item.image_url,
+          limitPerUser: item.limit_per_user,
+          color: item.color,
+        }));
+        setScheduledItems(converted);
+
+        // Generate gradients for scheduled items
+        const apiGradients: { [key: string]: string[] } = {};
+        converted.forEach((item: any) => {
+          apiGradients[item.id] = generateRandomGradient(item.id);
+        });
+        setGradients(prev => ({ ...prev, ...apiGradients }));
+      }
+    } catch (error) {
+      console.error('Failed to load scheduled items from API:', error);
+    }
+  };
+
+  // Refresh handler
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadScheduledItems();
+    setIsRefreshing(false);
+    addToast('Items refreshed!', 'success');
+  };
+
   useEffect(() => {
     setIsMounted(true);
-
-    // Load scheduled items from API
-    const loadScheduledItems = async () => {
-      try {
-        const { getScheduledItems } = await import('@/lib/api');
-        const scheduled = await getScheduledItems();
-        if (scheduled && scheduled.length > 0) {
-          const converted = scheduled.map((item: any) => ({
-            id: item.uuid || item.id,
-            title: item.title,
-            itemName: item.item_name,
-            creator: item.creator,
-            creatorLink: item.creator_link,
-            stock: item.stock,
-            releaseDateTime: item.release_date_time,
-            method: item.method,
-            instruction: item.instruction,
-            gameLink: item.game_link,
-            itemLink: item.item_link,
-            imageUrl: item.image_url,
-            limitPerUser: item.limit_per_user,
-            color: item.color,
-          }));
-          setScheduledItems(converted);
-          
-          // Generate gradients for scheduled items
-          const apiGradients: { [key: string]: string[] } = {};
-          converted.forEach((item: any) => {
-            apiGradients[item.id] = generateRandomGradient(item.id);
-          });
-          setGradients(prev => ({ ...prev, ...apiGradients }));
-        }
-      } catch (error) {
-        console.error('Failed to load scheduled items from API:', error);
-      }
-    };
-
     loadScheduledItems();
   }, []);
 
@@ -148,7 +157,7 @@ export default function LeaksPage() {
 
       allItems.forEach(item => {
         if (!item.releaseDateTime) return;
-        
+
         const releaseTime = new Date(item.releaseDateTime).getTime();
         const nowTime = new Date().getTime();
         const diff = releaseTime - nowTime;
@@ -180,7 +189,7 @@ export default function LeaksPage() {
 
   const filteredItems = [...items, ...scheduledItems]
     .filter(item => {
-      const matchesSearch = 
+      const matchesSearch =
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.creator.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -188,19 +197,49 @@ export default function LeaksPage() {
       return matchesSearch && matchesMethod;
     })
     .sort((a, b) => {
-      if (sortBy === 'recent') {
-        return new Date(b.releaseDateTime).getTime() - new Date(a.releaseDateTime).getTime();
-      }
-      if (sortBy === 'stock') {
+      let result = 0;
+      const now = new Date().getTime();
+
+      if (sortBy === 'upcoming') {
+        // Sort by closest future release first
+        const timeA = new Date(a.releaseDateTime).getTime();
+        const timeB = new Date(b.releaseDateTime).getTime();
+        const diffA = timeA - now;
+        const diffB = timeB - now;
+
+        // Future items come first, then by closest time
+        if (diffA > 0 && diffB > 0) {
+          result = diffA - diffB; // Both future: closer first
+        } else if (diffA > 0) {
+          result = -1; // A is future, B is past
+        } else if (diffB > 0) {
+          result = 1; // B is future, A is past
+        } else {
+          result = diffB - diffA; // Both past: more recent first
+        }
+      } else if (sortBy === 'recent') {
+        result = new Date(b.releaseDateTime).getTime() - new Date(a.releaseDateTime).getTime();
+      } else if (sortBy === 'stock') {
         const stockA = typeof a.stock === 'number' ? a.stock : -1;
         const stockB = typeof b.stock === 'number' ? b.stock : -1;
-        return stockB - stockA;
+        result = stockB - stockA;
+      } else if (sortBy === 'limit') {
+        result = b.limitPerUser - a.limitPerUser;
       }
-      if (sortBy === 'limit') {
-        return b.limitPerUser - a.limitPerUser;
-      }
-      return 0;
+
+      return sortDirection === 'desc' ? -result : result;
     });
+
+  // Get next upcoming items for HUD
+  const nextUpItems = [...items, ...scheduledItems]
+    .filter(item => {
+      const releaseTime = new Date(item.releaseDateTime).getTime();
+      return releaseTime > new Date().getTime(); // Only future items
+    })
+    .sort((a, b) => {
+      return new Date(a.releaseDateTime).getTime() - new Date(b.releaseDateTime).getTime();
+    })
+    .slice(0, 3); // Show up to 3 next items
 
   const openModal = (item: UGCItem) => {
     setSelectedItem(item);
@@ -213,12 +252,12 @@ export default function LeaksPage() {
   };
 
   return (
-    <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'grayscale bg-gray-900' : ''}`}>
+    <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
       {/* --- THEME & AUTH CONTROLS --- */}
-      <div className="fixed top-6 right-6 z-40 flex gap-3">
-        <button 
+      <div className="fixed top-4 right-4 md:top-6 md:right-6 z-40 flex gap-2 md:gap-3">
+        <button
           onClick={toggleTheme}
-          className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
+          className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
         >
           <span className="animate-pulse group-hover:animate-none">
             {buttonText}
@@ -227,33 +266,33 @@ export default function LeaksPage() {
       </div>
 
       {/* --- NAVIGATION BUTTONS --- */}
-      <div className="fixed top-6 left-6 z-40 flex gap-3">
-        <button 
+      <div className="fixed top-4 left-4 md:top-6 md:left-6 z-40 flex gap-2 md:gap-3">
+        <button
           onClick={() => router.push('/')}
-          className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300"
+          className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300"
         >
-          ← Home
+          <span className="hidden md:inline">← </span>Home
         </button>
         {authenticated ? (
           <button
             onClick={handleSignout}
-            className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-red-600 hover:border-red-600 transition-all duration-300"
+            className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-red-600 hover:border-red-600 transition-all duration-300"
           >
-            🚪 Sign Out
+            <span className="hidden md:inline">🚪 </span>Sign Out
           </button>
         ) : (
           <>
-            <button 
+            <button
               onClick={() => router.push('/auth/signin')}
-              className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-blue-600 hover:border-blue-600 transition-all duration-300"
+              className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-blue-600 hover:border-blue-600 transition-all duration-300"
             >
-              🔓 Sign In
+              <span className="hidden md:inline">🔓 </span>Sign In
             </button>
-            <button 
+            <button
               onClick={() => router.push('/auth/signup')}
-              className="px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-green-600 hover:border-green-600 transition-all duration-300"
+              className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-green-600 hover:border-green-600 transition-all duration-300"
             >
-              ✍️ Sign Up
+              <span className="hidden md:inline">✍️ </span>Sign Up
             </button>
           </>
         )}
@@ -275,7 +314,7 @@ export default function LeaksPage() {
 
         <div className="flex justify-center">
           {isEditor && (
-            <button 
+            <button
               onClick={() => router.push('/schedule')}
               className="px-8 py-4 bg-gradient-to-r from-roblox-purple to-roblox-pink text-white font-black rounded-xl blocky-shadow-hover text-lg uppercase tracking-wide hover:scale-105 transition-all"
             >
@@ -285,7 +324,7 @@ export default function LeaksPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-           <div className="space-y-2">
+          <div className="space-y-2">
             <label className="text-white font-bold uppercase text-sm">🔍 Search</label>
             <input
               type="text"
@@ -312,15 +351,33 @@ export default function LeaksPage() {
 
           <div className="space-y-2">
             <label className="text-white font-bold uppercase text-sm">📊 Sort</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'recent' | 'stock' | 'limit')}
-              className="w-full px-4 py-3 rounded-lg border-4 border-roblox-purple font-bold text-gray-900 focus:outline-none"
-            >
-              <option value="recent">⏱️ Most Recent</option>
-              <option value="stock">📦 Most Stock</option>
-              <option value="limit">🔢 Highest Limit</option>
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'recent' | 'stock' | 'limit' | 'upcoming')}
+                className="flex-1 px-4 py-3 rounded-lg border-4 border-roblox-purple font-bold text-gray-900 focus:outline-none"
+              >
+                <option value="upcoming">🚀 Next Up</option>
+                <option value="recent">⏱️ Most Recent</option>
+                <option value="stock">📦 Most Stock</option>
+                <option value="limit">🔢 Highest Limit</option>
+              </select>
+              <button
+                onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
+                className="px-4 py-3 rounded-lg border-4 border-roblox-purple bg-white font-bold text-gray-900 hover:bg-roblox-purple hover:text-white transition-all"
+                title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+              >
+                {sortDirection === 'asc' ? '↑' : '↓'}
+              </button>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className={`px-4 py-3 rounded-lg border-4 border-roblox-cyan bg-white font-bold text-gray-900 hover:bg-roblox-cyan hover:text-white transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+                title="Refresh items"
+              >
+                🔄
+              </button>
+            </div>
           </div>
         </div>
 
@@ -328,9 +385,9 @@ export default function LeaksPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {filteredItems.map((item) => {
             const gradientColors = isMounted ? gradients[item.id] : ['#ccc', '#ccc', '#ccc', '#ccc'];
-            const gradientStr = gradientColors 
-                ? `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]}, ${gradientColors[2]}, ${gradientColors[3]})`
-                : 'linear-gradient(135deg, #ccc, #ccc)';
+            const gradientStr = gradientColors
+              ? `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]}, ${gradientColors[2]}, ${gradientColors[3]})`
+              : 'linear-gradient(135deg, #ccc, #ccc)';
             const outlineColor = gradientColors ? gradientColors[0] : '#ccc';
 
             return (
@@ -416,7 +473,7 @@ export default function LeaksPage() {
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">📅 Release</p>
                       <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: gradientColors[3] || outlineColor }}>
-                        {timers[item.id] || 'Loading...'} 
+                        {timers[item.id] || 'Loading...'}
                       </p>
                     </div>
                   </div>
@@ -429,9 +486,9 @@ export default function LeaksPage() {
                     <div className="absolute bottom-0 left-0 w-full h-4 bg-gradient-to-t from-gray-50 to-transparent"></div>
                   </div>
 
-                   <div className="mt-auto text-center">
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Click for Details</span>
-                   </div>
+                  <div className="mt-auto text-center">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Click for Details</span>
+                  </div>
                 </div>
               </div>
             );
@@ -450,83 +507,122 @@ export default function LeaksPage() {
       {/* --- DETAILED VIEWPORT MODAL --- */}
       {selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-           {/* Backdrop */}
-           <div 
-             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-             onClick={closeModal}
-           ></div>
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={closeModal}
+          ></div>
 
-           {/* Modal Content */}
-           <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in animate-float-up">
-              
-              {/* Modal Header Gradient */}
-              <div 
-                className="h-24 w-full relative flex items-center justify-center"
-                style={{
-                  background: gradients[selectedItem.id] 
-                    ? `linear-gradient(135deg, ${gradients[selectedItem.id].join(', ')})` 
-                    : selectedItem.color
-                }}
+          {/* Modal Content */}
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in animate-float-up">
+
+            {/* Modal Header Gradient */}
+            <div
+              className="h-24 w-full relative flex items-center justify-center"
+              style={{
+                background: gradients[selectedItem.id]
+                  ? `linear-gradient(135deg, ${gradients[selectedItem.id].join(', ')})`
+                  : selectedItem.color
+              }}
+            >
+              <button
+                onClick={closeModal}
+                className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white rounded-full p-2 transition-all"
               >
-                 <button 
-                   onClick={closeModal}
-                   className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white rounded-full p-2 transition-all"
-                 >
-                   ✕ Close
-                 </button>
-                 
-                 {/* Floating Image in Header */}
-                 <div className="absolute -bottom-12 p-2 bg-white rounded-xl shadow-lg">
-                    <img 
-                      src={selectedItem.imageUrl} 
-                      className="w-32 h-32 object-contain rounded-lg" 
-                      alt={selectedItem.title} 
-                    />
-                 </div>
+                ✕ Close
+              </button>
+
+              {/* Floating Image in Header */}
+              <div className="absolute -bottom-12 p-2 bg-white rounded-xl shadow-lg">
+                <img
+                  src={selectedItem.imageUrl}
+                  className="w-32 h-32 object-contain rounded-lg"
+                  alt={selectedItem.title}
+                />
+              </div>
+            </div>
+
+            <div className="pt-16 pb-8 px-8 text-center space-y-6">
+              <div>
+                <h2 className="text-3xl font-black text-gray-900">{selectedItem.title}</h2>
+                <p className="text-gray-500 font-bold">by {selectedItem.creator}</p>
               </div>
 
-              <div className="pt-16 pb-8 px-8 text-center space-y-6">
-                 <div>
-                    <h2 className="text-3xl font-black text-gray-900">{selectedItem.title}</h2>
-                    <p className="text-gray-500 font-bold">by {selectedItem.creator}</p>
-                 </div>
-
-                 {/* Timer Large Display */}
-                 <div className="bg-gray-100 rounded-xl p-4 inline-block">
-                    <p className="text-sm font-bold text-gray-500 uppercase">Status</p>
-                    <p className="text-xl font-black text-roblox-purple">
-                       {timers[selectedItem.id] || 'Updating...'}
-                    </p>
-                 </div>
-
-                 {/* Full Description / Instruction */}
-                 <div className="bg-blue-50 border-l-8 border-roblox-cyan p-6 rounded-r-xl text-left">
-                    <h3 className="text-lg font-black text-gray-800 mb-2">Instructions & Details</h3>
-                    <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
-                       {/* This allows full visibility of the description */}
-                       <ClickableInstructions text={selectedItem.instruction} color={selectedItem.color || '#000'} />
-                    </div>
-                 </div>
-
-                 {/* Links Section */}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                    {selectedItem.itemLink && (
-                       <Link href={selectedItem.itemLink} target="_blank" className="w-full">
-                          <button className="w-full py-4 bg-roblox-pink text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                             🛍️ View on Roblox
-                          </button>
-                       </Link>
-                    )}
-                    {selectedItem.gameLink && (
-                       <Link href={selectedItem.gameLink} target="_blank" className="w-full">
-                          <button className="w-full py-4 bg-roblox-purple text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                             🎮 Join Game
-                          </button>
-                       </Link>
-                    )}
-                 </div>
+              {/* Timer Large Display */}
+              <div className="bg-gray-100 rounded-xl p-4 inline-block">
+                <p className="text-sm font-bold text-gray-500 uppercase">Status</p>
+                <p className="text-xl font-black text-roblox-purple">
+                  {timers[selectedItem.id] || 'Updating...'}
+                </p>
               </div>
-           </div>
+
+              {/* Full Description / Instruction */}
+              <div className="bg-blue-50 border-l-8 border-roblox-cyan p-6 rounded-r-xl text-left">
+                <h3 className="text-lg font-black text-gray-800 mb-2">Instructions & Details</h3>
+                <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
+                  {/* This allows full visibility of the description */}
+                  <ClickableInstructions text={selectedItem.instruction} color={selectedItem.color || '#000'} />
+                </div>
+              </div>
+
+              {/* Links Section */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                {selectedItem.itemLink && (
+                  <Link href={selectedItem.itemLink} target="_blank" className="w-full">
+                    <button className="w-full py-4 bg-roblox-pink text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                      🛍️ View on Roblox
+                    </button>
+                  </Link>
+                )}
+                {selectedItem.gameLink && (
+                  <Link href={selectedItem.gameLink} target="_blank" className="w-full">
+                    <button className="w-full py-4 bg-roblox-purple text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                      🎮 Join Game
+                    </button>
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- NEXT UP HUD --- */}
+      {nextUpItems.length > 0 && (
+        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 flex flex-col gap-2 max-w-[280px] md:max-w-xs">
+          <div className="text-white/70 text-xs font-bold uppercase tracking-wider mb-1 text-right">
+            🚀 Next Up
+          </div>
+          {nextUpItems.map((item) => {
+            const gradientColors = gradients[item.id] || ['#b54eff', '#00d9ff', '#ff006e', '#ffbe0b'];
+            return (
+              <div
+                key={item.id}
+                onClick={() => openModal(item)}
+                className="cursor-pointer bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-2 md:p-3 flex items-center gap-2 md:gap-3 hover:bg-white/20 transition-all hover:scale-[1.02] shadow-lg"
+              >
+                <div
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden border-2 flex-shrink-0"
+                  style={{ borderColor: gradientColors[0] }}
+                >
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="w-full h-full object-contain bg-white/10"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-xs md:text-sm truncate">{item.title}</p>
+                  <p
+                    className="text-xs font-bold"
+                    style={{ color: gradientColors[0] }}
+                  >
+                    {timers[item.id] || 'Loading...'}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

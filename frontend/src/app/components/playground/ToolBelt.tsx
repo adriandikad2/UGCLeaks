@@ -17,20 +17,19 @@ export default function ToolBelt() {
   ];
 
   return (
-    <motion.div 
-      initial={{ x: -100 }} 
+    <motion.div
+      initial={{ x: -100 }}
       animate={{ x: 0 }}
-      className="fixed left-4 top-1/2 -translate-y-1/2 z-[60] flex flex-col gap-3 p-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl"
+      className="fixed left-2 md:left-4 top-[42%] -translate-y-1/2 z-[60] flex flex-col gap-1.5 md:gap-3 p-2 md:p-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl md:rounded-2xl shadow-2xl"
     >
       {tools.map((tool) => (
         <button
           key={tool.id}
           onClick={() => setActiveTool(tool.id)}
-          className={`relative p-3 rounded-xl transition-all duration-300 group ${
-            activeTool === tool.id ? `${tool.color} text-white shadow-lg scale-110` : 'hover:bg-white/10 text-white/70'
-          }`}
+          className={`relative p-2 md:p-3 rounded-lg md:rounded-xl transition-all duration-300 group ${activeTool === tool.id ? `${tool.color} text-white shadow-lg scale-110` : 'hover:bg-white/10 text-white/70'
+            }`}
         >
-          <tool.icon size={24} />
+          <tool.icon className="w-4 h-4 md:w-6 md:h-6" />
           {/* Tooltip */}
           <span className="absolute left-full ml-4 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
             {tool.label}
@@ -38,20 +37,20 @@ export default function ToolBelt() {
           {activeTool === tool.id && (
             <motion.div
               layoutId="active-ring"
-              className="absolute inset-0 rounded-xl border-2 border-white/50"
+              className="absolute inset-0 rounded-lg md:rounded-xl border-2 border-white/50"
               transition={{ duration: 0.2 }}
             />
           )}
         </button>
       ))}
-      
-      <div className="h-px w-full bg-white/20 my-1" />
-      
+
+      <div className="h-px w-full bg-white/20 my-0.5 md:my-1" />
+
       <button
         onClick={clearElements}
-        className="p-3 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
+        className="p-2 md:p-3 rounded-lg md:rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
       >
-        <Trash2 size={24} />
+        <Trash2 className="w-4 h-4 md:w-6 md:h-6" />
       </button>
     </motion.div>
   );

@@ -8,6 +8,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- YOUR LOGS GO HERE ---
 const LOGS = [
     {
+        version: 'v1.2',
+        date: 'Dec 26, 2025',
+        changes: [
+            '⌚ Timezone Hell was not fixed yesterday. Whew, turns out there was a mismatch between local and UTC time. Hopefully nothing else of the same issues appear in the future...',
+            '🔄️ Refresh buttons for you that do not want to refresh the /leaks page.',
+            '📱 Several mobile buttons responsiveness.',
+            '🎄 Merry crisis!'
+        ]
+    },
+    {
         version: 'v1.1',
         date: 'Dec 25, 2025',
         changes: [
@@ -76,7 +86,7 @@ export default function UpdateLogs() {
                                 <Contact size={14} /> Contact & Inquiries
                             </h4>
                             <p className="text-xs text-white/70 mb-3 leading-relaxed">
-                                Found a bug? A critical bug perhaps? Or you got suggestions? Feel free to reach out to me directly.
+                                Found a bug? Perhaps a critical bug? Perchance you got suggestions? Mayhaps want to be a leaker? Away at it.
                             </p>
 
                             <div className="flex gap-3">

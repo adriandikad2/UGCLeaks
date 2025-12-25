@@ -52,9 +52,9 @@ export default function SigninPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4 transition-all duration-700 ${isGrayscale ? 'grayscale' : ''}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4 transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
       {/* --- THEME TOGGLE BUTTON --- */}
-      <button 
+      <button
         onClick={toggleTheme}
         className="absolute top-6 right-6 z-50 px-6 py-2 rounded-full border-2 border-white/50 text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
       >
@@ -71,7 +71,7 @@ export default function SigninPage() {
       </Link>
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-      
+
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-pink-600">
