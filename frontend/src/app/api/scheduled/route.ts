@@ -12,7 +12,11 @@ export async function GET(request: Request) {
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
 
-    let query = 'SELECT * FROM scheduled_items ORDER BY release_date_time ASC';
+    // Cast release_date_time to text to prevent pg driver from treating it as local time
+    // The database stores UTC times, but 'timestamp without time zone' is interpreted as local by the driver
+    let query = `SELECT *, 
+      TO_CHAR(release_date_time, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as release_date_time_utc 
+      FROM scheduled_items ORDER BY release_date_time ASC`;
     const params: any[] = [];
 
     if (limit) {

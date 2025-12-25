@@ -3,12 +3,13 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ClickableInstructions, NoLinkTemplate } from '../InstructionParser';
 import { useTheme } from '../components/ThemeContext';
 import { hasAccess, isAuthenticated, signout, getUserRole } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
+import { getRobloxStock, extractRobloxAssetId, RobloxStockData, updateScheduledItem } from '@/lib/api';
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
@@ -22,7 +23,7 @@ type UGCItem = {
   itemName: string;
   creator: string;
   creatorLink?: string;
-  stock: number | 'OUT OF STOCK';
+  stock: number | 'OUT OF STOCK' | 'unknown' | 'Unknown';
   releaseDateTime: string;
   method: UGCMethod;
   instruction: string;
@@ -31,6 +32,9 @@ type UGCItem = {
   imageUrl: string;
   limitPerUser: number;
   color?: string;
+  soldOut?: boolean; // Manual sold out confirmation by scheduler
+  finalCurrentStock?: number; // Persisted current stock when item sold out
+  finalTotalStock?: number; // Persisted total stock when item sold out
 };
 
 const OUTLINE_COLORS = ['#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff'];
@@ -69,6 +73,7 @@ const generateRandomGradient = (id: string) => {
 export default function LeaksPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMethod, setFilterMethod] = useState<UGCMethod | 'All'>('All');
+  const [releaseStatusFilter, setReleaseStatusFilter] = useState<'all' | 'released' | 'upcoming'>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'stock' | 'limit' | 'upcoming'>('upcoming');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [items, setItems] = useState<UGCItem[]>([]);
@@ -76,6 +81,8 @@ export default function LeaksPage() {
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
   const [isMounted, setIsMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [liveStock, setLiveStock] = useState<{ [assetId: string]: RobloxStockData }>({});
+  const [lastStockUpdate, setLastStockUpdate] = useState<Date | null>(null);
 
   const [authenticated, setAuthenticated] = useState(false);
   const [isEditor, setIsEditor] = useState(false);
@@ -114,7 +121,7 @@ export default function LeaksPage() {
           creator: item.creator,
           creatorLink: item.creator_link,
           stock: item.stock,
-          releaseDateTime: item.release_date_time,
+          releaseDateTime: item.release_date_time_utc || item.release_date_time,
           method: item.method,
           instruction: item.instruction,
           gameLink: item.game_link,
@@ -122,6 +129,9 @@ export default function LeaksPage() {
           imageUrl: item.image_url,
           limitPerUser: item.limit_per_user,
           color: item.color,
+          soldOut: item.sold_out, // Manual sold out confirmation
+          finalCurrentStock: item.final_current_stock, // Persisted current stock
+          finalTotalStock: item.final_total_stock, // Persisted total stock
         }));
         setScheduledItems(converted);
 
@@ -158,7 +168,13 @@ export default function LeaksPage() {
       allItems.forEach(item => {
         if (!item.releaseDateTime) return;
 
-        const releaseTime = new Date(item.releaseDateTime).getTime();
+        // Ensure date is parsed as UTC - convert to ISO format (replace space with T) and append Z
+        let dateStr = item.releaseDateTime;
+        if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+          // Database returns "2025-12-26 03:00:00" but ISO needs "2025-12-26T03:00:00Z"
+          dateStr = dateStr.replace(' ', 'T') + 'Z';
+        }
+        const releaseTime = new Date(dateStr).getTime();
         const nowTime = new Date().getTime();
         const diff = releaseTime - nowTime;
 
@@ -187,6 +203,85 @@ export default function LeaksPage() {
     return () => clearInterval(interval);
   }, [items, scheduledItems]);
 
+  // Stock polling effect - fetch live stock every 60 seconds
+  const fetchLiveStock = useCallback(async () => {
+    const allItems = [...items, ...scheduledItems];
+    const assetIds: string[] = [];
+    const assetIdToItemId: { [assetId: string]: string } = {};
+
+    // Extract asset IDs from item links (skip sold-out items to reduce API calls)
+    allItems.forEach(item => {
+      // Skip items marked as sold out by schedulers
+      if (item.soldOut) return;
+
+      if (item.itemLink) {
+        const assetId = extractRobloxAssetId(item.itemLink);
+        if (assetId) {
+          assetIds.push(assetId);
+          assetIdToItemId[assetId] = item.id;
+        }
+      }
+    });
+
+    if (assetIds.length === 0) return;
+
+    try {
+      const stockData = await getRobloxStock(assetIds);
+      // Merge new data with existing data (don't replace, to avoid losing data for items not in current response)
+      setLiveStock(prev => ({
+        ...prev,
+        ...stockData
+      }));
+      setLastStockUpdate(new Date());
+
+      // Auto-persist sold-out items: detect items with currentStock === 0 and save their final stock values
+      for (const assetId of Object.keys(stockData)) {
+        const data = stockData[assetId];
+        // Only process items that are sold out (currentStock === 0) and have valid data
+        if (data.currentStock === 0 && data.totalStock > 0 && !data.error) {
+          const itemId = assetIdToItemId[assetId];
+          if (itemId) {
+            // Find the item to check if it's already marked as sold out
+            const item = allItems.find(i => i.id === itemId);
+            if (item && !item.soldOut) {
+              // Auto-mark as sold out and persist final stock values
+              console.log(`Auto-marking item ${itemId} as sold out with stock ${data.currentStock}/${data.totalStock}`);
+              updateScheduledItem(itemId, {
+                sold_out: true,
+                final_current_stock: data.currentStock,
+                final_total_stock: data.totalStock
+              }).catch(err => console.error('Failed to auto-persist sold-out item:', err));
+
+              // Update local state immediately to prevent re-checking
+              setScheduledItems(prev => prev.map(i =>
+                i.id === itemId
+                  ? { ...i, soldOut: true, finalCurrentStock: data.currentStock, finalTotalStock: data.totalStock }
+                  : i
+              ));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch live stock:', error);
+    }
+  }, [items, scheduledItems]);
+
+  useEffect(() => {
+    // Initial fetch after a short delay
+    const initialDelay = setTimeout(() => {
+      fetchLiveStock();
+    }, 2000);
+
+    // Poll every 10 minutes (to reduce Roblox API pressure)
+    const interval = setInterval(fetchLiveStock, 600000);
+
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(interval);
+    };
+  }, [fetchLiveStock]);
+
   const filteredItems = [...items, ...scheduledItems]
     .filter(item => {
       const matchesSearch =
@@ -194,7 +289,20 @@ export default function LeaksPage() {
         item.creator.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesMethod = filterMethod === 'All' || item.method === filterMethod;
-      return matchesSearch && matchesMethod;
+
+      // Release status filter
+      let matchesReleaseStatus = true;
+      if (releaseStatusFilter !== 'all' && item.releaseDateTime) {
+        const now = new Date().getTime();
+        const releaseTime = new Date(item.releaseDateTime).getTime();
+        if (releaseStatusFilter === 'released') {
+          matchesReleaseStatus = releaseTime <= now;
+        } else if (releaseStatusFilter === 'upcoming') {
+          matchesReleaseStatus = releaseTime > now;
+        }
+      }
+
+      return matchesSearch && matchesMethod && matchesReleaseStatus;
     })
     .sort((a, b) => {
       let result = 0;
@@ -323,8 +431,8 @@ export default function LeaksPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="space-y-2 flex-1 min-w-[200px]">
             <label className="text-white font-bold uppercase text-sm">🔍 Search</label>
             <input
               type="text"
@@ -335,17 +443,30 @@ export default function LeaksPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <label className="text-white font-bold uppercase text-sm">🎯 Method</label>
             <select
               value={filterMethod}
               onChange={(e) => setFilterMethod(e.target.value as UGCMethod | 'All')}
-              className="w-full px-4 py-3 rounded-lg border-4 border-roblox-yellow font-bold text-gray-900 focus:outline-none"
+              className="px-4 py-3 rounded-lg border-4 border-roblox-yellow font-bold text-gray-900 focus:outline-none"
             >
               <option value="All">All Methods</option>
-              <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
               <option value={UGCMethod.InGame}>🎮 In-Game</option>
+              <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
               <option value={UGCMethod.Unknown}>❓ Unknown</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-white font-bold uppercase text-sm">📅 Status</label>
+            <select
+              value={releaseStatusFilter}
+              onChange={(e) => setReleaseStatusFilter(e.target.value as 'all' | 'released' | 'upcoming')}
+              className="px-4 py-3 rounded-lg border-4 border-roblox-orange font-bold text-gray-900 focus:outline-none"
+            >
+              <option value="all">📋 All</option>
+              <option value="upcoming">⏳ Upcoming</option>
+              <option value="released">✅ Released</option>
             </select>
           </div>
 
@@ -355,12 +476,12 @@ export default function LeaksPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'recent' | 'stock' | 'limit' | 'upcoming')}
-                className="flex-1 px-4 py-3 rounded-lg border-4 border-roblox-purple font-bold text-gray-900 focus:outline-none"
+                className="px-4 py-3 rounded-lg border-4 border-roblox-purple font-bold text-gray-900 focus:outline-none"
               >
                 <option value="upcoming">🚀 Next Up</option>
-                <option value="recent">⏱️ Most Recent</option>
-                <option value="stock">📦 Most Stock</option>
-                <option value="limit">🔢 Highest Limit</option>
+                <option value="recent">⏱️ Recent</option>
+                <option value="stock">📦 Stock</option>
+                <option value="limit">🔢 Limit</option>
               </select>
               <button
                 onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
@@ -390,21 +511,43 @@ export default function LeaksPage() {
               : 'linear-gradient(135deg, #ccc, #ccc)';
             const outlineColor = gradientColors ? gradientColors[0] : '#ccc';
 
+            // Get live stock data for this item
+            const assetId = item.itemLink ? extractRobloxAssetId(item.itemLink) : null;
+            const liveStockData = assetId ? liveStock[assetId] : null;
+            const hasLiveStock = liveStockData && liveStockData.currentStock >= 0 && liveStockData.totalStock >= 0;
+            // Item is sold out if: manually marked OR live stock shows 0 OR scheduled stock is 0
+            const isSoldOut = item.soldOut ||
+              (hasLiveStock && liveStockData.currentStock === 0) ||
+              (item.stock === 0) ||
+              (item.stock === 'OUT OF STOCK');
+
             return (
               <div
                 key={item.id}
                 onClick={() => openModal(item)}
-                className="cursor-pointer pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
-                style={{ borderColor: outlineColor }}
+                className={`cursor-pointer pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative ${isSoldOut ? 'opacity-60 grayscale' : ''}`}
+                style={{ borderColor: isSoldOut ? '#888' : outlineColor }}
               >
                 <div
                   className="h-3 w-full"
                   style={{
-                    backgroundImage: gradientStr,
+                    backgroundImage: isSoldOut ? 'linear-gradient(135deg, #666, #888)' : gradientStr,
                     backgroundSize: '400% 400%',
                     animation: 'random-gradient 6s ease infinite',
                   }}
                 ></div>
+
+                {/* SOLD OUT Banner */}
+                {isSoldOut && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                    <div
+                      className="bg-red-600 text-white font-black text-lg uppercase tracking-widest py-2 px-8 rotate-[-15deg] shadow-lg"
+                      style={{ boxShadow: '0 4px 15px rgba(0,0,0,0.4)' }}
+                    >
+                      SOLD OUT
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-4 flex-1 flex flex-col">
                   <div className="flex justify-center mb-3">
@@ -442,8 +585,15 @@ export default function LeaksPage() {
                       style={{ backgroundColor: gradientColors[0] + '15' }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">📦 Stock</p>
-                      <p className="font-black text-xs mt-1" style={{ color: gradientColors[0] || outlineColor }}>
-                        {typeof item.stock === 'number' ? item.stock : 'OUT'}
+                      <p className="font-black text-xs mt-1" style={{ color: isSoldOut ? '#888' : (gradientColors[0] || outlineColor) }}>
+                        {/* Priority: live stock > persisted stock (for sold-out items) > scheduled stock */}
+                        {hasLiveStock
+                          ? `${liveStockData.currentStock}/${liveStockData.totalStock}`
+                          : (item.soldOut && item.finalCurrentStock !== undefined && item.finalTotalStock !== undefined
+                            ? `${item.finalCurrentStock}/${item.finalTotalStock}` // Show persisted stock for sold-out items
+                            : (item.stock === 'unknown' || item.stock === 'Unknown'
+                              ? '❓ Unknown'
+                              : (typeof item.stock === 'number' ? item.stock : 'OUT')))}
                       </p>
                     </div>
 

@@ -8,6 +8,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- YOUR LOGS GO HERE ---
 const LOGS = [
     {
+        version: 'v1.3',
+        date: 'Dec 26, 2025',
+        changes: [
+            '⌚ Finalization to the Timezone Hell situation. Boy do they just not give up at all. That should be the last we see of them.',
+            '🛍️ Integration with Roblox\'s market API to scan stocks real-time! Thought this would\'ve been difficult.',
+            '0️⃣ Items with exhausted stocks are now marked as sold out!',
+            '👤 @Leakers you now own the ability to mark items with no stocks as sold out to ease things up.',
+            '🎄 Still merry crisis!'
+        ]
+    },
+    {
         version: 'v1.2',
         date: 'Dec 26, 2025',
         changes: [

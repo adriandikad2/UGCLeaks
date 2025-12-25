@@ -32,6 +32,9 @@ type UGCItem = {
   item_link?: string;
   image_url?: string;
   limit_per_user: number | null;
+  sold_out?: boolean; // Manual sold out confirmation by scheduler
+  final_current_stock?: number; // Persisted current stock when item sold out
+  final_total_stock?: number; // Persisted total stock when item sold out
 };
 
 // Seeded random function for deterministic gradient generation
@@ -101,6 +104,13 @@ export default function SchedulePage() {
 
   // Internal state for "Unlimited" checkbox
   const [isUnlimitedLimit, setIsUnlimitedLimit] = useState(false);
+  // Internal state for "Unknown" checkboxes
+  const [isUnknownStock, setIsUnknownStock] = useState(false);
+  const [isUnknownSchedule, setIsUnknownSchedule] = useState(false);
+  // Filter state for released/upcoming items
+  const [releaseStatusFilter, setReleaseStatusFilter] = useState<'all' | 'released' | 'upcoming'>('all');
+  // Sold out confirmation checkbox
+  const [isSoldOut, setIsSoldOut] = useState(false);
 
   const [formData, setFormData] = useState<UGCItem>({
     title: '',
@@ -108,7 +118,7 @@ export default function SchedulePage() {
     creator: '',
     stock: 1000,
     release_date_time: getCurrentLocalDateTime(),
-    method: UGCMethod.WebDrop,
+    method: UGCMethod.InGame,
     instruction: '',
     game_link: '',
     item_link: '',
@@ -157,14 +167,27 @@ export default function SchedulePage() {
 
     setIsLoading(true);
 
-    // Convert the Local Input Time to an Absolute UTC String
-    const utcDate = new Date(formData.release_date_time).toISOString();
+    // Handle Unknown schedule - use null or a far future date as marker
+    // Handle Unknown stock - use -1 as marker (similar to unlimited limit)
+    // FIXED: datetime-local gives format "2025-12-26T02:57" which is LOCAL time.
+    // We need to convert it to UTC. new Date() correctly interprets this as local,
+    // but we need to ensure it's not being double-converted elsewhere.
+    let utcDate: string | null = null;
+    if (!isUnknownSchedule && formData.release_date_time) {
+      // Parse the local time string from datetime-local input
+      const localDate = new Date(formData.release_date_time);
+      // Convert to ISO string (which is always UTC with 'Z' suffix)
+      utcDate = localDate.toISOString();
+    }
+    const stockValue = isUnknownStock ? 'unknown' : formData.stock;
 
     const payload = {
       ...formData,
       title: formData.item_name, // Use item_name as title
-      release_date_time: utcDate, // Overwrite with UTC
-      limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1)
+      release_date_time: utcDate, // null if unknown
+      stock: stockValue, // 'unknown' string if unknown
+      limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1),
+      sold_out: isSoldOut // Manual sold out confirmation
     };
 
     try {
@@ -226,13 +249,24 @@ export default function SchedulePage() {
     const isUnlimited = item.limit_per_user === null || item.limit_per_user === -1;
     setIsUnlimitedLimit(isUnlimited);
 
+    // Check if stock is unknown
+    const stockIsUnknown = item.stock === 'unknown' || item.stock === 'Unknown';
+    setIsUnknownStock(stockIsUnknown);
+
+    // Check if schedule is unknown (null or empty release_date_time)
+    const scheduleIsUnknown = !item.release_date_time;
+    setIsUnknownSchedule(scheduleIsUnknown);
+
+    // Check if item is marked as sold out
+    setIsSoldOut(item.sold_out === true);
+
     setFormData({
       title: item.item_name || item.title || '',
       item_name: item.item_name || item.title || '',
       creator: item.creator || '',
-      stock: typeof item.stock === 'number' ? item.stock : 1000,
+      stock: stockIsUnknown ? 1000 : (typeof item.stock === 'number' ? item.stock : 1000),
       // Convert UTC Database Time -> Local Input Format
-      release_date_time: item.release_date_time ? toLocalInputString(item.release_date_time) : '',
+      release_date_time: scheduleIsUnknown ? getCurrentLocalDateTime() : (item.release_date_time ? toLocalInputString(item.release_date_time) : getCurrentLocalDateTime()),
       method: item.method || UGCMethod.WebDrop,
       instruction: item.instruction || '',
       game_link: item.game_link || '',
@@ -248,6 +282,10 @@ export default function SchedulePage() {
 
   const handleCancelEdit = () => {
     setEditingId(null);
+    setIsUnlimitedLimit(false);
+    setIsUnknownStock(false);
+    setIsUnknownSchedule(false);
+    setIsSoldOut(false);
     setFormData({
       title: '',
       item_name: '',
@@ -418,26 +456,71 @@ export default function SchedulePage() {
             {/* Release Date & Time */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700 uppercase">Release Date & Time</label>
-              <input
-                type="datetime-local"
-                value={formData.release_date_time}
-                onChange={(e) => handleFormChange('release_date_time', e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-yellow font-bold text-gray-900 focus:outline-none focus:border-roblox-purple"
-              />
+              <div className="flex gap-4 items-center">
+                <input
+                  type="datetime-local"
+                  value={formData.release_date_time}
+                  onChange={(e) => handleFormChange('release_date_time', e.target.value)}
+                  disabled={isUnknownSchedule}
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-roblox-yellow focus:border-roblox-purple'}`}
+                />
+                {/* Unknown Schedule Checkbox */}
+                <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                  <input
+                    type="checkbox"
+                    id="unknown-schedule-check"
+                    checked={isUnknownSchedule}
+                    onChange={(e) => setIsUnknownSchedule(e.target.checked)}
+                    className="w-5 h-5 accent-orange-600"
+                  />
+                  <label htmlFor="unknown-schedule-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unknown</label>
+                </div>
+              </div>
               <p className="text-xs text-gray-600 mt-1">
-                Equivalent UTC: {formData.release_date_time ? new Date(formData.release_date_time).toUTCString() : 'Set a date'}
+                {isUnknownSchedule ? 'Release time not yet announced' : `Equivalent UTC: ${formData.release_date_time ? new Date(formData.release_date_time).toUTCString() : 'Set a date'}`}
               </p>
             </div>
 
             {/* Stock */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700 uppercase">Stock Amount</label>
-              <input
-                type="number"
-                value={typeof formData.stock === 'number' ? formData.stock : 0}
-                onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
-                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-purple font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
-              />
+              <div className="flex gap-4 items-center">
+                <input
+                  type="number"
+                  value={typeof formData.stock === 'number' ? formData.stock : 0}
+                  onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
+                  disabled={isUnknownStock}
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-roblox-purple focus:border-roblox-pink'}`}
+                />
+                {/* Unknown Stock Checkbox */}
+                <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                  <input
+                    type="checkbox"
+                    id="unknown-stock-check"
+                    checked={isUnknownStock}
+                    onChange={(e) => setIsUnknownStock(e.target.checked)}
+                    className="w-5 h-5 accent-orange-600"
+                  />
+                  <label htmlFor="unknown-stock-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unknown</label>
+                </div>
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                {isUnknownStock ? 'Stock quantity not yet announced' : 'Expected stock quantity when published'}
+              </p>
+
+              {/* Sold Out Confirmation */}
+              <div className="flex items-center gap-2 mt-3 p-3 bg-red-50 rounded-lg border-2 border-red-200">
+                <input
+                  type="checkbox"
+                  id="sold-out-check"
+                  checked={isSoldOut}
+                  onChange={(e) => setIsSoldOut(e.target.checked)}
+                  className="w-5 h-5 accent-red-600"
+                />
+                <label htmlFor="sold-out-check" className="text-sm font-bold text-red-700 cursor-pointer select-none">
+                  🚫 Mark as SOLD OUT (skip API stock check)
+                </label>
+              </div>
             </div>
 
             {/* Method */}
@@ -568,228 +651,260 @@ export default function SchedulePage() {
         </div>
 
         {/* Scheduled Items */}
-        {scheduledItems.length > 0 && (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-black text-white drop-shadow-lg">📋 Scheduled Items ({scheduledItems.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {scheduledItems.map((item) => {
-                const gradient = gradients[item.uuid || item.id || ''];
-                const gradientStr = gradient
-                  ? `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]}, ${gradient[3]})`
-                  : 'linear-gradient(135deg, #ff006e, #00d9ff)';
+        {scheduledItems.length > 0 && (() => {
+          // Filter items based on release status
+          const now = new Date();
+          const filteredItems = scheduledItems.filter((item) => {
+            if (releaseStatusFilter === 'all') return true;
+            // Items with no release time are considered "unknown" - show in both
+            if (!item.release_date_time) return true;
+            const releaseTime = new Date(item.release_date_time);
+            if (releaseStatusFilter === 'released') {
+              return releaseTime <= now;
+            } else {
+              return releaseTime > now;
+            }
+          });
 
-                return (
-                  <div
-                    key={item.id || item.uuid}
-                    className="pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:scale-105"
-                    style={{
-                      borderColor: gradient ? gradient[0] : '#ff006e',
-                    }}
+          return (
+            <div className="space-y-8">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="text-3xl font-black text-white drop-shadow-lg">📋 Scheduled Items ({filteredItems.length}/{scheduledItems.length})</h2>
+
+                {/* Release Status Filter */}
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-bold text-sm">Filter:</span>
+                  <select
+                    value={releaseStatusFilter}
+                    onChange={(e) => setReleaseStatusFilter(e.target.value as 'all' | 'released' | 'upcoming')}
+                    className="px-4 py-2 rounded-lg border-4 border-roblox-blue font-bold text-gray-900 focus:outline-none bg-white"
                   >
-                    {/* Animated Gradient Top Bar */}
+                    <option value="all">📋 All Items</option>
+                    <option value="upcoming">⏳ Upcoming</option>
+                    <option value="released">✅ Released</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                {filteredItems.map((item) => {
+                  const gradient = gradients[item.uuid || item.id || ''];
+                  const gradientStr = gradient
+                    ? `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]}, ${gradient[3]})`
+                    : 'linear-gradient(135deg, #ff006e, #00d9ff)';
+
+                  return (
                     <div
-                      className="h-3 w-full"
+                      key={item.id || item.uuid}
+                      className="pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:scale-105"
                       style={{
-                        backgroundImage: gradientStr,
-                        backgroundSize: '400% 400%',
-                        animation: 'random-gradient 6s ease infinite',
+                        borderColor: gradient ? gradient[0] : '#ff006e',
                       }}
-                    ></div>
+                    >
+                      {/* Animated Gradient Top Bar */}
+                      <div
+                        className="h-3 w-full"
+                        style={{
+                          backgroundImage: gradientStr,
+                          backgroundSize: '400% 400%',
+                          animation: 'random-gradient 6s ease infinite',
+                        }}
+                      ></div>
 
-                    <div className="p-6 flex-1 flex flex-col">
-                      {/* Item Image */}
-                      <div className="flex justify-center mb-4">
-                        <div
-                          className="p-4 rounded-lg border-4"
-                          style={{
-                            borderColor: gradient?.[0] || '#ff006e',
-                            backgroundColor: (gradient?.[0] || '#ff006e') + '15',
-                          }}
-                        >
-                          <img
-                            src={item.image_url} /* FIXED: Uses image_url (snake_case) */
-                            alt={item.item_name} /* FIXED: Uses item_name */
-                            className="w-32 h-32 object-contain rounded"
-                            width={128}
-                            height={128}
-                          />
+                      <div className="p-6 flex-1 flex flex-col">
+                        {/* Item Image */}
+                        <div className="flex justify-center mb-4">
+                          <div
+                            className="p-4 rounded-lg border-4"
+                            style={{
+                              borderColor: gradient?.[0] || '#ff006e',
+                              backgroundColor: (gradient?.[0] || '#ff006e') + '15',
+                            }}
+                          >
+                            <img
+                              src={item.image_url} /* FIXED: Uses image_url (snake_case) */
+                              alt={item.item_name} /* FIXED: Uses item_name */
+                              className="w-32 h-32 object-contain rounded"
+                              width={128}
+                              height={128}
+                            />
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Item Title */}
-                      {item.item_link ? (
-                        <Link href={item.item_link} target="_blank" rel="noopener noreferrer">
+                        {/* Item Title */}
+                        {item.item_link ? (
+                          <Link href={item.item_link} target="_blank" rel="noopener noreferrer">
+                            <h2
+                              className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all"
+                              style={{ color: gradient?.[0] || '#ff006e' }}
+                            >
+                              {item.item_name} {/* FIXED: item_name */}
+                            </h2>
+                          </Link>
+                        ) : (
                           <h2
-                            className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all"
+                            className="text-2xl font-black mb-1 text-center transition-all"
                             style={{ color: gradient?.[0] || '#ff006e' }}
                           >
                             {item.item_name} {/* FIXED: item_name */}
                           </h2>
-                        </Link>
-                      ) : (
-                        <h2
-                          className="text-2xl font-black mb-1 text-center transition-all"
-                          style={{ color: gradient?.[0] || '#ff006e' }}
-                        >
-                          {item.item_name} {/* FIXED: item_name */}
-                        </h2>
-                      )}
-
-                      {/* Creator */}
-                      <p className="text-center text-sm font-bold text-gray-600 mb-4">
-                        by <span style={{ color: gradient?.[0] || '#ff006e' }}>{item.creator}</span>
-                      </p>
-
-                      {/* Data Grid */}
-                      <div className="grid grid-cols-2 gap-3 mb-6">
-                        {/* Stock */}
-                        <div
-                          className="p-3 rounded-lg border-2 border-gray-300"
-                          style={{ backgroundColor: (gradient?.[0] || '#ff006e') + '15' }}
-                        >
-                          <p className="text-xs font-bold text-gray-600 uppercase">📦 Stock</p>
-                          <p className="font-black text-sm mt-1" style={{ color: gradient?.[0] || '#ff006e' }}>
-                            {typeof item.stock === 'number' ? item.stock : 'OUT'}
-                          </p>
-                        </div>
-
-                        {/* Relative Time */}
-                        <div
-                          className="p-3 rounded-lg border-2 border-gray-300"
-                          style={{ backgroundColor: (gradient?.[1] || '#00d9ff') + '15' }}
-                        >
-                          <p className="text-xs font-bold text-gray-600 uppercase">⏰ In</p>
-                          <p className="font-black text-sm mt-1" style={{ color: gradient?.[1] || '#00d9ff' }}>
-                            {formatRelativeTime(item.release_date_time)} {/* FIXED: release_date_time */}
-                          </p>
-                        </div>
-
-                        {/* Method */}
-                        <div
-                          className="p-3 rounded-lg border-2 border-gray-300"
-                          style={{ backgroundColor: (gradient?.[2] || '#ffbe0b') + '15' }}
-                        >
-                          <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
-                          <p className="font-black text-sm mt-1" style={{ color: gradient?.[2] || '#ffbe0b' }}>
-                            {item.method === UGCMethod.WebDrop ? '🌐 Web' : item.method === UGCMethod.InGame ? '🎮 Game' : '❓'}
-                          </p>
-                        </div>
-
-                        {/* Limit */}
-                        <div
-                          className="p-3 rounded-lg border-2 border-gray-300"
-                          style={{ backgroundColor: (gradient?.[3] || '#00ff41') + '15' }}
-                        >
-                          <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
-                          <p className="font-black text-sm mt-1" style={{ color: gradient?.[3] || '#00ff41' }}>
-                            {(item.limit_per_user === null || item.limit_per_user === -1) ? '∞' : `${item.limit_per_user}x`}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Exact Date & Time */}
-                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-                        <p className="text-xs font-bold text-gray-600 uppercase mb-2">📅 Exact Time</p>
-                        <p className="text-gray-700 text-sm font-medium">
-                          {formatLocalDateTime(item.release_date_time)} {/* FIXED: release_date_time */}
-                        </p>
-                      </div>
-
-                      {/* Game Link */}
-                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-                        <p className="text-xs font-bold text-gray-600 uppercase mb-2">🔗 Game Link</p>
-                        {item.game_link ? ( /* FIXED: game_link */
-                          <a
-                            href={item.game_link} /* FIXED: game_link */
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-bold break-all hover:underline"
-                            style={{ color: gradient?.[0] || '#ff006e' }}
-                          >
-                            {item.game_link} {/* FIXED: game_link */}
-                          </a>
-                        ) : (
-                          <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">
-                            <p className="text-sm font-semibold text-gray-500">⚠️ Link Status</p>
-                            <p className="text-xs text-gray-400 mt-1">Game not yet published</p>
-                          </div>
                         )}
-                      </div>
 
-                      {/* Instructions */}
-                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-                        <p className="text-xs font-bold text-gray-600 uppercase mb-2">📖 How to Get It</p>
-                        <div className="text-gray-700 text-sm font-medium break-words whitespace-pre-wrap select-text cursor-text">
-                          <ClickableInstructions text={item.instruction || ''} color={gradient?.[0] || '#ff006e'} />
+                        {/* Creator */}
+                        <p className="text-center text-sm font-bold text-gray-600 mb-4">
+                          by <span style={{ color: gradient?.[0] || '#ff006e' }}>{item.creator}</span>
+                        </p>
+
+                        {/* Data Grid */}
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                          {/* Stock */}
+                          <div
+                            className="p-3 rounded-lg border-2 border-gray-300"
+                            style={{ backgroundColor: (gradient?.[0] || '#ff006e') + '15' }}
+                          >
+                            <p className="text-xs font-bold text-gray-600 uppercase">📦 Stock</p>
+                            <p className="font-black text-sm mt-1" style={{ color: gradient?.[0] || '#ff006e' }}>
+                              {typeof item.stock === 'number' ? item.stock : 'OUT'}
+                            </p>
+                          </div>
+
+                          {/* Relative Time */}
+                          <div
+                            className="p-3 rounded-lg border-2 border-gray-300"
+                            style={{ backgroundColor: (gradient?.[1] || '#00d9ff') + '15' }}
+                          >
+                            <p className="text-xs font-bold text-gray-600 uppercase">⏰ In</p>
+                            <p className="font-black text-sm mt-1" style={{ color: gradient?.[1] || '#00d9ff' }}>
+                              {formatRelativeTime(item.release_date_time)} {/* FIXED: release_date_time */}
+                            </p>
+                          </div>
+
+                          {/* Method */}
+                          <div
+                            className="p-3 rounded-lg border-2 border-gray-300"
+                            style={{ backgroundColor: (gradient?.[2] || '#ffbe0b') + '15' }}
+                          >
+                            <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
+                            <p className="font-black text-sm mt-1" style={{ color: gradient?.[2] || '#ffbe0b' }}>
+                              {item.method === UGCMethod.WebDrop ? '🌐 Web' : item.method === UGCMethod.InGame ? '🎮 Game' : '❓'}
+                            </p>
+                          </div>
+
+                          {/* Limit */}
+                          <div
+                            className="p-3 rounded-lg border-2 border-gray-300"
+                            style={{ backgroundColor: (gradient?.[3] || '#00ff41') + '15' }}
+                          >
+                            <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
+                            <p className="font-black text-sm mt-1" style={{ color: gradient?.[3] || '#00ff41' }}>
+                              {(item.limit_per_user === null || item.limit_per_user === -1) ? '∞' : `${item.limit_per_user}x`}
+                            </p>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex flex-col gap-3 mt-auto">
-                        {item.item_link ? ( /* FIXED: item_link */
-                          <Link href={item.item_link} target="_blank" rel="noopener noreferrer" className="w-full">
+                        {/* Exact Date & Time */}
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                          <p className="text-xs font-bold text-gray-600 uppercase mb-2">📅 Exact Time</p>
+                          <p className="text-gray-700 text-sm font-medium">
+                            {formatLocalDateTime(item.release_date_time)} {/* FIXED: release_date_time */}
+                          </p>
+                        </div>
+
+                        {/* Game Link */}
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                          <p className="text-xs font-bold text-gray-600 uppercase mb-2">🔗 Game Link</p>
+                          {item.game_link ? ( /* FIXED: game_link */
+                            <a
+                              href={item.game_link} /* FIXED: game_link */
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-bold break-all hover:underline"
+                              style={{ color: gradient?.[0] || '#ff006e' }}
+                            >
+                              {item.game_link} {/* FIXED: game_link */}
+                            </a>
+                          ) : (
+                            <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">
+                              <p className="text-sm font-semibold text-gray-500">⚠️ Link Status</p>
+                              <p className="text-xs text-gray-400 mt-1">Game not yet published</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Instructions */}
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                          <p className="text-xs font-bold text-gray-600 uppercase mb-2">📖 How to Get It</p>
+                          <div className="text-gray-700 text-sm font-medium break-words whitespace-pre-wrap select-text cursor-text">
+                            <ClickableInstructions text={item.instruction || ''} color={gradient?.[0] || '#ff006e'} />
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col gap-3 mt-auto">
+                          {item.item_link ? ( /* FIXED: item_link */
+                            <Link href={item.item_link} target="_blank" rel="noopener noreferrer" className="w-full">
+                              <button
+                                className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
+                                style={{
+                                  background: `linear-gradient(135deg, ${gradient?.[0] || '#ff006e'}, ${gradient?.[1] || '#00d9ff'})`,
+                                  boxShadow: `0 6px 20px ${gradient?.[0] || '#ff006e'}80`,
+                                }}
+                              >
+                                🛍️ View Item
+                              </button>
+                            </Link>
+                          ) : (
                             <button
-                              className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
-                              style={{
-                                background: `linear-gradient(135deg, ${gradient?.[0] || '#ff006e'}, ${gradient?.[1] || '#00d9ff'})`,
-                                boxShadow: `0 6px 20px ${gradient?.[0] || '#ff006e'}80`,
-                              }}
+                              disabled
+                              className="w-full px-4 py-3 text-gray-400 font-black rounded-lg text-sm uppercase tracking-wide bg-gray-200 cursor-not-allowed"
                             >
                               🛍️ View Item
                             </button>
-                          </Link>
-                        ) : (
-                          <button
-                            disabled
-                            className="w-full px-4 py-3 text-gray-400 font-black rounded-lg text-sm uppercase tracking-wide bg-gray-200 cursor-not-allowed"
-                          >
-                            🛍️ View Item
-                          </button>
-                        )}
+                          )}
 
-                        {item.game_link ? ( /* FIXED: game_link */
-                          <Link href={item.game_link} target="_blank" rel="noopener noreferrer" className="w-full">
+                          {item.game_link ? ( /* FIXED: game_link */
+                            <Link href={item.game_link} target="_blank" rel="noopener noreferrer" className="w-full">
+                              <button
+                                className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
+                                style={{
+                                  background: `linear-gradient(135deg, ${gradient?.[2] || '#ffbe0b'}, ${gradient?.[3] || '#00ff41'})`,
+                                  boxShadow: `0 6px 20px ${gradient?.[2] || '#ffbe0b'}80`,
+                                }}
+                              >
+                                🎮 Join Game
+                              </button>
+                            </Link>
+                          ) : (
                             <button
-                              className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
-                              style={{
-                                background: `linear-gradient(135deg, ${gradient?.[2] || '#ffbe0b'}, ${gradient?.[3] || '#00ff41'})`,
-                                boxShadow: `0 6px 20px ${gradient?.[2] || '#ffbe0b'}80`,
-                              }}
+                              disabled
+                              className="w-full px-4 py-3 text-gray-400 font-black rounded-lg text-sm uppercase tracking-wide bg-gray-200 cursor-not-allowed"
                             >
                               🎮 Join Game
                             </button>
-                          </Link>
-                        ) : (
-                          <button
-                            disabled
-                            className="w-full px-4 py-3 text-gray-400 font-black rounded-lg text-sm uppercase tracking-wide bg-gray-200 cursor-not-allowed"
-                          >
-                            🎮 Join Game
-                          </button>
-                        )}
+                          )}
 
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditSchedule(item)}
-                            className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-blue-600 hover:bg-blue-700"
-                          >
-                            ✏️ Edit
-                          </button>
-                          <button
-                            onClick={() => handleRemoveSchedule(String(item.uuid || item.id || ''))}
-                            className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-red-600 hover:bg-red-700"
-                          >
-                            🗑️ Remove
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditSchedule(item)}
+                              className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-blue-600 hover:bg-blue-700"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              onClick={() => handleRemoveSchedule(String(item.uuid || item.id || ''))}
+                              className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-red-600 hover:bg-red-700"
+                            >
+                              🗑️ Remove
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Empty State */}
         {scheduledItems.length === 0 && (
