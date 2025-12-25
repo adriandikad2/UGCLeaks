@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useTheme } from './components/ThemeContext';
 import { isAuthenticated, signout } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import UpdateLogs from './components/UpdateLogs';
 
 export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -149,6 +150,7 @@ export default function Home() {
 
       <div className="absolute bottom-0 right-0 w-40 h-40 bg-gradient-to-tl from-roblox-orange opacity-10 rounded-full"></div>
       <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-roblox-pink opacity-10 rounded-full"></div>
+      <UpdateLogs />
     </div>
   );
 }
