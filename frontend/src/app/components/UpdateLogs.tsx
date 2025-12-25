@@ -13,6 +13,8 @@ const LOGS = [
         changes: [
             '⌚ Timezone Hell was not fixed yesterday. Whew, turns out there was a mismatch between local and UTC time. Hopefully nothing else of the same issues appear in the future...',
             '🔄️ Refresh buttons for you that do not want to refresh the /leaks page.',
+            '🧮 Leaks now defaults to sorting based on the closest times to drop.',
+            '💬 New HUD to show the very next item that is scheduled to drop! Festive!',
             '📱 Several mobile buttons responsiveness.',
             '🎄 Merry crisis!'
         ]
