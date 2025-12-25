@@ -111,6 +111,8 @@ export default function SchedulePage() {
   const [releaseStatusFilter, setReleaseStatusFilter] = useState<'all' | 'released' | 'upcoming'>('all');
   // Sold out confirmation checkbox
   const [isSoldOut, setIsSoldOut] = useState(false);
+  // Edit modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const [formData, setFormData] = useState<UGCItem>({
     title: '',
@@ -274,10 +276,9 @@ export default function SchedulePage() {
       image_url: item.image_url || 'https://placehold.co/400x400?text=img+placeholder',
       limit_per_user: isUnlimited ? 1 : (item.limit_per_user || 1),
     });
-    // Scroll to form section
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    // Open edit modal instead of scrolling
+    setIsEditModalOpen(true);
+    document.body.style.overflow = 'hidden';
   };
 
   const handleCancelEdit = () => {
@@ -286,6 +287,8 @@ export default function SchedulePage() {
     setIsUnknownStock(false);
     setIsUnknownSchedule(false);
     setIsSoldOut(false);
+    setIsEditModalOpen(false);
+    document.body.style.overflow = 'unset';
     setFormData({
       title: '',
       item_name: '',
@@ -424,9 +427,9 @@ export default function SchedulePage() {
           </button>
         )}
 
-        {/* Creation Form */}
+        {/* Creation Form - Always for creating new items */}
         <div ref={formRef} className="mb-12 p-8 bg-white rounded-2xl shadow-2xl blocky-shadow space-y-6">
-          <h2 className="text-3xl font-black text-gray-900">{editingId ? '✏️ Edit Schedule' : '➕ Create New Schedule'}</h2>
+          <h2 className="text-3xl font-black text-gray-900">➕ Create New Schedule</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Item Name */}
@@ -629,24 +632,15 @@ export default function SchedulePage() {
             </div>
           )}
 
-          {/* Add Button */}
+          {/* Add Button - Creation only */}
           <div className="flex gap-4">
             <button
               onClick={handleAddSchedule}
-              disabled={isLoading}
+              disabled={isLoading || editingId !== null}
               className="flex-1 gradient-button px-8 py-4 text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {isLoading ? '⏳ Processing...' : editingId ? '💾 Update Schedule' : '✨ Add to Schedule ✨'}
+              {isLoading ? '⏳ Processing...' : '✨ Add to Schedule ✨'}
             </button>
-            {editingId && (
-              <button
-                onClick={handleCancelEdit}
-                disabled={isLoading}
-                className="px-8 py-4 bg-gray-400 hover:bg-gray-500 text-white text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ❌ Cancel
-              </button>
-            )}
           </div>
         </div>
 
@@ -915,6 +909,244 @@ export default function SchedulePage() {
           </div>
         )}
       </div>
+
+      {/* --- EDIT MODAL --- */}
+      {isEditModalOpen && editingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={handleCancelEdit}
+          ></div>
+
+          {/* Modal Content */}
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-roblox-pink via-roblox-purple to-roblox-cyan p-6 rounded-t-3xl flex items-center justify-between">
+              <h2 className="text-2xl font-black text-white drop-shadow-lg">✏️ Edit Schedule</h2>
+              <button
+                onClick={handleCancelEdit}
+                className="bg-white/20 hover:bg-white/40 text-white rounded-full px-4 py-2 font-bold transition-all"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Item Name */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 uppercase">Item Name</label>
+                  <input
+                    type="text"
+                    value={formData.item_name}
+                    onChange={(e) => handleFormChange('item_name', e.target.value)}
+                    placeholder="e.g., Red Valkyrie Helm"
+                    className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan"
+                  />
+                </div>
+
+                {/* Creator */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 uppercase">Creator Name</label>
+                  <input
+                    type="text"
+                    value={formData.creator}
+                    onChange={(e) => handleFormChange('creator', e.target.value)}
+                    placeholder="e.g., RobloxianCreations"
+                    className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
+                  />
+                </div>
+
+                {/* Release Date & Time */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 uppercase">Release Date & Time</label>
+                  <div className="flex gap-4 items-center">
+                    <input
+                      type="datetime-local"
+                      value={formData.release_date_time}
+                      onChange={(e) => handleFormChange('release_date_time', e.target.value)}
+                      disabled={isUnknownSchedule}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-roblox-yellow focus:border-roblox-purple'}`}
+                    />
+                    <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                      <input
+                        type="checkbox"
+                        id="modal-unknown-schedule"
+                        checked={isUnknownSchedule}
+                        onChange={(e) => setIsUnknownSchedule(e.target.checked)}
+                        className="w-5 h-5 accent-orange-600"
+                      />
+                      <label htmlFor="modal-unknown-schedule" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unknown</label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stock */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 uppercase">Stock Amount</label>
+                  <div className="flex gap-4 items-center">
+                    <input
+                      type="number"
+                      value={typeof formData.stock === 'number' ? formData.stock : 0}
+                      onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
+                      disabled={isUnknownStock}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-roblox-purple focus:border-roblox-pink'}`}
+                    />
+                    <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                      <input
+                        type="checkbox"
+                        id="modal-unknown-stock"
+                        checked={isUnknownStock}
+                        onChange={(e) => setIsUnknownStock(e.target.checked)}
+                        className="w-5 h-5 accent-orange-600"
+                      />
+                      <label htmlFor="modal-unknown-stock" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unknown</label>
+                    </div>
+                  </div>
+
+                  {/* Sold Out Confirmation */}
+                  <div className="flex items-center gap-2 mt-3 p-3 bg-red-50 rounded-lg border-2 border-red-200">
+                    <input
+                      type="checkbox"
+                      id="modal-sold-out"
+                      checked={isSoldOut}
+                      onChange={(e) => setIsSoldOut(e.target.checked)}
+                      className="w-5 h-5 accent-red-600"
+                    />
+                    <label htmlFor="modal-sold-out" className="text-sm font-bold text-red-700 cursor-pointer select-none">
+                      🚫 Mark as SOLD OUT
+                    </label>
+                  </div>
+                </div>
+
+                {/* Method */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 uppercase">Drop Method</label>
+                  <select
+                    value={formData.method}
+                    onChange={(e) => handleFormChange('method', e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border-4 border-roblox-orange font-bold text-gray-900 focus:outline-none"
+                  >
+                    <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
+                    <option value={UGCMethod.InGame}>🎮 In-Game</option>
+                    <option value={UGCMethod.Unknown}>❓ Unknown</option>
+                  </select>
+                </div>
+
+                {/* Limit Per User */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 uppercase">Limit Per User</label>
+                  <div className="flex gap-4 items-center">
+                    <input
+                      type="number"
+                      value={formData.limit_per_user || 1}
+                      onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
+                      disabled={isUnlimitedLimit}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
+                    />
+                    <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                      <input
+                        type="checkbox"
+                        id="modal-unlimited"
+                        checked={isUnlimitedLimit}
+                        onChange={(e) => setIsUnlimitedLimit(e.target.checked)}
+                        className="w-5 h-5 accent-blue-600"
+                      />
+                      <label htmlFor="modal-unlimited" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unlimited</label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Game Link */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 uppercase">Game Link</label>
+                  <input
+                    type="url"
+                    value={formData.game_link}
+                    onChange={(e) => handleFormChange('game_link', e.target.value)}
+                    placeholder="https://www.roblox.com/games/..."
+                    className="w-full px-4 py-3 rounded-lg border-4 border-indigo-500 font-bold text-gray-900 focus:outline-none"
+                  />
+                </div>
+
+                {/* Item Link */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 uppercase">Item Link</label>
+                  <input
+                    type="url"
+                    value={formData.item_link}
+                    onChange={(e) => handleFormChange('item_link', e.target.value)}
+                    placeholder="https://www.roblox.com/catalog/..."
+                    className="w-full px-4 py-3 rounded-lg border-4 border-violet-500 font-bold text-gray-900 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 uppercase">How to Get It</label>
+                <textarea
+                  value={formData.instruction}
+                  onChange={(e) => handleFormChange('instruction', e.target.value)}
+                  placeholder="Instructions for obtaining the item..."
+                  className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan h-24 resize-none"
+                />
+              </div>
+
+              {/* Image URL */}
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 uppercase">Image URL</label>
+                <input
+                  type="url"
+                  value={formData.image_url}
+                  onChange={(e) => handleFormChange('image_url', e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
+                />
+              </div>
+
+              {/* Preview */}
+              {formData.item_name && (
+                <div className="p-6 bg-gray-50 rounded-xl border-4 border-dashed border-gray-300 space-y-3">
+                  <p className="text-sm font-bold text-gray-600 uppercase">Preview</p>
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={formData.image_url}
+                      alt="Preview"
+                      className="w-24 h-24 object-contain rounded-lg border-2 border-gray-300"
+                    />
+                    <div>
+                      <p className="font-black text-lg text-gray-900">{formData.item_name}</p>
+                      <p className="text-sm text-gray-600">by {formData.creator}</p>
+                      <p className="text-xs text-gray-500 mt-2">{formatLocalDateTime(formData.release_date_time)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-4 pt-4">
+                <button
+                  onClick={handleAddSchedule}
+                  disabled={isLoading}
+                  className="flex-1 gradient-button px-8 py-4 text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isLoading ? '⏳ Saving...' : '💾 Save Changes'}
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  disabled={isLoading}
+                  className="px-8 py-4 bg-gray-400 hover:bg-gray-500 text-white text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ❌ Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
