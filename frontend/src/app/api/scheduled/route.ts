@@ -14,7 +14,10 @@ export async function GET(request: Request) {
 
     // Cast release_date_time to text to prevent pg driver from treating it as local time
     // The database stores UTC times, but 'timestamp without time zone' is interpreted as local by the driver
-    let query = `SELECT *, 
+    let query = `SELECT uuid, title, item_name, creator, stock, 
+      release_date_time, method, instruction, game_link, item_link, 
+      image_url, limit_per_user, ugc_code, is_abandoned, sold_out,
+      final_current_stock, final_total_stock,
       TO_CHAR(release_date_time, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as release_date_time_utc 
       FROM scheduled_items ORDER BY release_date_time ASC`;
     const params: any[] = [];
@@ -62,12 +65,13 @@ export async function POST(request: Request) {
       item_link,
       image_url,
       limit_per_user,
-      color,
+      ugc_code,
+      is_abandoned,
     } = body;
 
-    if (!title || !item_name || !creator || !release_date_time) {
+    if (!title || !item_name || !creator) {
       return NextResponse.json(
-        { error: 'Missing required fields: title, item_name, creator, release_date_time' },
+        { error: 'Missing required fields: title, item_name, creator' },
         { status: 400 }
       );
     }
@@ -87,9 +91,9 @@ export async function POST(request: Request) {
 
     const result = await pool.query(
       `INSERT INTO scheduled_items (
-        uuid, title, item_name, creator, creator_link, stock, 
+        uuid, title, item_name, creator, stock, 
         release_date_time, method, instruction, game_link, item_link, 
-        image_url, limit_per_user, color
+        image_url, limit_per_user, ugc_code, is_abandoned
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
@@ -97,22 +101,23 @@ export async function POST(request: Request) {
         title,
         item_name,
         creator,
-        creator_link || null,
-        stock || 1000,
+        stock || 0,
         release_date_time,
-        method || 'Unknown',
-        instruction || null,
-        game_link || null,
-        item_link || null,
-        image_url || null,
+        method || 'Web Drop',
+        instruction || '',
+        game_link || '',
+        item_link || '',
+        image_url || '',
         limitValue,
-        color || null,
+        ugc_code || null,
+        is_abandoned || false
       ]
     );
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error('Error creating scheduled item:', error);
-    return NextResponse.json({ error: 'Failed to create scheduled item' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: 'Failed to create scheduled item', details: errorMessage }, { status: 500 });
   }
 }

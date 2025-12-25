@@ -14,6 +14,7 @@ import { hasAccess } from '@/lib/auth';
 enum UGCMethod {
   WebDrop = 'Web Drop',
   InGame = 'In-Game',
+  CodeDrop = 'Code Drop',
   Unknown = 'Unknown'
 }
 
@@ -35,6 +36,8 @@ type UGCItem = {
   sold_out?: boolean; // Manual sold out confirmation by scheduler
   final_current_stock?: number; // Persisted current stock when item sold out
   final_total_stock?: number; // Persisted total stock when item sold out
+  ugc_code?: string; // Code for Code Drop items
+  is_abandoned?: boolean; // Abandoned status
 };
 
 // Seeded random function for deterministic gradient generation
@@ -111,8 +114,13 @@ export default function SchedulePage() {
   const [releaseStatusFilter, setReleaseStatusFilter] = useState<'all' | 'released' | 'upcoming'>('all');
   // Sold out confirmation checkbox
   const [isSoldOut, setIsSoldOut] = useState(false);
+  // Abandoned confirmation checkbox
+  const [isAbandoned, setIsAbandoned] = useState(false);
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // Delete modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<UGCItem>({
     title: '',
@@ -126,6 +134,7 @@ export default function SchedulePage() {
     item_link: '',
     image_url: 'https://placehold.co/400x400?text=img+placeholder',
     limit_per_user: 1,
+    ugc_code: '',
   });
 
   const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]); // Typed correctly
@@ -174,14 +183,15 @@ export default function SchedulePage() {
     // FIXED: datetime-local gives format "2025-12-26T02:57" which is LOCAL time.
     // We need to convert it to UTC. new Date() correctly interprets this as local,
     // but we need to ensure it's not being double-converted elsewhere.
-    let utcDate: string | null = null;
+    // Use Sentinel Date for Unknown (9999-01-01T00:00:00Z) to satisfy NOT NULL constraint
+    let utcDate: string = '9999-01-01T00:00:00Z';
     if (!isUnknownSchedule && formData.release_date_time) {
       // Parse the local time string from datetime-local input
       const localDate = new Date(formData.release_date_time);
       // Convert to ISO string (which is always UTC with 'Z' suffix)
       utcDate = localDate.toISOString();
     }
-    const stockValue = isUnknownStock ? 'unknown' : formData.stock;
+    const stockValue = isUnknownStock ? -1 : formData.stock;
 
     const payload = {
       ...formData,
@@ -189,7 +199,8 @@ export default function SchedulePage() {
       release_date_time: utcDate, // null if unknown
       stock: stockValue, // 'unknown' string if unknown
       limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1),
-      sold_out: isSoldOut // Manual sold out confirmation
+      sold_out: isSoldOut, // Manual sold out confirmation
+      is_abandoned: isAbandoned, // Abandoned status
     };
 
     try {
@@ -252,15 +263,18 @@ export default function SchedulePage() {
     setIsUnlimitedLimit(isUnlimited);
 
     // Check if stock is unknown
-    const stockIsUnknown = item.stock === 'unknown' || item.stock === 'Unknown';
+    const stockIsUnknown = item.stock === 'unknown' || item.stock === 'Unknown' || item.stock === -1;
     setIsUnknownStock(stockIsUnknown);
 
-    // Check if schedule is unknown (null or empty release_date_time)
-    const scheduleIsUnknown = !item.release_date_time;
+    // Check if schedule is unknown (null, empty, or sentinel year 9999)
+    const scheduleIsUnknown = !item.release_date_time || item.release_date_time.startsWith('9999');
     setIsUnknownSchedule(scheduleIsUnknown);
 
     // Check if item is marked as sold out
     setIsSoldOut(item.sold_out === true);
+
+    // Check if item is abandoned
+    setIsAbandoned(item.is_abandoned === true);
 
     setFormData({
       title: item.item_name || item.title || '',
@@ -275,6 +289,7 @@ export default function SchedulePage() {
       item_link: item.item_link || '',
       image_url: item.image_url || 'https://placehold.co/400x400?text=img+placeholder',
       limit_per_user: isUnlimited ? 1 : (item.limit_per_user || 1),
+      ugc_code: item.ugc_code || '',
     });
     // Open edit modal instead of scrolling
     setIsEditModalOpen(true);
@@ -286,7 +301,9 @@ export default function SchedulePage() {
     setIsUnlimitedLimit(false);
     setIsUnknownStock(false);
     setIsUnknownSchedule(false);
+    setIsUnknownSchedule(false);
     setIsSoldOut(false);
+    setIsAbandoned(false);
     setIsEditModalOpen(false);
     document.body.style.overflow = 'unset';
     setFormData({
@@ -301,26 +318,36 @@ export default function SchedulePage() {
       item_link: '',
       image_url: 'https://placehold.co/400x400?text=img+placeholder',
       limit_per_user: 1,
+      ugc_code: '',
     });
   };
 
-  const handleRemoveSchedule = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this schedule?')) return;
+  const handleRemoveSchedule = (id: string) => {
+    setItemToDelete(id);
+    setIsDeleteModalOpen(true);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const confirmDeleteSchedule = async () => {
+    if (!itemToDelete) return;
 
     setIsLoading(true);
     try {
-      const success = await deleteScheduledItem(id);
+      const success = await deleteScheduledItem(itemToDelete);
       if (success) {
         setScheduledItems(items => items.filter(item => {
           const itemId = String(item.uuid || item.id);
-          const compareId = String(id);
+          const compareId = String(itemToDelete);
           return itemId !== compareId;
         }));
 
-        if (editingId === id) {
+        if (editingId === itemToDelete) {
           handleCancelEdit();
         }
         addToast('Schedule deleted successfully', 'success');
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+        document.body.style.overflow = 'unset';
       } else {
         addToast('Failed to delete schedule', 'error');
       }
@@ -332,11 +359,23 @@ export default function SchedulePage() {
     }
   };
 
+  const cancelDelete = () => {
+    setIsDeleteModalOpen(false);
+    setItemToDelete(null);
+    document.body.style.overflow = 'unset';
+  };
+
   const handleFormChange = (field: keyof UGCItem, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData(prev => {
+      const updates: any = { [field]: value };
+
+      // Auto-link for Code Drop
+      if (field === 'method' && value === UGCMethod.CodeDrop) {
+        updates.game_link = 'https://www.roblox.com/games/15108736400/';
+      }
+
+      return { ...prev, ...updates };
+    });
   };
 
   const formatRelativeTime = (dateTimeString: string): string => {
@@ -524,6 +563,20 @@ export default function SchedulePage() {
                   🚫 Mark as SOLD OUT (skip API stock check)
                 </label>
               </div>
+
+              {/* Abandoned Status */}
+              <div className="flex items-center gap-2 mt-3 p-3 bg-gray-100 rounded-lg border-2 border-gray-300">
+                <input
+                  type="checkbox"
+                  id="abandoned-check"
+                  checked={isAbandoned}
+                  onChange={(e) => setIsAbandoned(e.target.checked)}
+                  className="w-5 h-5 accent-gray-600"
+                />
+                <label htmlFor="abandoned-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+                  🏚️ Mark as ABANDONED
+                </label>
+              </div>
             </div>
 
             {/* Method */}
@@ -536,9 +589,24 @@ export default function SchedulePage() {
               >
                 <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
                 <option value={UGCMethod.InGame}>🎮 In-Game</option>
+                <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
                 <option value={UGCMethod.Unknown}>❓ Unknown</option>
               </select>
             </div>
+
+            {/* Code Input (Conditional) */}
+            {formData.method === UGCMethod.CodeDrop && (
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 uppercase">Code</label>
+                <input
+                  type="text"
+                  value={formData.ugc_code || ''}
+                  onChange={(e) => handleFormChange('ugc_code', e.target.value)}
+                  placeholder="Enter Code..."
+                  className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none"
+                />
+              </div>
+            )}
 
             {/* Limit Per User */}
             <div className="space-y-2">
@@ -1019,6 +1087,20 @@ export default function SchedulePage() {
                       🚫 Mark as SOLD OUT
                     </label>
                   </div>
+
+                  {/* Abandoned Status */}
+                  <div className="flex items-center gap-2 mt-3 p-3 bg-gray-100 rounded-lg border-2 border-gray-300">
+                    <input
+                      type="checkbox"
+                      id="modal-abandoned"
+                      checked={isAbandoned}
+                      onChange={(e) => setIsAbandoned(e.target.checked)}
+                      className="w-5 h-5 accent-gray-600"
+                    />
+                    <label htmlFor="modal-abandoned" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+                      🏚️ Mark as ABANDONED
+                    </label>
+                  </div>
                 </div>
 
                 {/* Method */}
@@ -1031,9 +1113,24 @@ export default function SchedulePage() {
                   >
                     <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
                     <option value={UGCMethod.InGame}>🎮 In-Game</option>
+                    <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
                     <option value={UGCMethod.Unknown}>❓ Unknown</option>
                   </select>
                 </div>
+
+                {/* Code Input (Conditional) */}
+                {formData.method === UGCMethod.CodeDrop && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-gray-700 uppercase">Code</label>
+                    <input
+                      type="text"
+                      value={formData.ugc_code || ''}
+                      onChange={(e) => handleFormChange('ugc_code', e.target.value)}
+                      placeholder="Enter Code..."
+                      className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none"
+                    />
+                  </div>
+                )}
 
                 {/* Limit Per User */}
                 <div className="space-y-2">
@@ -1145,8 +1242,38 @@ export default function SchedulePage() {
               </div>
             </div>
           </div>
+        </div >
+      )
+      }
+
+      {/* --- DELETE CONFIRMATION MODAL --- */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={cancelDelete}></div>
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 pop-in overflow-hidden">
+            <div className="bg-red-600 p-6 text-white text-center">
+              <div className="text-5xl mb-2">🗑️</div>
+              <h2 className="text-2xl font-black uppercase">Confirm Delete</h2>
+            </div>
+            <div className="p-8 text-center space-y-6">
+              <p className="text-gray-700 font-bold text-lg">
+                Are you sure you want to delete this schedule?
+                <br />
+                <span className="text-sm text-gray-500 font-normal">This action cannot be undone.</span>
+              </p>
+              <div className="flex gap-3">
+                <button onClick={cancelDelete} className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg uppercase tracking-wide transition-all">
+                  Cancel
+                </button>
+                <button onClick={confirmDeleteSchedule} className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg uppercase tracking-wide transition-all shadow-lg shadow-red-200">
+                  Yes, Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
+
     </div>
   );
 }

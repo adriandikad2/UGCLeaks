@@ -8,6 +8,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- YOUR LOGS GO HERE ---
 const LOGS = [
     {
+        version: 'v1.4',
+        date: 'Dec 26, 2025',
+        changes: [
+            '🔑 New Code Drop method.',
+            '🏚️ New Abandoned section. How pity items can get forgotten over time.',
+            '🎄 crisis is over'
+        ]
+    },
+    {
         version: 'v1.3',
         date: 'Dec 26, 2025',
         changes: [

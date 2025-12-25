@@ -54,19 +54,10 @@ export async function PUT(
     const allowedFields = [
       'title',
       'item_name',
-      'creator',
-      'stock',
-      'release_date_time',
-      'method',
-      'instruction',
-      'game_link',
-      'item_link',
-      'image_url',
-      'limit_per_user',
-      'color',
-      'sold_out',
       'final_current_stock',
       'final_total_stock',
+      'ugc_code',
+      'is_abandoned',
     ];
 
     // Build dynamic update query

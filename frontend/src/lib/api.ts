@@ -14,7 +14,6 @@ export interface UGCItem {
   title: string;
   item_name: string;
   creator: string;
-  creator_link?: string;
   stock: number | string;
   release_date_time: string;
   method: string;
@@ -23,7 +22,6 @@ export interface UGCItem {
   item_link?: string;
   image_url?: string;
   limit_per_user: number;
-  color?: string;
   created_at?: string;
   updated_at?: string;
   is_published?: boolean;
@@ -168,7 +166,9 @@ export async function createScheduledItem(item: UGCItem): Promise<UGCItem | null
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to create scheduled item');
+      const errorMessage = error.error || 'Failed to create scheduled item';
+      const details = error.details ? ` (${error.details})` : '';
+      throw new Error(errorMessage + details);
     }
     return await response.json();
   } catch (error) {

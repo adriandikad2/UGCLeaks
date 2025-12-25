@@ -14,6 +14,7 @@ import { getRobloxStock, extractRobloxAssetId, RobloxStockData, updateScheduledI
 enum UGCMethod {
   WebDrop = 'Web Drop',
   InGame = 'In-Game',
+  CodeDrop = 'Code Drop',
   Unknown = 'Unknown'
 }
 
@@ -22,7 +23,7 @@ type UGCItem = {
   title: string;
   itemName: string;
   creator: string;
-  creatorLink?: string;
+
   stock: number | 'OUT OF STOCK' | 'unknown' | 'Unknown';
   releaseDateTime: string;
   method: UGCMethod;
@@ -31,10 +32,12 @@ type UGCItem = {
   itemLink: string;
   imageUrl: string;
   limitPerUser: number;
-  color?: string;
+
   soldOut?: boolean; // Manual sold out confirmation by scheduler
   finalCurrentStock?: number; // Persisted current stock when item sold out
   finalTotalStock?: number; // Persisted total stock when item sold out
+  ugcCode?: string; // Code for Code Drop items
+  isAbandoned?: boolean; // Abandoned status
 };
 
 const OUTLINE_COLORS = ['#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff'];
@@ -79,6 +82,7 @@ export default function LeaksPage() {
   const [items, setItems] = useState<UGCItem[]>([]);
   const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]);
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
+  const [viewMode, setViewMode] = useState<'active' | 'abandoned'>('active');
   const [isMounted, setIsMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [liveStock, setLiveStock] = useState<{ [assetId: string]: RobloxStockData }>({});
@@ -119,7 +123,7 @@ export default function LeaksPage() {
           title: item.title,
           itemName: item.item_name,
           creator: item.creator,
-          creatorLink: item.creator_link,
+
           stock: item.stock,
           releaseDateTime: item.release_date_time_utc || item.release_date_time,
           method: item.method,
@@ -128,10 +132,11 @@ export default function LeaksPage() {
           itemLink: item.item_link,
           imageUrl: item.image_url,
           limitPerUser: item.limit_per_user,
-          color: item.color,
           soldOut: item.sold_out, // Manual sold out confirmation
           finalCurrentStock: item.final_current_stock, // Persisted current stock
           finalTotalStock: item.final_total_stock, // Persisted total stock
+          ugcCode: item.ugc_code, // Code if applicable
+          isAbandoned: item.is_abandoned, // Abandoned status
         }));
         setScheduledItems(converted);
 
@@ -173,6 +178,12 @@ export default function LeaksPage() {
         if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
           // Database returns "2025-12-26 03:00:00" but ISO needs "2025-12-26T03:00:00Z"
           dateStr = dateStr.replace(' ', 'T') + 'Z';
+        }
+
+        // Check for Sentinel Date (Unknown)
+        if (dateStr.startsWith('9999')) {
+          newTimers[item.id] = 'Unknown';
+          return;
         }
         const releaseTime = new Date(dateStr).getTime();
         const nowTime = new Date().getTime();
@@ -284,10 +295,16 @@ export default function LeaksPage() {
 
   const filteredItems = [...items, ...scheduledItems]
     .filter(item => {
+      // Filter by View Mode (Active vs Abandoned)
+      const isAbandoned = item.isAbandoned || false;
+      if (viewMode === 'active' && isAbandoned) return false;
+      if (viewMode === 'abandoned' && !isAbandoned) return false;
+
+      const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
-        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.creator.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
+        item.title.toLowerCase().includes(searchLower) ||
+        item.creator.toLowerCase().includes(searchLower) ||
+        item.itemName.toLowerCase().includes(searchLower);
       const matchesMethod = filterMethod === 'All' || item.method === filterMethod;
 
       // Release status filter
@@ -431,6 +448,28 @@ export default function LeaksPage() {
           )}
         </div>
 
+        {/* --- TABS --- */}
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => setViewMode('active')}
+            className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'active'
+              ? 'bg-gradient-to-r from-roblox-pink to-roblox-purple text-white shadow-lg scale-105 ring-2 ring-white'
+              : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+          >
+            🚀 Active Drops
+          </button>
+          <button
+            onClick={() => setViewMode('abandoned')}
+            className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'abandoned'
+              ? 'bg-gradient-to-r from-gray-500 to-gray-700 text-white shadow-lg scale-105 ring-2 ring-white'
+              : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+          >
+            🏚️ Abandoned
+          </button>
+        </div>
+
         <div className="flex flex-wrap gap-4 items-end">
           <div className="space-y-2 flex-1 min-w-[200px]">
             <label className="text-white font-bold uppercase text-sm">🔍 Search</label>
@@ -448,11 +487,12 @@ export default function LeaksPage() {
             <select
               value={filterMethod}
               onChange={(e) => setFilterMethod(e.target.value as UGCMethod | 'All')}
-              className="px-4 py-3 rounded-lg border-4 border-roblox-yellow font-bold text-gray-900 focus:outline-none"
+              className="w-full px-4 py-3 rounded-lg border-4 border-roblox-orange font-bold text-gray-900 focus:outline-none focus:border-roblox-yellow"
             >
               <option value="All">All Methods</option>
-              <option value={UGCMethod.InGame}>🎮 In-Game</option>
               <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
+              <option value={UGCMethod.InGame}>🎮 In-Game</option>
+              <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
               <option value={UGCMethod.Unknown}>❓ Unknown</option>
             </select>
           </div>
@@ -591,7 +631,7 @@ export default function LeaksPage() {
                           ? `${liveStockData.currentStock}/${liveStockData.totalStock}`
                           : (item.soldOut && item.finalCurrentStock !== undefined && item.finalTotalStock !== undefined
                             ? `${item.finalCurrentStock}/${item.finalTotalStock}` // Show persisted stock for sold-out items
-                            : (item.stock === 'unknown' || item.stock === 'Unknown'
+                            : (item.stock === 'unknown' || item.stock === 'Unknown' || item.stock === -1
                               ? '❓ Unknown'
                               : (typeof item.stock === 'number' ? item.stock : 'OUT')))}
                       </p>
@@ -603,7 +643,11 @@ export default function LeaksPage() {
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
                       <p className="font-black text-xs mt-1 line-clamp-2" style={{ color: gradientColors[1] || outlineColor }}>
-                        {item.method === UGCMethod.WebDrop ? 'Web Drop' : 'In-Game'}
+                        {item.method === UGCMethod.WebDrop
+                          ? 'Web Drop'
+                          : item.method === UGCMethod.CodeDrop
+                            ? 'Code Drop'
+                            : 'In-Game'}
                       </p>
                     </div>
 
@@ -623,10 +667,23 @@ export default function LeaksPage() {
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">📅 Release</p>
                       <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: gradientColors[3] || outlineColor }}>
-                        {timers[item.id] || 'Loading...'}
+                        {timers[item.id] === 'Unknown' ? '❓ Unknown' : (timers[item.id] || 'Loading...')}
                       </p>
                     </div>
                   </div>
+
+                  {/* Code Display for CodeDrop items */}
+                  {item.method === UGCMethod.CodeDrop && item.ugcCode && (
+                    <div
+                      className="mb-3 p-2 rounded-lg border-2 border-dashed flex flex-col items-center justify-center bg-gray-50"
+                      style={{ borderColor: gradientColors[1] || outlineColor }}
+                    >
+                      <p className="text-xs font-bold text-gray-500 uppercase">🔑 Code</p>
+                      <p className="font-black text-lg tracking-widest select-all" style={{ color: gradientColors[1] || outlineColor }}>
+                        {item.ugcCode}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="mb-3 p-2 bg-gray-50 rounded border border-gray-200 flex-1 relative">
                     <p className="text-xs font-bold text-gray-600 uppercase mb-1">📖 Info</p>
@@ -655,126 +712,130 @@ export default function LeaksPage() {
       </div>
 
       {/* --- DETAILED VIEWPORT MODAL --- */}
-      {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={closeModal}
-          ></div>
-
-          {/* Modal Content */}
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in animate-float-up">
-
-            {/* Modal Header Gradient */}
+      {
+        selectedItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
             <div
-              className="h-24 w-full relative flex items-center justify-center"
-              style={{
-                background: gradients[selectedItem.id]
-                  ? `linear-gradient(135deg, ${gradients[selectedItem.id].join(', ')})`
-                  : selectedItem.color
-              }}
-            >
-              <button
-                onClick={closeModal}
-                className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white rounded-full p-2 transition-all"
-              >
-                ✕ Close
-              </button>
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              onClick={closeModal}
+            ></div>
 
-              {/* Floating Image in Header */}
-              <div className="absolute -bottom-12 p-2 bg-white rounded-xl shadow-lg">
-                <img
-                  src={selectedItem.imageUrl}
-                  className="w-32 h-32 object-contain rounded-lg"
-                  alt={selectedItem.title}
-                />
-              </div>
-            </div>
+            {/* Modal Content */}
+            <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in animate-float-up">
 
-            <div className="pt-16 pb-8 px-8 text-center space-y-6">
-              <div>
-                <h2 className="text-3xl font-black text-gray-900">{selectedItem.title}</h2>
-                <p className="text-gray-500 font-bold">by {selectedItem.creator}</p>
-              </div>
-
-              {/* Timer Large Display */}
-              <div className="bg-gray-100 rounded-xl p-4 inline-block">
-                <p className="text-sm font-bold text-gray-500 uppercase">Status</p>
-                <p className="text-xl font-black text-roblox-purple">
-                  {timers[selectedItem.id] || 'Updating...'}
-                </p>
-              </div>
-
-              {/* Full Description / Instruction */}
-              <div className="bg-blue-50 border-l-8 border-roblox-cyan p-6 rounded-r-xl text-left">
-                <h3 className="text-lg font-black text-gray-800 mb-2">Instructions & Details</h3>
-                <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
-                  {/* This allows full visibility of the description */}
-                  <ClickableInstructions text={selectedItem.instruction} color={selectedItem.color || '#000'} />
-                </div>
-              </div>
-
-              {/* Links Section */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                {selectedItem.itemLink && (
-                  <Link href={selectedItem.itemLink} target="_blank" className="w-full">
-                    <button className="w-full py-4 bg-roblox-pink text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                      🛍️ View on Roblox
-                    </button>
-                  </Link>
-                )}
-                {selectedItem.gameLink && (
-                  <Link href={selectedItem.gameLink} target="_blank" className="w-full">
-                    <button className="w-full py-4 bg-roblox-purple text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                      🎮 Join Game
-                    </button>
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- NEXT UP HUD --- */}
-      {nextUpItems.length > 0 && (
-        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 flex flex-col gap-2 max-w-[280px] md:max-w-xs">
-          <div className="text-white/70 text-xs font-bold uppercase tracking-wider mb-1 text-right">
-            🚀 Next Up
-          </div>
-          {nextUpItems.map((item) => {
-            const gradientColors = gradients[item.id] || ['#b54eff', '#00d9ff', '#ff006e', '#ffbe0b'];
-            return (
+              {/* Modal Header Gradient */}
               <div
-                key={item.id}
-                onClick={() => openModal(item)}
-                className="cursor-pointer bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-2 md:p-3 flex items-center gap-2 md:gap-3 hover:bg-white/20 transition-all hover:scale-[1.02] shadow-lg"
+                className="h-24 w-full relative flex items-center justify-center"
+                style={{
+                  background: gradients[selectedItem.id]
+                    ? `linear-gradient(135deg, ${gradients[selectedItem.id].join(', ')})`
+                    : '#ff006e'
+                }}
               >
-                <div
-                  className="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden border-2 flex-shrink-0"
-                  style={{ borderColor: gradientColors[0] }}
+                <button
+                  onClick={closeModal}
+                  className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white rounded-full p-2 transition-all"
                 >
+                  ✕ Close
+                </button>
+
+                {/* Floating Image in Header */}
+                <div className="absolute -bottom-12 p-2 bg-white rounded-xl shadow-lg">
                   <img
-                    src={item.imageUrl}
-                    alt={item.title}
-                    className="w-full h-full object-contain bg-white/10"
+                    src={selectedItem.imageUrl}
+                    className="w-32 h-32 object-contain rounded-lg"
+                    alt={selectedItem.title}
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-xs md:text-sm truncate">{item.title}</p>
-                  <p
-                    className="text-xs font-bold"
-                    style={{ color: gradientColors[0] }}
-                  >
-                    {timers[item.id] || 'Loading...'}
+              </div>
+
+              <div className="pt-16 pb-8 px-8 text-center space-y-6">
+                <div>
+                  <h2 className="text-3xl font-black text-gray-900">{selectedItem.title}</h2>
+                  <p className="text-gray-500 font-bold">by {selectedItem.creator}</p>
+                </div>
+
+                {/* Timer Large Display */}
+                <div className="bg-gray-100 rounded-xl p-4 inline-block">
+                  <p className="text-sm font-bold text-gray-500 uppercase">Status</p>
+                  <p className="text-xl font-black text-roblox-purple">
+                    {timers[selectedItem.id] || 'Updating...'}
                   </p>
                 </div>
+
+                {/* Full Description / Instruction */}
+                <div className="bg-blue-50 border-l-8 border-roblox-cyan p-6 rounded-r-xl text-left">
+                  <h3 className="text-lg font-black text-gray-800 mb-2">Instructions & Details</h3>
+                  <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
+                    {/* This allows full visibility of the description */}
+                    <ClickableInstructions text={selectedItem.instruction} color={'#ff006e'} />
+                  </div>
+                </div>
+
+                {/* Links Section */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                  {selectedItem.itemLink && (
+                    <Link href={selectedItem.itemLink} target="_blank" className="w-full">
+                      <button className="w-full py-4 bg-roblox-pink text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                        🛍️ View on Roblox
+                      </button>
+                    </Link>
+                  )}
+                  {selectedItem.gameLink && (
+                    <Link href={selectedItem.gameLink} target="_blank" className="w-full">
+                      <button className="w-full py-4 bg-roblox-purple text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                        🎮 Join Game
+                      </button>
+                    </Link>
+                  )}
+                </div>
               </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* --- NEXT UP HUD --- */}
+      {
+        nextUpItems.length > 0 && (
+          <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 flex flex-col gap-2 max-w-[280px] md:max-w-xs">
+            <div className="text-white/70 text-xs font-bold uppercase tracking-wider mb-1 text-right">
+              🚀 Next Up
+            </div>
+            {nextUpItems.map((item) => {
+              const gradientColors = gradients[item.id] || ['#b54eff', '#00d9ff', '#ff006e', '#ffbe0b'];
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => openModal(item)}
+                  className="cursor-pointer bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-2 md:p-3 flex items-center gap-2 md:gap-3 hover:bg-white/20 transition-all hover:scale-[1.02] shadow-lg"
+                >
+                  <div
+                    className="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden border-2 flex-shrink-0"
+                    style={{ borderColor: gradientColors[0] }}
+                  >
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="w-full h-full object-contain bg-white/10"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-bold text-xs md:text-sm truncate">{item.title}</p>
+                    <p
+                      className="text-xs font-bold"
+                      style={{ color: gradientColors[0] }}
+                    >
+                      {timers[item.id] || 'Loading...'}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      }
+    </div >
   );
 }
