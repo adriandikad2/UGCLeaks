@@ -64,6 +64,9 @@ export async function PUT(
       'image_url',
       'limit_per_user',
       'color',
+      'sold_out',
+      'final_current_stock',
+      'final_total_stock',
     ];
 
     // Build dynamic update query
