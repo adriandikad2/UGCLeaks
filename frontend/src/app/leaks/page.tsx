@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ClickableInstructions, NoLinkTemplate } from '../InstructionParser';
 import { useTheme } from '../components/ThemeContext';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import { hasAccess, isAuthenticated, signout, getUserRole } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
 import { getRobloxStock, extractRobloxAssetId, RobloxStockData, updateScheduledItem } from '@/lib/api';
@@ -57,20 +58,22 @@ const seededRandom = (seed: string) => {
   return Math.abs(hash) % 1000 / 1000; // Return 0-1
 };
 
-const generateRandomGradient = (id: string) => {
-  const colors = [
-    '#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff',
-    '#ff8c42', '#ff1744', '#2196f3', '#667eea', '#764ba2',
-    '#f093fb', '#4facfe'
+// Shuffle theme gradient CSS variables deterministically per item ID
+const shuffleThemeGradients = (id: string): string[] => {
+  const themeColors = [
+    'var(--theme-gradient-1)',
+    'var(--theme-gradient-2)',
+    'var(--theme-gradient-3)',
+    'var(--theme-gradient-4)',
   ];
 
-  // Use seeded sort for deterministic shuffling
-  const shuffled = [...colors].sort((a, b) => {
+  // Use seeded sort for deterministic shuffling based on item ID
+  const shuffled = [...themeColors].sort((a, b) => {
     const seedA = seededRandom(id + a);
     const seedB = seededRandom(id + b);
     return seedA - seedB;
   });
-  return shuffled.slice(0, 4);
+  return shuffled;
 };
 
 export default function LeaksPage() {
@@ -94,7 +97,8 @@ export default function LeaksPage() {
   // Hooks
   const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
-  const { isGrayscale, toggleTheme, buttonText } = useTheme();
+  const { currentTheme } = useTheme();
+  const isGrayscale = currentTheme.name === 'bw';
 
   useEffect(() => {
     setAuthenticated(isAuthenticated());
@@ -140,10 +144,10 @@ export default function LeaksPage() {
         }));
         setScheduledItems(converted);
 
-        // Generate gradients for scheduled items
+        // Generate shuffled gradients for scheduled items
         const apiGradients: { [key: string]: string[] } = {};
         converted.forEach((item: any) => {
-          apiGradients[item.id] = generateRandomGradient(item.id);
+          apiGradients[item.id] = shuffleThemeGradients(item.id);
         });
         setGradients(prev => ({ ...prev, ...apiGradients }));
       }
@@ -378,17 +382,8 @@ export default function LeaksPage() {
 
   return (
     <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
-      {/* --- THEME & AUTH CONTROLS --- */}
-      <div className="fixed top-4 right-4 md:top-6 md:right-6 z-40 flex gap-2 md:gap-3">
-        <button
-          onClick={toggleTheme}
-          className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
-        >
-          <span className="animate-pulse group-hover:animate-none">
-            {buttonText}
-          </span>
-        </button>
-      </div>
+      {/* --- THEME PALETTE SWITCHER --- */}
+      <ThemeSwitcher />
 
       {/* --- NAVIGATION BUTTONS --- */}
       <div className="fixed top-4 left-4 md:top-6 md:left-6 z-40 flex gap-2 md:gap-3">
@@ -431,8 +426,8 @@ export default function LeaksPage() {
           <h1 className="text-5xl md:text-6xl font-black rainbow-text drop-shadow-2xl">
             🔥 UGC LEAKS 🔥
           </h1>
-          <div className="h-2 w-80 mx-auto bg-gradient-to-r from-roblox-pink via-roblox-cyan to-roblox-yellow rounded-full glow-pink blocky-shadow"></div>
-          <p className="text-white text-lg md:text-xl drop-shadow-lg">
+          <div className="h-2 w-80 mx-auto theme-gradient-bar rounded-full glow-pink blocky-shadow"></div>
+          <p className="theme-on-bg-text text-lg md:text-xl drop-shadow-lg font-semibold">
             Track the hottest upcoming Roblox UGC drops
           </p>
         </div>
@@ -441,7 +436,8 @@ export default function LeaksPage() {
           {isEditor && (
             <button
               onClick={() => router.push('/schedule')}
-              className="px-8 py-4 bg-gradient-to-r from-roblox-purple to-roblox-pink text-white font-black rounded-xl blocky-shadow-hover text-lg uppercase tracking-wide hover:scale-105 transition-all"
+              className="px-8 py-4 text-white font-black rounded-xl blocky-shadow-hover text-lg uppercase tracking-wide hover:scale-105 transition-all"
+              style={{ background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2))' }}
             >
               📅 Create Schedule
             </button>
@@ -453,9 +449,10 @@ export default function LeaksPage() {
           <button
             onClick={() => setViewMode('active')}
             className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'active'
-              ? 'bg-gradient-to-r from-roblox-pink to-roblox-purple text-white shadow-lg scale-105 ring-2 ring-white'
-              : 'bg-white/10 text-white hover:bg-white/20'
+              ? 'text-white shadow-lg scale-105 ring-2 ring-white'
+              : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
               }`}
+            style={viewMode === 'active' ? { background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2))' } : {}}
           >
             🚀 Active Drops
           </button>
@@ -463,7 +460,7 @@ export default function LeaksPage() {
             onClick={() => setViewMode('abandoned')}
             className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'abandoned'
               ? 'bg-gradient-to-r from-gray-500 to-gray-700 text-white shadow-lg scale-105 ring-2 ring-white'
-              : 'bg-white/10 text-white hover:bg-white/20'
+              : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
               }`}
           >
             🏚️ Abandoned
@@ -472,22 +469,24 @@ export default function LeaksPage() {
 
         <div className="flex flex-wrap gap-4 items-end">
           <div className="space-y-2 flex-1 min-w-[200px]">
-            <label className="text-white font-bold uppercase text-sm">🔍 Search</label>
+            <label className="theme-on-bg-text font-bold uppercase text-sm">🔍 Search</label>
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Item, creator, name..."
-              className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
+              className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-2)' }}
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-white font-bold uppercase text-sm">🎯 Method</label>
+            <label className="theme-on-bg-text font-bold uppercase text-sm">🎯 Method</label>
             <select
               value={filterMethod}
               onChange={(e) => setFilterMethod(e.target.value as UGCMethod | 'All')}
-              className="w-full px-4 py-3 rounded-lg border-4 border-roblox-orange font-bold text-gray-900 focus:outline-none focus:border-roblox-yellow"
+              className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-3)' }}
             >
               <option value="All">All Methods</option>
               <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
@@ -498,11 +497,12 @@ export default function LeaksPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-white font-bold uppercase text-sm">📅 Status</label>
+            <label className="theme-on-bg-text font-bold uppercase text-sm">📅 Status</label>
             <select
               value={releaseStatusFilter}
               onChange={(e) => setReleaseStatusFilter(e.target.value as 'all' | 'released' | 'upcoming')}
-              className="px-4 py-3 rounded-lg border-4 border-roblox-orange font-bold text-gray-900 focus:outline-none"
+              className="px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-3)' }}
             >
               <option value="all">📋 All</option>
               <option value="upcoming">⏳ Upcoming</option>
@@ -511,12 +511,13 @@ export default function LeaksPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-white font-bold uppercase text-sm">📊 Sort</label>
+            <label className="theme-on-bg-text font-bold uppercase text-sm">📊 Sort</label>
             <div className="flex gap-2">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'recent' | 'stock' | 'limit' | 'upcoming')}
-                className="px-4 py-3 rounded-lg border-4 border-roblox-purple font-bold text-gray-900 focus:outline-none"
+                className="px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                style={{ borderColor: 'var(--theme-gradient-4)' }}
               >
                 <option value="upcoming">🚀 Next Up</option>
                 <option value="recent">⏱️ Recent</option>
@@ -525,7 +526,8 @@ export default function LeaksPage() {
               </select>
               <button
                 onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
-                className="px-4 py-3 rounded-lg border-4 border-roblox-purple bg-white font-bold text-gray-900 hover:bg-roblox-purple hover:text-white transition-all"
+                className="px-4 py-3 rounded-lg border-4 theme-bg-card font-bold text-gray-900 hover:text-white transition-all"
+                style={{ borderColor: 'var(--theme-gradient-3)' }}
                 title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
               >
                 {sortDirection === 'asc' ? '↑' : '↓'}
@@ -533,7 +535,8 @@ export default function LeaksPage() {
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className={`px-4 py-3 rounded-lg border-4 border-roblox-cyan bg-white font-bold text-gray-900 hover:bg-roblox-cyan hover:text-white transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+                className={`px-4 py-3 rounded-lg border-4 theme-bg-card font-bold text-gray-900 hover:text-white transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+                style={{ borderColor: 'var(--theme-gradient-2)' }}
                 title="Refresh items"
               >
                 🔄
@@ -544,12 +547,11 @@ export default function LeaksPage() {
 
         {/* --- GRID --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-          {filteredItems.map((item) => {
-            const gradientColors = isMounted ? gradients[item.id] : ['#ccc', '#ccc', '#ccc', '#ccc'];
-            const gradientStr = gradientColors
-              ? `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]}, ${gradientColors[2]}, ${gradientColors[3]})`
-              : 'linear-gradient(135deg, #ccc, #ccc)';
-            const outlineColor = gradientColors ? gradientColors[0] : '#ccc';
+          {filteredItems.map((item, index) => {
+            // Use shuffled theme gradient colors based on item ID for variety
+            const shuffledColors = shuffleThemeGradients(item.id);
+            const outlineColor = shuffledColors[0];
+            const gradientStr = `linear-gradient(135deg, ${shuffledColors[0]}, ${shuffledColors[1]}, ${shuffledColors[2]}, ${shuffledColors[3]})`;
 
             // Get live stock data for this item
             const assetId = item.itemLink ? extractRobloxAssetId(item.itemLink) : null;
@@ -565,7 +567,7 @@ export default function LeaksPage() {
               <div
                 key={item.id}
                 onClick={() => openModal(item)}
-                className={`cursor-pointer pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative ${isSoldOut ? 'opacity-60 grayscale' : ''}`}
+                className={`cursor-pointer pop-in theme-bg-card rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative ${isSoldOut ? 'opacity-60 grayscale' : ''}`}
                 style={{ borderColor: isSoldOut ? '#888' : outlineColor }}
               >
                 <div
@@ -592,10 +594,9 @@ export default function LeaksPage() {
                 <div className="p-4 flex-1 flex flex-col">
                   <div className="flex justify-center mb-3">
                     <div
-                      className="p-3 rounded-lg border-3"
+                      className="p-3 rounded-lg border-3 theme-bg-card"
                       style={{
                         borderColor: outlineColor,
-                        backgroundColor: outlineColor + '15',
                       }}
                     >
                       <img
@@ -621,16 +622,15 @@ export default function LeaksPage() {
 
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div
-                      className="p-2 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: gradientColors[0] + '15' }}
+                      className="p-2 rounded-lg border-2 theme-bg-card"
+                      style={{ borderColor: shuffledColors[0] }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">📦 Stock</p>
-                      <p className="font-black text-xs mt-1" style={{ color: isSoldOut ? '#888' : (gradientColors[0] || outlineColor) }}>
-                        {/* Priority: live stock > persisted stock (for sold-out items) > scheduled stock */}
+                      <p className="font-black text-xs mt-1" style={{ color: isSoldOut ? '#888' : shuffledColors[0] }}>
                         {hasLiveStock
                           ? `${liveStockData.currentStock}/${liveStockData.totalStock}`
                           : (item.soldOut && item.finalCurrentStock !== undefined && item.finalTotalStock !== undefined
-                            ? `${item.finalCurrentStock}/${item.finalTotalStock}` // Show persisted stock for sold-out items
+                            ? `${item.finalCurrentStock}/${item.finalTotalStock}`
                             : (item.stock === 'unknown' || item.stock === 'Unknown' || item.stock === -1
                               ? '❓ Unknown'
                               : (typeof item.stock === 'number' ? item.stock : 'OUT')))}
@@ -638,11 +638,11 @@ export default function LeaksPage() {
                     </div>
 
                     <div
-                      className="p-2 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: gradientColors[1] + '15' }}
+                      className="p-2 rounded-lg border-2 theme-bg-card"
+                      style={{ borderColor: shuffledColors[1] }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
-                      <p className="font-black text-xs mt-1 line-clamp-2" style={{ color: gradientColors[1] || outlineColor }}>
+                      <p className="font-black text-xs mt-1 line-clamp-2" style={{ color: shuffledColors[1] }}>
                         {item.method === UGCMethod.WebDrop
                           ? 'Web Drop'
                           : item.method === UGCMethod.CodeDrop
@@ -652,21 +652,21 @@ export default function LeaksPage() {
                     </div>
 
                     <div
-                      className="p-2 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: gradientColors[2] + '15' }}
+                      className="p-2 rounded-lg border-2 theme-bg-card"
+                      style={{ borderColor: shuffledColors[2] }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
-                      <p className="font-black text-xs mt-1" style={{ color: gradientColors[2] || outlineColor }}>
+                      <p className="font-black text-xs mt-1" style={{ color: shuffledColors[2] }}>
                         {item.limitPerUser}x
                       </p>
                     </div>
 
                     <div
-                      className="p-2 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: gradientColors[3] + '15' }}
+                      className="p-2 rounded-lg border-2 theme-bg-card"
+                      style={{ borderColor: shuffledColors[3] }}
                     >
                       <p className="text-xs font-bold text-gray-600 uppercase">📅 Release</p>
-                      <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: gradientColors[3] || outlineColor }}>
+                      <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: shuffledColors[3] }}>
                         {timers[item.id] === 'Unknown' ? '❓ Unknown' : (timers[item.id] || 'Loading...')}
                       </p>
                     </div>
@@ -675,11 +675,11 @@ export default function LeaksPage() {
                   {/* Code Display for CodeDrop items */}
                   {item.method === UGCMethod.CodeDrop && item.ugcCode && (
                     <div
-                      className="mb-3 p-2 rounded-lg border-2 border-dashed flex flex-col items-center justify-center bg-gray-50"
-                      style={{ borderColor: gradientColors[1] || outlineColor }}
+                      className="mb-3 p-2 rounded-lg border-2 border-dashed flex flex-col items-center justify-center theme-bg-card"
+                      style={{ borderColor: shuffledColors[1] }}
                     >
                       <p className="text-xs font-bold text-gray-500 uppercase">🔑 Code</p>
-                      <p className="font-black text-lg tracking-widest select-all" style={{ color: gradientColors[1] || outlineColor }}>
+                      <p className="font-black text-lg tracking-widest select-all" style={{ color: shuffledColors[1] }}>
                         {item.ugcCode}
                       </p>
                     </div>
@@ -722,15 +722,13 @@ export default function LeaksPage() {
             ></div>
 
             {/* Modal Content */}
-            <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in animate-float-up">
+            <div className="theme-bg-card w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in animate-float-up">
 
               {/* Modal Header Gradient */}
               <div
                 className="h-24 w-full relative flex items-center justify-center"
                 style={{
-                  background: gradients[selectedItem.id]
-                    ? `linear-gradient(135deg, ${gradients[selectedItem.id].join(', ')})`
-                    : '#ff006e'
+                  background: 'linear-gradient(135deg, var(--theme-gradient-1), var(--theme-gradient-2), var(--theme-gradient-3), var(--theme-gradient-4))'
                 }}
               >
                 <button
@@ -741,7 +739,7 @@ export default function LeaksPage() {
                 </button>
 
                 {/* Floating Image in Header */}
-                <div className="absolute -bottom-12 p-2 bg-white rounded-xl shadow-lg">
+                <div className="absolute -bottom-12 p-2 theme-bg-card rounded-xl shadow-lg">
                   <img
                     src={selectedItem.imageUrl}
                     className="w-32 h-32 object-contain rounded-lg"
@@ -757,19 +755,18 @@ export default function LeaksPage() {
                 </div>
 
                 {/* Timer Large Display */}
-                <div className="bg-gray-100 rounded-xl p-4 inline-block">
+                <div className="theme-bg-card rounded-xl p-4 inline-block border-2" style={{ borderColor: 'var(--theme-primary)' }}>
                   <p className="text-sm font-bold text-gray-500 uppercase">Status</p>
-                  <p className="text-xl font-black text-roblox-purple">
+                  <p className="text-xl font-black" style={{ color: 'var(--theme-gradient-1)' }}>
                     {timers[selectedItem.id] || 'Updating...'}
                   </p>
                 </div>
 
                 {/* Full Description / Instruction */}
-                <div className="bg-blue-50 border-l-8 border-roblox-cyan p-6 rounded-r-xl text-left">
+                <div className="theme-bg-card border-l-8 p-6 rounded-r-xl text-left" style={{ borderColor: 'var(--theme-gradient-2)' }}>
                   <h3 className="text-lg font-black text-gray-800 mb-2">Instructions & Details</h3>
                   <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
-                    {/* This allows full visibility of the description */}
-                    <ClickableInstructions text={selectedItem.instruction} color={'#ff006e'} />
+                    <ClickableInstructions text={selectedItem.instruction} color={'var(--theme-gradient-1)'} />
                   </div>
                 </div>
 
@@ -777,14 +774,14 @@ export default function LeaksPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                   {selectedItem.itemLink && (
                     <Link href={selectedItem.itemLink} target="_blank" className="w-full">
-                      <button className="w-full py-4 bg-roblox-pink text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                      <button className="w-full py-4 bg-noob-pink text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
                         🛍️ View on Roblox
                       </button>
                     </Link>
                   )}
                   {selectedItem.gameLink && (
                     <Link href={selectedItem.gameLink} target="_blank" className="w-full">
-                      <button className="w-full py-4 bg-roblox-purple text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                      <button className="w-full py-4 bg-noob-purple text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
                         🎮 Join Game
                       </button>
                     </Link>
@@ -799,8 +796,8 @@ export default function LeaksPage() {
       {/* --- NEXT UP HUD --- */}
       {
         nextUpItems.length > 0 && (
-          <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 flex flex-col gap-2 max-w-[280px] md:max-w-xs">
-            <div className="text-white/70 text-xs font-bold uppercase tracking-wider mb-1 text-right">
+          <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 flex flex-col gap-2 max-w-[280px] md:max-w-xs bg-black/40 backdrop-blur-xl border border-white/30 rounded-xl md:rounded-2xl p-2 md:p-3 shadow-2xl">
+            <div className="text-white/70 text-xs font-bold uppercase tracking-wider text-right">
               🚀 Next Up
             </div>
             {nextUpItems.map((item) => {
@@ -809,7 +806,7 @@ export default function LeaksPage() {
                 <div
                   key={item.id}
                   onClick={() => openModal(item)}
-                  className="cursor-pointer bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-2 md:p-3 flex items-center gap-2 md:gap-3 hover:bg-white/20 transition-all hover:scale-[1.02] shadow-lg"
+                  className="cursor-pointer bg-white/10 hover:bg-white/20 rounded-lg p-2 flex items-center gap-2 md:gap-3 transition-all hover:scale-[1.02]"
                 >
                   <div
                     className="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden border-2 flex-shrink-0"

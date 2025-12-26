@@ -8,6 +8,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- YOUR LOGS GO HERE ---
 const LOGS = [
     {
+        version: 'v1.5',
+        date: 'Dec 26, 2025',
+        changes: [
+            '🎨 Themes has arrived! Personalize your experience to your likings! 🎉'
+        ]
+    },
+    {
         version: 'v1.4',
         date: 'Dec 26, 2025',
         changes: [
@@ -44,7 +51,7 @@ const LOGS = [
         date: 'Dec 25, 2025',
         changes: [
             '🪵 Update logs! Yes! It\'s me, right here! The thing you\'re currently reading right now!',
-            '🎨 Added Digital Playground! Includes handy dandy thingamajigs and ridiculous doo-dads such as Paintball, Stickers, and more! You can try them out in the bottom right of the screen. Don\'t get too bored around here!',
+            '🛝 Added Digital Playground! Includes handy dandy thingamajigs and ridiculous doo-dads such as Paintball, Stickers, and more! You can try them out in the bottom right of the screen. Don\'t get too bored around here!',
             '🎛️ Added appropriate volume sliders for the tools in Digital Playground! Those things can get really loud. Especially the hammer... yikes.',
             '🔧 Fixed Timezone Hell phenomenon! Scheduling should be good to go now.',
             '⚡ Optimized asset loading with API routes. Fancy stuff.'
@@ -75,7 +82,7 @@ export default function UpdateLogs() {
                     >
                         <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
                             <h3 className="font-bold text-lg flex items-center gap-2">
-                                <ScrollText size={18} className="text-roblox-cyan" />
+                                <ScrollText size={18} className="text-noob-cyan" />
                                 Patch Notes
                             </h3>
                             <button
@@ -89,9 +96,9 @@ export default function UpdateLogs() {
                         <div className="space-y-6">
                             {LOGS.map((log, i) => (
                                 <div key={i} className="relative pl-4 border-l-2 border-white/20">
-                                    <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-roblox-pink"></div>
+                                    <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-noob-pink"></div>
                                     <div className="flex justify-between items-baseline mb-1">
-                                        <span className="font-bold text-roblox-yellow">{log.version}</span>
+                                        <span className="font-bold text-noob-yellow">{log.version}</span>
                                         <span className="text-xs text-white/50">{log.date}</span>
                                     </div>
                                     <ul className="text-sm space-y-1 text-white/80">
@@ -104,7 +111,7 @@ export default function UpdateLogs() {
                         </div>
 
                         <div className="mt-8 pt-4 border-t border-white/10">
-                            <h4 className="text-sm font-bold text-roblox-cyan mb-2 flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-noob-cyan mb-2 flex items-center gap-2">
                                 <Contact size={14} /> Contact & Inquiries
                             </h4>
                             <p className="text-xs text-white/70 mb-3 leading-relaxed">

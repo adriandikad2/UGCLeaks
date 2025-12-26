@@ -20,7 +20,7 @@ export default function ToolBelt() {
     <motion.div
       initial={{ x: -100 }}
       animate={{ x: 0 }}
-      className="fixed left-2 md:left-4 top-[42%] -translate-y-1/2 z-[60] flex flex-col gap-1.5 md:gap-3 p-2 md:p-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl md:rounded-2xl shadow-2xl"
+      className="fixed left-2 md:left-4 top-[48%] -translate-y-1/2 z-[60] flex flex-col gap-1.5 md:gap-3 p-2 md:p-3 bg-black/40 backdrop-blur-xl border border-white/30 rounded-xl md:rounded-2xl shadow-2xl"
     >
       {tools.map((tool) => (
         <button

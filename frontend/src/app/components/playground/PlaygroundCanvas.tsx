@@ -661,7 +661,7 @@ export default function PlaygroundCanvas() {
                 ))}
                 {/* --- VOLUME MIXER TOGGLE --- */}
                 <button
-                    className="fixed top-20 right-6 z-[60] p-3 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl text-white hover:bg-white hover:text-black transition-all pointer-events-auto"
+                    className="fixed top-28 right-6 z-[60] p-3 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl text-white hover:bg-white hover:text-black transition-all pointer-events-auto"
                     onClick={() => setShowMixer(!showMixer)}
                     onPointerDown={(e) => e.stopPropagation()}
                 >
@@ -773,7 +773,7 @@ export default function PlaygroundCanvas() {
                             initial={{ opacity: 0, scale: 0.9, x: 20 }}
                             animate={{ opacity: 1, scale: 1, x: 0 }}
                             exit={{ opacity: 0, scale: 0.9, x: 20 }}
-                            className="fixed top-20 right-20 z-[60] w-64 p-5 bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl pointer-events-auto"
+                            className="fixed top-28 right-20 z-[60] w-64 p-5 bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl pointer-events-auto"
                             onPointerDown={(e) => e.stopPropagation()}
                         >
                             <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
@@ -786,7 +786,7 @@ export default function PlaygroundCanvas() {
                             <div className="space-y-4">
                                 {/* Paintball Slider */}
                                 <div className="space-y-1">
-                                    <div className="flex justify-between text-xs text-roblox-cyan font-bold">
+                                    <div className="flex justify-between text-xs text-noob-cyan font-bold">
                                         <span>Paintball</span>
                                         <span>{Math.round(volumes.paintball * 100)}%</span>
                                     </div>
@@ -795,7 +795,7 @@ export default function PlaygroundCanvas() {
                                         min="0" max="1" step="0.05"
                                         value={volumes.paintball}
                                         onChange={(e) => setVolumes(p => ({ ...p, paintball: parseFloat(e.target.value) }))}
-                                        className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-roblox-cyan"
+                                        className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-noob-cyan"
                                     />
                                 </div>
 

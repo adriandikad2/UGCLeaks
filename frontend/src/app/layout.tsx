@@ -1,7 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { FloatingBlocks } from './FloatingBlocks';
+import ThemeEffects from './components/ThemeEffects';
 import { ThemeProvider } from './components/ThemeContext';
 import { Analytics } from "@vercel/analytics/next";
 import { PlaygroundProvider } from './components/playground/PlaygroundContext';
@@ -28,8 +28,8 @@ export default function RootLayout({
           <ToolBelt />
           <PlaygroundCanvas />
           <ThemeProvider>
-            {/* ThemeProvider now handles the mounting/opacity logic internally */}
-            <FloatingBlocks />
+            {/* Theme-specific particle effects (stars, petals, leaves, etc.) */}
+            <ThemeEffects />
             <div className="relative z-10">
               {children}
             </div>

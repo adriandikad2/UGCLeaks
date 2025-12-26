@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { hasAccess, getToken } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
 import { useTheme } from '../../components/ThemeContext';
+import ThemeSwitcher from '../../components/ThemeSwitcher';
 
 type User = {
   id: string;
@@ -17,7 +18,8 @@ type User = {
 export default function ManageRolesPage() {
   const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
-  const { isGrayscale, toggleTheme, buttonText } = useTheme();
+  const { currentTheme } = useTheme();
+  const isGrayscale = currentTheme.name === 'bw';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState<User[]>([]);
@@ -116,14 +118,12 @@ export default function ManageRolesPage() {
   };
 
   return (
-    <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600'}`}>
-      {/* --- THEME TOGGLE --- */}
-      <button
-        onClick={toggleTheme}
-        className="fixed top-6 right-6 z-40 px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
-      >
-        <span className="animate-pulse group-hover:animate-none">{buttonText}</span>
-      </button>
+    <div
+      className="min-h-screen p-6 md:p-10 transition-all duration-700"
+      style={{ background: currentTheme.colors.background }}
+    >
+      {/* --- THEME PALETTE SWITCHER --- */}
+      <ThemeSwitcher />
 
       {/* --- HOME LINK --- */}
       <Link href="/schedule">
@@ -137,13 +137,13 @@ export default function ManageRolesPage() {
       <div className="max-w-2xl mx-auto mt-12">
         {/* --- TITLE --- */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-black text-white drop-shadow-2xl mb-2">👥 Manage User Roles</h1>
-          <p className="text-white/80">Search for users and update their roles</p>
+          <h1 className="text-5xl font-black rainbow-text drop-shadow-2xl mb-2">👥 Manage User Roles</h1>
+          <p className="theme-on-bg-text font-semibold">Search for users and update their roles</p>
         </div>
 
         {/* --- SEARCH BOX --- */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 border-2 border-white/20 mb-8">
-          <label className="block text-white font-bold mb-3 uppercase tracking-wide">🔍 Search Username</label>
+        <div className="bg-black/20 backdrop-blur-md rounded-xl p-8 border-2 mb-8" style={{ borderColor: 'var(--theme-primary)' }}>
+          <label className="block theme-on-bg-text font-bold mb-3 uppercase tracking-wide">🔍 Search Username</label>
           <div className="flex gap-3 mb-4">
             <input
               type="text"
@@ -151,13 +151,15 @@ export default function ManageRolesPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Enter username..."
-              className="flex-1 px-4 py-3 rounded-lg border-2 border-blue-400 focus:outline-none focus:border-blue-600 text-gray-800 font-semibold"
+              className="flex-1 px-4 py-3 rounded-lg border-2 focus:outline-none text-gray-800 font-semibold theme-bg-card"
+              style={{ borderColor: 'var(--theme-secondary)' }}
               disabled={loading}
             />
             <button
               onClick={handleSearch}
               disabled={loading}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-pink-600 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+              className="px-6 py-3 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+              style={{ background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2))' }}
             >
               {loading ? '⏳' : '🔎'}
             </button>
@@ -166,36 +168,36 @@ export default function ManageRolesPage() {
 
         {/* --- USER DETAILS --- */}
         {selectedUser && (
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 border-2 border-white/20">
+          <div className="bg-black/20 backdrop-blur-md rounded-xl p-8 border-2" style={{ borderColor: 'var(--theme-primary)' }}>
             <div className="mb-6">
-              <p className="text-white/70 text-sm uppercase tracking-wide">Username</p>
-              <p className="text-white text-2xl font-bold">{selectedUser.username}</p>
+              <p className="theme-text-secondary text-sm uppercase tracking-wide">Username</p>
+              <p className="theme-text-primary text-2xl font-bold">{selectedUser.username}</p>
             </div>
 
             <div className="mb-6">
-              <p className="text-white/70 text-sm uppercase tracking-wide">Email</p>
-              <p className="text-white text-lg">{selectedUser.email}</p>
+              <p className="theme-text-secondary text-sm uppercase tracking-wide">Email</p>
+              <p className="theme-text-primary text-lg">{selectedUser.email}</p>
             </div>
 
             <div className="mb-6">
-              <label className="block text-white font-bold mb-3 uppercase tracking-wide">Current Role</label>
-              <p className="inline-block px-4 py-2 bg-blue-600 text-white rounded-full font-bold">
-                {/* FIX 2: Add Optional Chaining just in case */}
+              <label className="block theme-text-primary font-bold mb-3 uppercase tracking-wide">Current Role</label>
+              <p className="inline-block px-4 py-2 text-white rounded-full font-bold" style={{ background: 'var(--theme-gradient-2)' }}>
                 {selectedUser.role?.toUpperCase() || 'UNKNOWN'}
               </p>
             </div>
 
             {/* --- ROLE SELECTOR --- */}
             <div className="mb-6">
-              <label className="block text-white font-bold mb-3 uppercase tracking-wide">New Role</label>
+              <label className="block theme-text-primary font-bold mb-3 uppercase tracking-wide">New Role</label>
               <select
                 value={selectedRole}
                 onChange={(e) => {
                   setSelectedRole(e.target.value as 'user' | 'editor' | 'owner');
-                  setConfirmMode(false); // Reset confirmation when selection changes
+                  setConfirmMode(false);
                 }}
                 disabled={loading}
-                className="w-full px-4 py-3 rounded-lg border-2 border-blue-400 focus:outline-none focus:border-blue-600 text-gray-800 font-semibold disabled:opacity-50"
+                className="w-full px-4 py-3 rounded-lg border-2 focus:outline-none text-gray-800 font-semibold disabled:opacity-50 theme-bg-card"
+                style={{ borderColor: 'var(--theme-secondary)' }}
               >
                 <option value="user">👤 User (Read-only)</option>
                 <option value="editor">✏️ Editor (Can create schedules)</option>
@@ -210,11 +212,10 @@ export default function ManageRolesPage() {
                   type="checkbox"
                   checked={confirmMode}
                   onChange={(e) => setConfirmMode(e.target.checked)}
-                  // Keep checkbox disabled if roles are identical (no change to confirm)
                   disabled={selectedRole === selectedUser.role}
                   className="w-5 h-5 rounded cursor-pointer"
                 />
-                <span className="text-white font-bold">
+                <span className="theme-text-primary font-bold">
                   Confirm changing {selectedUser.username}'s role to {selectedRole.toUpperCase()}
                 </span>
               </label>
@@ -225,7 +226,8 @@ export default function ManageRolesPage() {
               <button
                 onClick={handleUpdateRole}
                 disabled={!confirmMode || loading || selectedRole === selectedUser.role}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                className="flex-1 px-6 py-3 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                style={{ background: 'linear-gradient(to right, var(--theme-success), var(--theme-gradient-4))' }}
               >
                 {loading ? '⏳ Updating...' : '✅ Update Role'}
               </button>
@@ -236,7 +238,8 @@ export default function ManageRolesPage() {
                   setConfirmMode(false);
                 }}
                 disabled={loading}
-                className="flex-1 px-6 py-3 bg-gray-600 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 uppercase"
+                className="flex-1 px-6 py-3 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 uppercase"
+                style={{ background: 'var(--theme-secondary)' }}
               >
                 Clear
               </button>
@@ -246,11 +249,11 @@ export default function ManageRolesPage() {
 
         {/* --- NO USER SELECTED --- */}
         {!selectedUser && searchTerm && !loading && (
-          <div className="text-center text-white/60 text-lg">
+          <div className="text-center theme-text-secondary text-lg">
             No user found. Try another username.
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }

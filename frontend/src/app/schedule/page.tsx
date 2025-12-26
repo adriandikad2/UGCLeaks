@@ -9,6 +9,7 @@ import { ClickableInstructions } from '../InstructionParser';
 import { ToastContainer, useToast } from '../Toast';
 import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
 import { useTheme } from '../components/ThemeContext'; // <--- Import Global Theme
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import { hasAccess } from '@/lib/auth';
 
 enum UGCMethod {
@@ -51,19 +52,22 @@ const seededRandom = (seed: string) => {
   return Math.abs(hash) % 1000 / 1000; // Return 0-1
 };
 
-const generateRandomGradient = (id: string) => {
-  const colors = [
-    '#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff',
-    '#ff8c42', '#ff1744', '#2196f3', '#667eea', '#764ba2',
-    '#f093fb', '#4facfe'
+// Shuffle theme gradient CSS variables deterministically per item ID
+const shuffleThemeGradients = (id: string): string[] => {
+  const themeColors = [
+    'var(--theme-gradient-1)',
+    'var(--theme-gradient-2)',
+    'var(--theme-gradient-3)',
+    'var(--theme-gradient-4)',
   ];
-  // Use seeded sort for deterministic shuffling
-  const shuffled = [...colors].sort((a, b) => {
+
+  // Use seeded sort for deterministic shuffling based on item ID
+  const shuffled = [...themeColors].sort((a, b) => {
     const seedA = seededRandom(id + a);
     const seedB = seededRandom(id + b);
     return seedA - seedB;
   });
-  return shuffled.slice(0, 4);
+  return shuffled;
 };
 
 // Helper: Convert a UTC Date string to "YYYY-MM-DDTHH:mm" (Local time) for inputs
@@ -103,7 +107,8 @@ export default function SchedulePage() {
   const { toasts, addToast, removeToast } = useToast();
 
   // Theme Context
-  const { isGrayscale, toggleTheme, buttonText } = useTheme();
+  const { currentTheme } = useTheme();
+  const isGrayscale = currentTheme.name === 'bw';
 
   // Internal state for "Unlimited" checkbox
   const [isUnlimitedLimit, setIsUnlimitedLimit] = useState(false);
@@ -152,7 +157,7 @@ export default function SchedulePage() {
         items.forEach((item: any) => {
           const key = item.uuid || item.id;
           if (!newGradients[key]) {
-            newGradients[key] = generateRandomGradient(key);
+            newGradients[key] = shuffleThemeGradients(key);
           }
         });
         return newGradients;
@@ -239,7 +244,7 @@ export default function SchedulePage() {
 
           setGradients({
             ...gradients,
-            [newId]: generateRandomGradient(newId),
+            [newId]: shuffleThemeGradients(newId),
           });
 
           addToast('Schedule created successfully! 🎉', 'success');
@@ -424,15 +429,8 @@ export default function SchedulePage() {
     <div className={`min-h-screen py-12 relative transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-      {/* --- GLOBAL THEME BUTTON (Synced) --- */}
-      <button
-        onClick={toggleTheme}
-        className="fixed top-6 right-6 z-40 px-6 py-2 rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
-      >
-        <span className="animate-pulse group-hover:animate-none">
-          {buttonText}
-        </span>
-      </button>
+      {/* --- THEME PALETTE SWITCHER --- */}
+      <ThemeSwitcher />
 
       <div className="max-w-7xl mx-auto px-4 relative z-10">
         {/* Header */}
@@ -440,13 +438,13 @@ export default function SchedulePage() {
           <h1 className="text-6xl md:text-7xl font-black rainbow-text drop-shadow-2xl">
             📅 SCHEDULE DROPS
           </h1>
-          <p className="text-xl md:text-2xl text-white font-bold drop-shadow-lg">
+          <p className="text-xl md:text-2xl theme-on-bg-text font-bold drop-shadow-lg">
             Create and manage upcoming UGC releases
           </p>
-          <p className="text-lg text-white font-semibold drop-shadow-md">
+          <p className="text-lg theme-on-bg-text-secondary font-semibold drop-shadow-md">
             Timezone: {userTimezone}
           </p>
-          <div className="h-1 w-96 mx-auto bg-gradient-to-r from-roblox-pink via-roblox-cyan to-roblox-yellow rounded-full glow-pink"></div>
+          <div className="h-1 w-96 mx-auto theme-gradient-bar rounded-full glow-pink"></div>
         </div>
 
         <button
@@ -479,7 +477,8 @@ export default function SchedulePage() {
                 value={formData.item_name}
                 onChange={(e) => handleFormChange('item_name', e.target.value)}
                 placeholder="e.g., Red Valkyrie Helm"
-                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                style={{ borderColor: 'var(--theme-gradient-1)' }}
               />
             </div>
 
@@ -491,7 +490,8 @@ export default function SchedulePage() {
                 value={formData.creator}
                 onChange={(e) => handleFormChange('creator', e.target.value)}
                 placeholder="e.g., RobloxianCreations"
-                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                style={{ borderColor: 'var(--theme-gradient-2)' }}
               />
             </div>
 
@@ -504,7 +504,8 @@ export default function SchedulePage() {
                   value={formData.release_date_time}
                   onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                   disabled={isUnknownSchedule}
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-roblox-yellow focus:border-roblox-purple'}`}
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}`}
+                  style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
                 />
                 {/* Unknown Schedule Checkbox */}
                 <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
@@ -532,7 +533,8 @@ export default function SchedulePage() {
                   value={typeof formData.stock === 'number' ? formData.stock : 0}
                   onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                   disabled={isUnknownStock}
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-roblox-purple focus:border-roblox-pink'}`}
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}`}
+                  style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
                 />
                 {/* Unknown Stock Checkbox */}
                 <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
@@ -585,7 +587,8 @@ export default function SchedulePage() {
               <select
                 value={formData.method}
                 onChange={(e) => handleFormChange('method', e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border-4 border-roblox-orange font-bold text-gray-900 focus:outline-none"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                style={{ borderColor: 'var(--theme-secondary)' }}
               >
                 <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
                 <option value={UGCMethod.InGame}>🎮 In-Game</option>
@@ -603,7 +606,8 @@ export default function SchedulePage() {
                   value={formData.ugc_code || ''}
                   onChange={(e) => handleFormChange('ugc_code', e.target.value)}
                   placeholder="Enter Code..."
-                  className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                  style={{ borderColor: 'var(--theme-accent)' }}
                 />
               </div>
             )}
@@ -641,7 +645,8 @@ export default function SchedulePage() {
                 value={formData.game_link}
                 onChange={(e) => handleFormChange('game_link', e.target.value)}
                 placeholder="https://www.roblox.com/games/..."
-                className="w-full px-4 py-3 rounded-lg border-4 border-indigo-500 font-bold text-gray-900 focus:outline-none"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                style={{ borderColor: 'var(--theme-gradient-1)' }}
               />
             </div>
 
@@ -653,7 +658,8 @@ export default function SchedulePage() {
                 value={formData.item_link}
                 onChange={(e) => handleFormChange('item_link', e.target.value)}
                 placeholder="https://www.roblox.com/catalog/..."
-                className="w-full px-4 py-3 rounded-lg border-4 border-violet-500 font-bold text-gray-900 focus:outline-none"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                style={{ borderColor: 'var(--theme-gradient-2)' }}
               />
             </div>
           </div>
@@ -665,7 +671,8 @@ export default function SchedulePage() {
               value={formData.instruction}
               onChange={(e) => handleFormChange('instruction', e.target.value)}
               placeholder="Instructions for obtaining the item..."
-              className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan h-24 resize-none"
+              className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none h-24 resize-none theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-3)' }}
             />
           </div>
 
@@ -677,7 +684,8 @@ export default function SchedulePage() {
               value={formData.image_url}
               onChange={(e) => handleFormChange('image_url', e.target.value)}
               placeholder="https://..."
-              className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
+              className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-4)' }}
             />
           </div>
 
@@ -731,15 +739,16 @@ export default function SchedulePage() {
           return (
             <div className="space-y-8">
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="text-3xl font-black text-white drop-shadow-lg">📋 Scheduled Items ({filteredItems.length}/{scheduledItems.length})</h2>
+                <h2 className="text-3xl font-black theme-on-bg-text drop-shadow-lg">📋 Scheduled Items ({filteredItems.length}/{scheduledItems.length})</h2>
 
                 {/* Release Status Filter */}
                 <div className="flex items-center gap-3">
-                  <span className="text-white font-bold text-sm">Filter:</span>
+                  <span className="theme-on-bg-text font-bold text-sm">Filter:</span>
                   <select
                     value={releaseStatusFilter}
                     onChange={(e) => setReleaseStatusFilter(e.target.value as 'all' | 'released' | 'upcoming')}
-                    className="px-4 py-2 rounded-lg border-4 border-roblox-blue font-bold text-gray-900 focus:outline-none bg-white"
+                    className="px-4 py-2 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                    style={{ borderColor: 'var(--theme-secondary)' }}
                   >
                     <option value="all">📋 All Items</option>
                     <option value="upcoming">⏳ Upcoming</option>
@@ -748,18 +757,19 @@ export default function SchedulePage() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                {filteredItems.map((item) => {
-                  const gradient = gradients[item.uuid || item.id || ''];
-                  const gradientStr = gradient
-                    ? `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]}, ${gradient[3]})`
-                    : 'linear-gradient(135deg, #ff006e, #00d9ff)';
+                {filteredItems.map((item, index) => {
+                  // Use shuffled theme gradient colors based on item ID for variety
+                  const itemId = String(item.uuid || item.id || index);
+                  const shuffledColors = shuffleThemeGradients(itemId);
+                  const primaryColor = shuffledColors[0];
+                  const gradientStr = `linear-gradient(135deg, ${shuffledColors[0]}, ${shuffledColors[1]}, ${shuffledColors[2]}, ${shuffledColors[3]})`;
 
                   return (
                     <div
                       key={item.id || item.uuid}
-                      className="pop-in bg-white rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:scale-105"
+                      className="pop-in rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:scale-105 theme-bg-card"
                       style={{
-                        borderColor: gradient ? gradient[0] : '#ff006e',
+                        borderColor: primaryColor,
                       }}
                     >
                       {/* Animated Gradient Top Bar */}
@@ -778,13 +788,13 @@ export default function SchedulePage() {
                           <div
                             className="p-4 rounded-lg border-4"
                             style={{
-                              borderColor: gradient?.[0] || '#ff006e',
-                              backgroundColor: (gradient?.[0] || '#ff006e') + '15',
+                              borderColor: primaryColor,
+                              backgroundColor: 'var(--theme-card-bg)',
                             }}
                           >
                             <img
-                              src={item.image_url} /* FIXED: Uses image_url (snake_case) */
-                              alt={item.item_name} /* FIXED: Uses item_name */
+                              src={item.image_url}
+                              alt={item.item_name}
                               className="w-32 h-32 object-contain rounded"
                               width={128}
                               height={128}
@@ -797,92 +807,92 @@ export default function SchedulePage() {
                           <Link href={item.item_link} target="_blank" rel="noopener noreferrer">
                             <h2
                               className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all"
-                              style={{ color: gradient?.[0] || '#ff006e' }}
+                              style={{ color: primaryColor }}
                             >
-                              {item.item_name} {/* FIXED: item_name */}
+                              {item.item_name}
                             </h2>
                           </Link>
                         ) : (
                           <h2
                             className="text-2xl font-black mb-1 text-center transition-all"
-                            style={{ color: gradient?.[0] || '#ff006e' }}
+                            style={{ color: primaryColor }}
                           >
-                            {item.item_name} {/* FIXED: item_name */}
+                            {item.item_name}
                           </h2>
                         )}
 
                         {/* Creator */}
                         <p className="text-center text-sm font-bold text-gray-600 mb-4">
-                          by <span style={{ color: gradient?.[0] || '#ff006e' }}>{item.creator}</span>
+                          by <span style={{ color: primaryColor }}>{item.creator}</span>
                         </p>
 
                         {/* Data Grid */}
                         <div className="grid grid-cols-2 gap-3 mb-6">
                           {/* Stock */}
                           <div
-                            className="p-3 rounded-lg border-2 border-gray-300"
-                            style={{ backgroundColor: (gradient?.[0] || '#ff006e') + '15' }}
+                            className="p-3 rounded-lg border-2 theme-bg-card"
+                            style={{ borderColor: shuffledColors[0] }}
                           >
                             <p className="text-xs font-bold text-gray-600 uppercase">📦 Stock</p>
-                            <p className="font-black text-sm mt-1" style={{ color: gradient?.[0] || '#ff006e' }}>
+                            <p className="font-black text-sm mt-1" style={{ color: shuffledColors[0] }}>
                               {typeof item.stock === 'number' ? item.stock : 'OUT'}
                             </p>
                           </div>
 
                           {/* Relative Time */}
                           <div
-                            className="p-3 rounded-lg border-2 border-gray-300"
-                            style={{ backgroundColor: (gradient?.[1] || '#00d9ff') + '15' }}
+                            className="p-3 rounded-lg border-2 theme-bg-card"
+                            style={{ borderColor: shuffledColors[1] }}
                           >
                             <p className="text-xs font-bold text-gray-600 uppercase">⏰ In</p>
-                            <p className="font-black text-sm mt-1" style={{ color: gradient?.[1] || '#00d9ff' }}>
-                              {formatRelativeTime(item.release_date_time)} {/* FIXED: release_date_time */}
+                            <p className="font-black text-sm mt-1" style={{ color: shuffledColors[1] }}>
+                              {formatRelativeTime(item.release_date_time)}
                             </p>
                           </div>
 
                           {/* Method */}
                           <div
-                            className="p-3 rounded-lg border-2 border-gray-300"
-                            style={{ backgroundColor: (gradient?.[2] || '#ffbe0b') + '15' }}
+                            className="p-3 rounded-lg border-2 theme-bg-card"
+                            style={{ borderColor: shuffledColors[2] }}
                           >
                             <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
-                            <p className="font-black text-sm mt-1" style={{ color: gradient?.[2] || '#ffbe0b' }}>
+                            <p className="font-black text-sm mt-1" style={{ color: shuffledColors[2] }}>
                               {item.method === UGCMethod.WebDrop ? '🌐 Web' : item.method === UGCMethod.InGame ? '🎮 Game' : '❓'}
                             </p>
                           </div>
 
                           {/* Limit */}
                           <div
-                            className="p-3 rounded-lg border-2 border-gray-300"
-                            style={{ backgroundColor: (gradient?.[3] || '#00ff41') + '15' }}
+                            className="p-3 rounded-lg border-2 theme-bg-card"
+                            style={{ borderColor: shuffledColors[3] }}
                           >
                             <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
-                            <p className="font-black text-sm mt-1" style={{ color: gradient?.[3] || '#00ff41' }}>
+                            <p className="font-black text-sm mt-1" style={{ color: shuffledColors[3] }}>
                               {(item.limit_per_user === null || item.limit_per_user === -1) ? '∞' : `${item.limit_per_user}x`}
                             </p>
                           </div>
                         </div>
 
                         {/* Exact Date & Time */}
-                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                        <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[0] }}>
                           <p className="text-xs font-bold text-gray-600 uppercase mb-2">📅 Exact Time</p>
                           <p className="text-gray-700 text-sm font-medium">
-                            {formatLocalDateTime(item.release_date_time)} {/* FIXED: release_date_time */}
+                            {formatLocalDateTime(item.release_date_time)}
                           </p>
                         </div>
 
                         {/* Game Link */}
-                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                        <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[1] }}>
                           <p className="text-xs font-bold text-gray-600 uppercase mb-2">🔗 Game Link</p>
-                          {item.game_link ? ( /* FIXED: game_link */
+                          {item.game_link ? (
                             <a
-                              href={item.game_link} /* FIXED: game_link */
+                              href={item.game_link}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-sm font-bold break-all hover:underline"
-                              style={{ color: gradient?.[0] || '#ff006e' }}
+                              style={{ color: primaryColor }}
                             >
-                              {item.game_link} {/* FIXED: game_link */}
+                              {item.game_link}
                             </a>
                           ) : (
                             <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">
@@ -893,22 +903,21 @@ export default function SchedulePage() {
                         </div>
 
                         {/* Instructions */}
-                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                        <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[2] }}>
                           <p className="text-xs font-bold text-gray-600 uppercase mb-2">📖 How to Get It</p>
                           <div className="text-gray-700 text-sm font-medium break-words whitespace-pre-wrap select-text cursor-text">
-                            <ClickableInstructions text={item.instruction || ''} color={gradient?.[0] || '#ff006e'} />
+                            <ClickableInstructions text={item.instruction || ''} color={primaryColor} />
                           </div>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-3 mt-auto">
-                          {item.item_link ? ( /* FIXED: item_link */
+                          {item.item_link ? (
                             <Link href={item.item_link} target="_blank" rel="noopener noreferrer" className="w-full">
                               <button
                                 className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
                                 style={{
-                                  background: `linear-gradient(135deg, ${gradient?.[0] || '#ff006e'}, ${gradient?.[1] || '#00d9ff'})`,
-                                  boxShadow: `0 6px 20px ${gradient?.[0] || '#ff006e'}80`,
+                                  background: gradientStr,
                                 }}
                               >
                                 🛍️ View Item
@@ -923,13 +932,12 @@ export default function SchedulePage() {
                             </button>
                           )}
 
-                          {item.game_link ? ( /* FIXED: game_link */
+                          {item.game_link ? (
                             <Link href={item.game_link} target="_blank" rel="noopener noreferrer" className="w-full">
                               <button
                                 className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
                                 style={{
-                                  background: `linear-gradient(135deg, ${gradient?.[2] || '#ffbe0b'}, ${gradient?.[3] || '#00ff41'})`,
-                                  boxShadow: `0 6px 20px ${gradient?.[2] || '#ffbe0b'}80`,
+                                  background: gradientStr,
                                 }}
                               >
                                 🎮 Join Game
@@ -990,7 +998,7 @@ export default function SchedulePage() {
           {/* Modal Content */}
           <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-roblox-pink via-roblox-purple to-roblox-cyan p-6 rounded-t-3xl flex items-center justify-between">
+            <div className="sticky top-0 bg-gradient-to-r from-noob-pink via-noob-purple to-noob-cyan p-6 rounded-t-3xl flex items-center justify-between">
               <h2 className="text-2xl font-black text-white drop-shadow-lg">✏️ Edit Schedule</h2>
               <button
                 onClick={handleCancelEdit}
@@ -1011,7 +1019,7 @@ export default function SchedulePage() {
                     value={formData.item_name}
                     onChange={(e) => handleFormChange('item_name', e.target.value)}
                     placeholder="e.g., Red Valkyrie Helm"
-                    className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan"
+                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-pink font-bold text-gray-900 focus:outline-none focus:border-noob-cyan"
                   />
                 </div>
 
@@ -1023,7 +1031,7 @@ export default function SchedulePage() {
                     value={formData.creator}
                     onChange={(e) => handleFormChange('creator', e.target.value)}
                     placeholder="e.g., RobloxianCreations"
-                    className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
+                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-cyan font-bold text-gray-900 focus:outline-none focus:border-noob-pink"
                   />
                 </div>
 
@@ -1036,7 +1044,7 @@ export default function SchedulePage() {
                       value={formData.release_date_time}
                       onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                       disabled={isUnknownSchedule}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-roblox-yellow focus:border-roblox-purple'}`}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-noob-yellow focus:border-noob-purple'}`}
                     />
                     <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
                       <input
@@ -1060,7 +1068,7 @@ export default function SchedulePage() {
                       value={typeof formData.stock === 'number' ? formData.stock : 0}
                       onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                       disabled={isUnknownStock}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-roblox-purple focus:border-roblox-pink'}`}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-noob-purple focus:border-noob-pink'}`}
                     />
                     <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
                       <input
@@ -1109,7 +1117,7 @@ export default function SchedulePage() {
                   <select
                     value={formData.method}
                     onChange={(e) => handleFormChange('method', e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border-4 border-roblox-orange font-bold text-gray-900 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-orange font-bold text-gray-900 focus:outline-none"
                   >
                     <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
                     <option value={UGCMethod.InGame}>🎮 In-Game</option>
@@ -1127,7 +1135,7 @@ export default function SchedulePage() {
                       value={formData.ugc_code || ''}
                       onChange={(e) => handleFormChange('ugc_code', e.target.value)}
                       placeholder="Enter Code..."
-                      className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none"
+                      className="w-full px-4 py-3 rounded-lg border-4 border-noob-cyan font-bold text-gray-900 focus:outline-none"
                     />
                   </div>
                 )}
@@ -1188,7 +1196,7 @@ export default function SchedulePage() {
                   value={formData.instruction}
                   onChange={(e) => handleFormChange('instruction', e.target.value)}
                   placeholder="Instructions for obtaining the item..."
-                  className="w-full px-4 py-3 rounded-lg border-4 border-roblox-pink font-bold text-gray-900 focus:outline-none focus:border-roblox-cyan h-24 resize-none"
+                  className="w-full px-4 py-3 rounded-lg border-4 border-noob-pink font-bold text-gray-900 focus:outline-none focus:border-noob-cyan h-24 resize-none"
                 />
               </div>
 
@@ -1200,7 +1208,7 @@ export default function SchedulePage() {
                   value={formData.image_url}
                   onChange={(e) => handleFormChange('image_url', e.target.value)}
                   placeholder="https://..."
-                  className="w-full px-4 py-3 rounded-lg border-4 border-roblox-cyan font-bold text-gray-900 focus:outline-none focus:border-roblox-pink"
+                  className="w-full px-4 py-3 rounded-lg border-4 border-noob-cyan font-bold text-gray-900 focus:outline-none focus:border-noob-pink"
                 />
               </div>
 

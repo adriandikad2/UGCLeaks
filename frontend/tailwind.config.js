@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        roblox: {
+        noob: {
           pink: '#ff006e',
           cyan: '#00d9ff',
           yellow: '#ffbe0b',

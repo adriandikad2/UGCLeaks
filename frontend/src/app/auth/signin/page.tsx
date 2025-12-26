@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { signin } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
 import { useTheme } from '../../components/ThemeContext';
+import ThemeSwitcher from '../../components/ThemeSwitcher';
 
 // Prevent static generation for this page
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,8 @@ export const dynamic = 'force-dynamic';
 export default function SigninPage() {
   const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
-  const { isGrayscale, toggleTheme, buttonText } = useTheme();
+  const { currentTheme } = useTheme();
+  const isGrayscale = currentTheme.name === 'bw';
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -53,15 +55,8 @@ export default function SigninPage() {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4 transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
-      {/* --- THEME TOGGLE BUTTON --- */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-6 right-6 z-50 px-6 py-2 rounded-full border-2 border-white/50 text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300 group"
-      >
-        <span className="animate-pulse group-hover:animate-none">
-          {buttonText}
-        </span>
-      </button>
+      {/* --- THEME PALETTE SWITCHER --- */}
+      <ThemeSwitcher />
 
       {/* --- HOME LINK --- */}
       <Link href="/" className="absolute top-6 left-6 z-50">
