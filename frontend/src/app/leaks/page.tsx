@@ -90,6 +90,8 @@ export default function LeaksPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [liveStock, setLiveStock] = useState<{ [assetId: string]: RobloxStockData }>({});
   const [lastStockUpdate, setLastStockUpdate] = useState<Date | null>(null);
+  const [isHudMinimized, setIsHudMinimized] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const [authenticated, setAuthenticated] = useState(false);
   const [isEditor, setIsEditor] = useState(false);
@@ -103,6 +105,15 @@ export default function LeaksPage() {
   useEffect(() => {
     setAuthenticated(isAuthenticated());
     setIsEditor(hasAccess('editor'));
+  }, []);
+
+  // Scroll detection for sticky header
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const handleSignout = async () => {
@@ -382,40 +393,45 @@ export default function LeaksPage() {
 
   return (
     <div className={`min-h-screen p-6 md:p-10 transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
-      {/* --- THEME PALETTE SWITCHER --- */}
-      <ThemeSwitcher />
+      {/* --- NAVIGATION HEADER (Scroll-Aware) --- */}
+      <div className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${isScrolled ? 'bg-black/60 backdrop-blur-xl shadow-lg py-3' : 'py-4'}`}>
+        <div className="flex justify-between items-center px-4 md:px-6">
+          {/* Left: Navigation */}
+          <div className="flex gap-2 md:gap-3">
+            <button
+              onClick={() => router.push('/')}
+              className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300"
+            >
+              <span className="hidden md:inline">← </span>Home
+            </button>
+            {authenticated ? (
+              <button
+                onClick={handleSignout}
+                className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-red-600 hover:border-red-600 transition-all duration-300"
+              >
+                <span className="hidden md:inline">🚪 </span>Sign Out
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => router.push('/auth/signin')}
+                  className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-blue-600 hover:border-blue-600 transition-all duration-300"
+                >
+                  <span className="hidden md:inline">🔓 </span>Sign In
+                </button>
+                <button
+                  onClick={() => router.push('/auth/signup')}
+                  className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-green-600 hover:border-green-600 transition-all duration-300"
+                >
+                  <span className="hidden md:inline">✍️ </span>Sign Up
+                </button>
+              </>
+            )}
+          </div>
 
-      {/* --- NAVIGATION BUTTONS --- */}
-      <div className="fixed top-4 left-4 md:top-6 md:left-6 z-40 flex gap-2 md:gap-3">
-        <button
-          onClick={() => router.push('/')}
-          className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-white hover:text-black transition-all duration-300"
-        >
-          <span className="hidden md:inline">← </span>Home
-        </button>
-        {authenticated ? (
-          <button
-            onClick={handleSignout}
-            className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-red-600 hover:border-red-600 transition-all duration-300"
-          >
-            <span className="hidden md:inline">🚪 </span>Sign Out
-          </button>
-        ) : (
-          <>
-            <button
-              onClick={() => router.push('/auth/signin')}
-              className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-blue-600 hover:border-blue-600 transition-all duration-300"
-            >
-              <span className="hidden md:inline">🔓 </span>Sign In
-            </button>
-            <button
-              onClick={() => router.push('/auth/signup')}
-              className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full border-2 border-white/50 bg-black/20 backdrop-blur-md text-white font-bold tracking-widest hover:bg-green-600 hover:border-green-600 transition-all duration-300"
-            >
-              <span className="hidden md:inline">✍️ </span>Sign Up
-            </button>
-          </>
-        )}
+          {/* Right: Theme Switcher */}
+          <ThemeSwitcher inline />
+        </div>
       </div>
 
       {/* --- TOAST NOTIFICATIONS --- */}
@@ -793,43 +809,60 @@ export default function LeaksPage() {
         )
       }
 
-      {/* --- NEXT UP HUD --- */}
+      {/* --- NEXT UP HUD (Minimizable) --- */}
       {
         nextUpItems.length > 0 && (
-          <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 flex flex-col gap-2 max-w-[280px] md:max-w-xs bg-black/40 backdrop-blur-xl border border-white/30 rounded-xl md:rounded-2xl p-2 md:p-3 shadow-2xl">
-            <div className="text-white/70 text-xs font-bold uppercase tracking-wider text-right">
-              🚀 Next Up
-            </div>
-            {nextUpItems.map((item) => {
-              const gradientColors = gradients[item.id] || ['#b54eff', '#00d9ff', '#ff006e', '#ffbe0b'];
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => openModal(item)}
-                  className="cursor-pointer bg-white/10 hover:bg-white/20 rounded-lg p-2 flex items-center gap-2 md:gap-3 transition-all hover:scale-[1.02]"
-                >
-                  <div
-                    className="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden border-2 flex-shrink-0"
-                    style={{ borderColor: gradientColors[0] }}
-                  >
-                    <img
-                      src={item.imageUrl}
-                      alt={item.title}
-                      className="w-full h-full object-contain bg-white/10"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-bold text-xs md:text-sm truncate">{item.title}</p>
-                    <p
-                      className="text-xs font-bold"
-                      style={{ color: gradientColors[0] }}
-                    >
-                      {timers[item.id] || 'Loading...'}
-                    </p>
-                  </div>
+          <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 flex flex-col items-end gap-2">
+            {/* Toggle Button */}
+            <button
+              onClick={() => setIsHudMinimized(!isHudMinimized)}
+              className="px-3 py-1.5 bg-black/40 backdrop-blur-xl border border-white/30 rounded-full text-white/70 hover:text-white text-xs font-bold uppercase tracking-wider hover:bg-black/60 transition-all flex items-center gap-1"
+            >
+              {isHudMinimized ? (
+                <>🚀 Show ({nextUpItems.length})</>
+              ) : (
+                <>✕ Hide</>
+              )}
+            </button>
+
+            {/* HUD Content */}
+            {!isHudMinimized && (
+              <div className="flex flex-col gap-2 max-w-[280px] md:max-w-xs bg-black/40 backdrop-blur-xl border border-white/30 rounded-xl md:rounded-2xl p-2 md:p-3 shadow-2xl">
+                <div className="text-white/70 text-xs font-bold uppercase tracking-wider text-right">
+                  🚀 Next Up
                 </div>
-              );
-            })}
+                {nextUpItems.map((item) => {
+                  const gradientColors = gradients[item.id] || ['#b54eff', '#00d9ff', '#ff006e', '#ffbe0b'];
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => openModal(item)}
+                      className="cursor-pointer bg-white/10 hover:bg-white/20 rounded-lg p-2 flex items-center gap-2 md:gap-3 transition-all hover:scale-[1.02]"
+                    >
+                      <div
+                        className="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden border-2 flex-shrink-0"
+                        style={{ borderColor: gradientColors[0] }}
+                      >
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title}
+                          className="w-full h-full object-contain bg-white/10"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-bold text-xs md:text-sm truncate">{item.title}</p>
+                        <p
+                          className="text-xs font-bold"
+                          style={{ color: gradientColors[0] }}
+                        >
+                          {timers[item.id] || 'Loading...'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )
       }

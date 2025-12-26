@@ -56,6 +56,7 @@ export default function PlaygroundCanvas() {
     // Refs (Crucial for Interval Access)
     const mousePosRef = useRef({ x: 0, y: 0 }); // Tracks mouse without re-renders
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const nextStickerRef = useRef<string | null>(null); // Tracks next sticker synchronously for WYSIWYG
 
     // 1. New State for all dynamic assets
     const [assets, setAssets] = useState({
@@ -162,6 +163,7 @@ export default function PlaygroundCanvas() {
                 : ['😎', '🔥', '🚀'];
 
             const random = source[Math.floor(Math.random() * source.length)];
+            nextStickerRef.current = random; // Keep ref in sync
             setPreviewSticker(random);
         }
     }, [activeTool, assets.stickers]);
@@ -426,8 +428,8 @@ export default function PlaygroundCanvas() {
             playSfx('pop');
             const sourceList = assets.stickers.length > 0 ? assets.stickers : ['😎'];
 
-            // 1. Always pick a FRESH random sticker for the element
-            const randomStickerForPlacement = sourceList[Math.floor(Math.random() * sourceList.length)];
+            // 1. Place the currently queued sticker (WYSIWYG - what ghost shows)
+            const stickerToPlace = nextStickerRef.current || sourceList[Math.floor(Math.random() * sourceList.length)];
 
             addElement({
                 type: 'sticker',
@@ -435,11 +437,13 @@ export default function PlaygroundCanvas() {
                 y: y - 32,
                 scale: Math.random() * 0.5 + 0.8,
                 rotation: Math.random() * 40 - 20,
-                content: randomStickerForPlacement // Use the fresh pick, NOT the preview
+                content: stickerToPlace
             });
 
-            // 2. Update the ghost so it changes visually too
-            setPreviewSticker(randomStickerForPlacement);
+            // 2. Pick a NEW random sticker for the next placement (synchronous ref update)
+            const nextSticker = sourceList[Math.floor(Math.random() * sourceList.length)];
+            nextStickerRef.current = nextSticker;
+            setPreviewSticker(nextSticker); // Update visual ghost too
         }
 
         // --- LASER ---
@@ -607,7 +611,7 @@ export default function PlaygroundCanvas() {
                                 )
                             )}
                             {el.type === 'crack' && (
-                                <img src={el.content} alt="crack" className="w-32 h-32 object-contain opacity-80" />
+                                <img src={el.content} alt="crack" className="w-48 h-48 object-contain opacity-80" />
                             )}
                             {el.type === 'sticker' && (
                                 <img src={el.content} alt="sticker" className="w-16 h-16 object-contain drop-shadow-lg" />

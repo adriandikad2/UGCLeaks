@@ -6,6 +6,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const LOGS = [
     {
+        version: 'v1.6',
+        date: 'Dec 27, 2025',
+        changes: [
+            '📱 Mobile-friendly buttons to hide overwhelming HUDs.',
+            '🍫 Instead of a chocolate bar, you get a navigation bar instead.'
+        ]
+    },
+    {
         version: 'v1.5',
         date: 'Dec 26, 2025',
         changes: [

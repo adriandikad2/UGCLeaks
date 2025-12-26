@@ -3,7 +3,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTheme, Theme } from './ThemeContext';
 
-export default function ThemeSwitcher() {
+interface ThemeSwitcherProps {
+    inline?: boolean; // If true, component won't use fixed positioning
+}
+
+export default function ThemeSwitcher({ inline = false }: ThemeSwitcherProps) {
     const { currentTheme, setTheme, themes, nextTheme, prevTheme } = useTheme();
     const [isExpanded, setIsExpanded] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -28,7 +32,7 @@ export default function ThemeSwitcher() {
     return (
         <div
             ref={containerRef}
-            className="fixed top-6 right-6 z-40"
+            className={inline ? "relative z-40" : "fixed top-6 right-6 z-40"}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
         >
@@ -68,8 +72,8 @@ export default function ThemeSwitcher() {
             {/* Expanded Palette */}
             <div
                 className={`absolute top-full right-0 mt-3 transition-all duration-300 origin-top-right ${isExpanded
-                        ? 'opacity-100 scale-100 translate-y-0'
-                        : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+                    ? 'opacity-100 scale-100 translate-y-0'
+                    : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
                     }`}
             >
                 <div
