@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { ScrollText, X, ChevronUp, Contact } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-
-// --- YOUR LOGS GO HERE ---
 const LOGS = [
     {
         version: 'v1.5',

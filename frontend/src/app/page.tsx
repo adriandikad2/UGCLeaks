@@ -104,7 +104,7 @@ export default function Home() {
           </div>
           <div className="theme-bg-card rounded-lg p-4 md:p-6 blocky-shadow-hover border-4" style={{ borderColor: 'var(--theme-gradient-3)' }}>
             <div className="text-3xl md:text-4xl font-black" style={{ color: 'var(--theme-gradient-3)' }}>100%</div>
-            <div className="text-xs md:text-sm font-bold theme-text-secondary mt-1">Accurate</div>
+            <div className="text-xs md:text-sm font-bold theme-text-secondary mt-1">Accurate (with a margin error of 0.2% during downtimes)</div>
           </div>
         </div>
 
@@ -125,14 +125,14 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12 px-2">
           <div className="theme-bg-card rounded-xl p-6 blocky-shadow border-l-8" style={{ borderColor: 'var(--theme-gradient-1)' }}>
-            <div className="text-4xl mb-2">⚡</div>
-            <h3 className="font-bold text-lg theme-text-primary mb-2">Lightning Fast</h3>
-            <p className="text-sm theme-text-secondary">Real-time notifications for new UGC drops</p>
+            <div className="text-4xl mb-2">🎯</div>
+            <h3 className="font-bold text-lg theme-text-primary mb-2">Accurate Data</h3>
+            <p className="text-sm theme-text-secondary">Relayed informations from our trusted leakers</p>
           </div>
           <div className="theme-bg-card rounded-xl p-6 blocky-shadow border-l-8" style={{ borderColor: 'var(--theme-gradient-2)' }}>
             <div className="text-4xl mb-2">🎨</div>
-            <h3 className="font-bold text-lg theme-text-primary mb-2">Colorful UI</h3>
-            <p className="text-sm theme-text-secondary">Beautiful, intuitive interface</p>
+            <h3 className="font-bold text-lg theme-text-primary mb-2">Various Themes</h3>
+            <p className="text-sm theme-text-secondary">Different color themes with dynamic environments</p>
           </div>
           <div className="theme-bg-card rounded-xl p-6 blocky-shadow border-l-8" style={{ borderColor: 'var(--theme-gradient-3)' }}>
             <div className="text-4xl mb-2">📊</div>
@@ -140,7 +140,7 @@ export default function Home() {
             <p className="text-sm theme-text-secondary">Monitor item availability and limits</p>
           </div>
           <div className="theme-bg-card rounded-xl p-6 blocky-shadow border-l-8" style={{ borderColor: 'var(--theme-gradient-4)' }}>
-            <div className="text-4xl mb-2">🎯</div>
+            <div className="text-4xl mb-2">🔗</div>
             <h3 className="font-bold text-lg theme-text-primary mb-2">Easy Access</h3>
             <p className="text-sm theme-text-secondary">Direct links to games and items</p>
           </div>
