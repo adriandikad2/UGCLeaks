@@ -169,11 +169,17 @@ export default function SchedulePage() {
   }, [addToast]);
 
   useEffect(() => {
+    // Check if user has editor or owner access
+    if (!hasAccess('editor')) {
+      router.push('/');
+      return;
+    }
+
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     setUserTimezone(tz);
     setIsOwner(hasAccess('owner'));
     loadScheduledItems();
-  }, [loadScheduledItems]);
+  }, [loadScheduledItems, router]);
 
   const handleAddSchedule = async () => {
     if (!formData.item_name || !formData.creator) {
