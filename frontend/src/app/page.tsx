@@ -4,19 +4,21 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useTheme } from './components/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
-import { isAuthenticated, signout } from '@/lib/auth';
+import { isAuthenticated, signout, hasAccess } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import UpdateLogs from './components/UpdateLogs';
 
 export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [authenticated, setAuthenticated] = useState(false);
+  const [canAccessSchedule, setCanAccessSchedule] = useState(false);
   const { currentTheme } = useTheme();
   const isGrayscale = currentTheme.name === 'bw';
   const router = useRouter();
 
   useEffect(() => {
     setAuthenticated(isAuthenticated());
+    setCanAccessSchedule(hasAccess('editor'));
   }, []);
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -45,20 +47,27 @@ export default function Home() {
         {authenticated ? (
           <button
             onClick={handleSignout}
-            className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full bg-red-500 text-white font-bold hover:bg-red-600 transition-all"
+            className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full text-white font-bold hover:opacity-80 transition-all"
+            style={{ background: 'var(--theme-gradient-1)' }}
           >
             <span className="hidden md:inline">🚪 </span>Sign Out
           </button>
         ) : (
           <>
             <Link href="/auth/signin">
-              <button className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full bg-blue-500 text-white font-bold hover:bg-blue-600 transition-all">
+              <button
+                className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full text-white font-bold hover:opacity-80 transition-all"
+                style={{ background: 'var(--theme-gradient-2)' }}
+              >
                 <span className="hidden md:inline">🔑 </span>Sign In
               </button>
             </Link>
             <Link href="/auth/signup">
-              <button className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full bg-green-500 text-white font-bold hover:bg-green-600 transition-all">
-                <span className="hidden md:inline">✨ </span>Sign Up
+              <button
+                className="px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-sm rounded-full text-white font-bold hover:opacity-80 transition-all"
+                style={{ background: 'var(--theme-gradient-3)' }}
+              >
+                <span className="hidden md:inline">📋 </span>Sign Up
               </button>
             </Link>
           </>
@@ -105,7 +114,7 @@ export default function Home() {
               ✨ VIEW LEAKS ✨
             </button>
           </Link>
-          {authenticated && (
+          {canAccessSchedule && (
             <Link href="/schedule" passHref>
               <button className="px-12 py-6 text-xl rounded-2xl font-bold transition-all duration-300 blocky-shadow-hover text-white uppercase tracking-wider hover:shadow-blocky-lg" style={{ background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2))' }}>
                 📅 SCHEDULE

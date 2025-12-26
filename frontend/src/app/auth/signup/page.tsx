@@ -68,7 +68,10 @@ export default function SignupPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-green-600 via-blue-600 to-purple-600 flex items-center justify-center p-4 transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 transition-all duration-700"
+      style={{ background: currentTheme.colors.background }}
+    >
       {/* --- THEME PALETTE SWITCHER --- */}
       <ThemeSwitcher />
 
@@ -81,63 +84,67 @@ export default function SignupPage() {
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+      <div className="w-full max-w-md theme-bg-card rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-pink-600">
+          <h1 className="text-4xl font-black rainbow-text">
             🎮 Join UGC Leaks
           </h1>
-          <p className="text-gray-600 mt-2">Create your account to get started</p>
+          <p className="theme-text-secondary mt-2">Create your account to get started</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Username</label>
+            <label className="block text-sm font-bold theme-text-primary mb-2">Username</label>
             <input
               type="text"
               name="username"
               value={formData.username}
               onChange={handleChange}
               placeholder="Choose your username"
-              className="w-full px-4 py-3 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-600 text-gray-800"
+              className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none theme-text-primary theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-1)' }}
               disabled={loading}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
+            <label className="block text-sm font-bold theme-text-primary mb-2">Email</label>
             <input
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
               placeholder="your@email.com"
-              className="w-full px-4 py-3 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-600 text-gray-800"
+              className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none theme-text-primary theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-1)' }}
               disabled={loading}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
+            <label className="block text-sm font-bold theme-text-primary mb-2">Password</label>
             <input
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               placeholder="Min 8 characters"
-              className="w-full px-4 py-3 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-600 text-gray-800"
+              className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none theme-text-primary theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-1)' }}
               disabled={loading}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Confirm Password</label>
+            <label className="block text-sm font-bold theme-text-primary mb-2">Confirm Password</label>
             <input
               type="password"
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
               placeholder="Confirm your password"
-              className="w-full px-4 py-3 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-600 text-gray-800"
+              className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none theme-text-primary theme-bg-card"
+              style={{ borderColor: 'var(--theme-gradient-1)' }}
               disabled={loading}
             />
           </div>
@@ -145,15 +152,16 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-pink-600 text-white font-bold py-3 rounded-lg hover:shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full text-white font-bold py-3 rounded-lg hover:shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2))' }}
           >
             {loading ? '⏳ Creating Account...' : '✨ Create Account'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-gray-600">Already have an account?</p>
-          <Link href="/auth/signin" className="text-blue-600 font-bold hover:underline">
+          <p className="theme-text-secondary">Already have an account?</p>
+          <Link href="/auth/signin" className="font-bold hover:underline" style={{ color: 'var(--theme-gradient-1)' }}>
             Sign in here
           </Link>
         </div>
