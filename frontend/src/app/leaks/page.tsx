@@ -501,7 +501,7 @@ export default function LeaksPage() {
             <select
               value={filterMethod}
               onChange={(e) => setFilterMethod(e.target.value as UGCMethod | 'All')}
-              className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+              className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
               style={{ borderColor: 'var(--theme-gradient-3)' }}
             >
               <option value="All">All Methods</option>
@@ -517,7 +517,7 @@ export default function LeaksPage() {
             <select
               value={releaseStatusFilter}
               onChange={(e) => setReleaseStatusFilter(e.target.value as 'all' | 'released' | 'upcoming')}
-              className="px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+              className="px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
               style={{ borderColor: 'var(--theme-gradient-3)' }}
             >
               <option value="all">📋 All</option>
@@ -532,7 +532,7 @@ export default function LeaksPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'recent' | 'stock' | 'limit' | 'upcoming')}
-                className="px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                className="px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-gradient-4)' }}
               >
                 <option value="upcoming">🚀 Next Up</option>
@@ -542,7 +542,7 @@ export default function LeaksPage() {
               </select>
               <button
                 onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
-                className="px-4 py-3 rounded-lg border-4 theme-bg-card font-bold text-gray-900 hover:text-white transition-all"
+                className="px-4 py-3 rounded-lg border-4 theme-bg-card font-bold theme-text-primary hover:opacity-80 transition-all"
                 style={{ borderColor: 'var(--theme-gradient-3)' }}
                 title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
               >
@@ -551,7 +551,7 @@ export default function LeaksPage() {
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className={`px-4 py-3 rounded-lg border-4 theme-bg-card font-bold text-gray-900 hover:text-white transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+                className={`px-4 py-3 rounded-lg border-4 theme-bg-card font-bold theme-text-primary hover:opacity-80 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
                 style={{ borderColor: 'var(--theme-gradient-2)' }}
                 title="Refresh items"
               >
