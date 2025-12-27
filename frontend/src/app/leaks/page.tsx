@@ -90,7 +90,12 @@ export default function LeaksPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [liveStock, setLiveStock] = useState<{ [assetId: string]: RobloxStockData }>({});
   const [lastStockUpdate, setLastStockUpdate] = useState<Date | null>(null);
-  const [isHudMinimized, setIsHudMinimized] = useState(false);
+  const [isHudMinimized, setIsHudMinimized] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ugc-hud-minimized') === 'true';
+    }
+    return false;
+  });
   const [isScrolled, setIsScrolled] = useState(false);
 
   const [authenticated, setAuthenticated] = useState(false);
@@ -115,6 +120,11 @@ export default function LeaksPage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Persist HUD minimize state to localStorage
+  useEffect(() => {
+    localStorage.setItem('ugc-hud-minimized', String(isHudMinimized));
+  }, [isHudMinimized]);
 
   const handleSignout = async () => {
     await signout();

@@ -1,13 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePlayground, ToolType } from './PlaygroundContext';
 import { Crosshair, Hammer, CircleDashed, Sticker, Zap, Trash2, MousePointer2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const TOOLBELT_MINIMIZED_KEY = 'ugc-toolbelt-minimized';
+
 export default function ToolBelt() {
   const { activeTool, setActiveTool, clearElements } = usePlayground();
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(TOOLBELT_MINIMIZED_KEY) === 'true';
+    }
+    return false;
+  });
+
+  // Persist minimize state to localStorage
+  useEffect(() => {
+    localStorage.setItem(TOOLBELT_MINIMIZED_KEY, String(isMinimized));
+  }, [isMinimized]);
 
   const tools: { id: ToolType; icon: any; label: string; color: string }[] = [
     { id: 'none', icon: MousePointer2, label: 'Cursor', color: 'bg-gray-500' },
