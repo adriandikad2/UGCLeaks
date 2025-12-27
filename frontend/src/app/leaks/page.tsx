@@ -766,13 +766,13 @@ export default function LeaksPage() {
 
               <div className="pt-16 pb-8 px-8 text-center space-y-6">
                 <div>
-                  <h2 className="text-3xl font-black text-gray-900">{selectedItem.title}</h2>
-                  <p className="text-gray-500 font-bold">by {selectedItem.creator}</p>
+                  <h2 className="text-3xl font-black theme-text-primary">{selectedItem.title}</h2>
+                  <p className="theme-text-secondary font-bold">by {selectedItem.creator}</p>
                 </div>
 
                 {/* Timer Large Display */}
                 <div className="theme-bg-card rounded-xl p-4 inline-block border-2" style={{ borderColor: 'var(--theme-primary)' }}>
-                  <p className="text-sm font-bold text-gray-500 uppercase">Status</p>
+                  <p className="text-sm font-bold theme-text-secondary uppercase">Status</p>
                   <p className="text-xl font-black" style={{ color: 'var(--theme-gradient-1)' }}>
                     {timers[selectedItem.id] || 'Updating...'}
                   </p>
@@ -780,8 +780,8 @@ export default function LeaksPage() {
 
                 {/* Full Description / Instruction */}
                 <div className="theme-bg-card border-l-8 p-6 rounded-r-xl text-left" style={{ borderColor: 'var(--theme-gradient-2)' }}>
-                  <h3 className="text-lg font-black text-gray-800 mb-2">Instructions & Details</h3>
-                  <div className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
+                  <h3 className="text-lg font-black theme-text-primary mb-2">Instructions & Details</h3>
+                  <div className="theme-text-secondary font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
                     <ClickableInstructions text={selectedItem.instruction} color={'var(--theme-gradient-1)'} />
                   </div>
                 </div>
@@ -790,14 +790,20 @@ export default function LeaksPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                   {selectedItem.itemLink && (
                     <Link href={selectedItem.itemLink} target="_blank" className="w-full">
-                      <button className="w-full py-4 bg-noob-pink text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                      <button
+                        className="w-full py-4 text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                        style={{ background: 'var(--theme-gradient-1)' }}
+                      >
                         🛍️ View on Roblox
                       </button>
                     </Link>
                   )}
                   {selectedItem.gameLink && (
                     <Link href={selectedItem.gameLink} target="_blank" className="w-full">
-                      <button className="w-full py-4 bg-noob-purple text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                      <button
+                        className="w-full py-4 text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                        style={{ background: 'var(--theme-gradient-2)' }}
+                      >
                         🎮 Join Game
                       </button>
                     </Link>
