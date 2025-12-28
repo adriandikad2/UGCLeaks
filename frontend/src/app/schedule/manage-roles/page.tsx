@@ -151,7 +151,7 @@ export default function ManageRolesPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Enter username..."
-              className="flex-1 px-4 py-3 rounded-lg border-2 focus:outline-none text-gray-800 font-semibold theme-bg-card"
+              className="flex-1 px-4 py-3 rounded-lg border-2 focus:outline-none theme-text-primary font-semibold theme-bg-card"
               style={{ borderColor: 'var(--theme-secondary)' }}
               disabled={loading}
             />
@@ -196,7 +196,7 @@ export default function ManageRolesPage() {
                   setConfirmMode(false);
                 }}
                 disabled={loading}
-                className="w-full px-4 py-3 rounded-lg border-2 focus:outline-none text-gray-800 font-semibold disabled:opacity-50 theme-bg-card"
+                className="w-full px-4 py-3 rounded-lg border-2 focus:outline-none theme-text-primary font-semibold disabled:opacity-50 theme-bg-card"
                 style={{ borderColor: 'var(--theme-secondary)' }}
               >
                 <option value="user">👤 User (Read-only)</option>

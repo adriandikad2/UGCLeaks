@@ -477,40 +477,40 @@ export default function SchedulePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Item Name */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Item Name</label>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Item Name</label>
               <input
                 type="text"
                 value={formData.item_name}
                 onChange={(e) => handleFormChange('item_name', e.target.value)}
                 placeholder="e.g., Red Valkyrie Helm"
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-gradient-1)' }}
               />
             </div>
 
             {/* Creator */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Creator Name</label>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Creator Name</label>
               <input
                 type="text"
                 value={formData.creator}
                 onChange={(e) => handleFormChange('creator', e.target.value)}
                 placeholder="e.g., RobloxianCreations"
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-gradient-2)' }}
               />
             </div>
 
             {/* Release Date & Time */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Release Date & Time</label>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Release Date & Time</label>
               <div className="flex gap-4 items-center">
                 <input
                   type="datetime-local"
                   value={formData.release_date_time}
                   onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                   disabled={isUnknownSchedule}
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}`}
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}`}
                   style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
                 />
                 {/* Unknown Schedule Checkbox */}
@@ -532,14 +532,14 @@ export default function SchedulePage() {
 
             {/* Stock */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Stock Amount</label>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Stock Amount</label>
               <div className="flex gap-4 items-center">
                 <input
                   type="number"
                   value={typeof formData.stock === 'number' ? formData.stock : 0}
                   onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                   disabled={isUnknownStock}
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}`}
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}`}
                   style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
                 />
                 {/* Unknown Stock Checkbox */}
@@ -589,11 +589,11 @@ export default function SchedulePage() {
 
             {/* Method */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Drop Method</label>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Drop Method</label>
               <select
                 value={formData.method}
                 onChange={(e) => handleFormChange('method', e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-secondary)' }}
               >
                 <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
@@ -606,13 +606,13 @@ export default function SchedulePage() {
             {/* Code Input (Conditional) */}
             {formData.method === UGCMethod.CodeDrop && (
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 uppercase">Code</label>
+                <label className="block text-sm font-bold theme-text-secondary uppercase">Code</label>
                 <input
                   type="text"
                   value={formData.ugc_code || ''}
                   onChange={(e) => handleFormChange('ugc_code', e.target.value)}
                   placeholder="Enter Code..."
-                  className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                  className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
                   style={{ borderColor: 'var(--theme-accent)' }}
                 />
               </div>
@@ -620,7 +620,7 @@ export default function SchedulePage() {
 
             {/* Limit Per User */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Limit Per User</label>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Limit Per User</label>
               <div className="flex gap-4 items-center">
                 <input
                   type="number"
@@ -645,26 +645,26 @@ export default function SchedulePage() {
 
             {/* Game Link */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Game Link</label>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Game Link</label>
               <input
                 type="url"
                 value={formData.game_link}
                 onChange={(e) => handleFormChange('game_link', e.target.value)}
                 placeholder="https://www.roblox.com/games/..."
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-gradient-1)' }}
               />
             </div>
 
             {/* Item Link */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 uppercase">Item Link</label>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Item Link</label>
               <input
                 type="url"
                 value={formData.item_link}
                 onChange={(e) => handleFormChange('item_link', e.target.value)}
                 placeholder="https://www.roblox.com/catalog/..."
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-gradient-2)' }}
               />
             </div>
@@ -672,25 +672,25 @@ export default function SchedulePage() {
 
           {/* Instructions */}
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 uppercase">How to Get It</label>
+            <label className="block text-sm font-bold theme-text-secondary uppercase">How to Get It</label>
             <textarea
               value={formData.instruction}
               onChange={(e) => handleFormChange('instruction', e.target.value)}
               placeholder="Instructions for obtaining the item..."
-              className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none h-24 resize-none theme-bg-card"
+              className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none h-24 resize-none theme-bg-card"
               style={{ borderColor: 'var(--theme-gradient-3)' }}
             />
           </div>
 
           {/* Image URL */}
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 uppercase">Image URL</label>
+            <label className="block text-sm font-bold theme-text-secondary uppercase">Image URL</label>
             <input
               type="url"
               value={formData.image_url}
               onChange={(e) => handleFormChange('image_url', e.target.value)}
               placeholder="https://..."
-              className="w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
+              className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
               style={{ borderColor: 'var(--theme-gradient-4)' }}
             />
           </div>
