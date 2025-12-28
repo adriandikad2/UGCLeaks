@@ -142,8 +142,8 @@ export default function ManageRolesPage() {
         </div>
 
         {/* --- SEARCH BOX --- */}
-        <div className="bg-black/20 backdrop-blur-md rounded-xl p-8 border-2 mb-8" style={{ borderColor: 'var(--theme-primary)' }}>
-          <label className="block theme-on-bg-text font-bold mb-3 uppercase tracking-wide">🔍 Search Username</label>
+        <div className="theme-bg-card backdrop-blur-md rounded-xl p-8 border-2 mb-8" style={{ borderColor: 'var(--theme-primary)' }}>
+          <label className="block theme-text-secondary font-bold mb-3 uppercase tracking-wide">🔍 Search Username</label>
           <div className="flex gap-3 mb-4">
             <input
               type="text"
@@ -168,7 +168,7 @@ export default function ManageRolesPage() {
 
         {/* --- USER DETAILS --- */}
         {selectedUser && (
-          <div className="bg-black/20 backdrop-blur-md rounded-xl p-8 border-2" style={{ borderColor: 'var(--theme-primary)' }}>
+          <div className="theme-bg-card backdrop-blur-md rounded-xl p-8 border-2" style={{ borderColor: 'var(--theme-primary)' }}>
             <div className="mb-6">
               <p className="theme-text-secondary text-sm uppercase tracking-wide">Username</p>
               <p className="theme-text-primary text-2xl font-bold">{selectedUser.username}</p>
