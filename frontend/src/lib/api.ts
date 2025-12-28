@@ -3,6 +3,8 @@
  * Frontend utilities for calling backend API endpoints
  */
 
+import { getToken } from './auth';
+
 // Use relative paths - Next.js handles routing to src/app/api
 const API_BASE_URL = '/api';
 
@@ -157,10 +159,12 @@ export async function getScheduledItems(params?: {
  */
 export async function createScheduledItem(item: UGCItem): Promise<UGCItem | null> {
   try {
+    const token = getToken();
     const response = await fetch(`${API_BASE_URL}/scheduled`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
       },
       body: JSON.stringify(item),
     });
@@ -182,10 +186,12 @@ export async function createScheduledItem(item: UGCItem): Promise<UGCItem | null
  */
 export async function updateScheduledItem(id: string, updates: Partial<UGCItem>): Promise<UGCItem | null> {
   try {
+    const token = getToken();
     const response = await fetch(`${API_BASE_URL}/scheduled/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
       },
       body: JSON.stringify(updates),
     });
@@ -205,8 +211,12 @@ export async function updateScheduledItem(id: string, updates: Partial<UGCItem>)
  */
 export async function deleteScheduledItem(id: string): Promise<boolean> {
   try {
+    const token = getToken();
     const response = await fetch(`${API_BASE_URL}/scheduled/${id}`, {
       method: 'DELETE',
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
     });
     if (!response.ok) throw new Error('Failed to delete scheduled item');
     return true;

@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { requireRole } from '@/lib/auth-server';
+import { sanitizeString, sanitizeUrl, truncateField, FIELD_LIMITS } from '@/lib/security';
 
 /**
  * DELETE /api/scheduled/:id
- * Delete a scheduled item
+ * Delete a scheduled item (requires 'editor' role)
  */
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  // Require editor or owner role
+  const authResult = requireRole(request, 'editor');
+  if ('error' in authResult) {
+    return authResult.error;
+  }
+
   try {
     const { id } = params;
 
@@ -41,12 +49,18 @@ export async function DELETE(
 
 /**
  * PUT /api/scheduled/:id
- * Update a scheduled item
+ * Update a scheduled item (requires 'editor' role)
  */
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  // Require editor or owner role
+  const authResult = requireRole(request, 'editor');
+  if ('error' in authResult) {
+    return authResult.error;
+  }
+
   try {
     const { id } = params;
     const body = await request.json();
@@ -70,7 +84,14 @@ export async function PUT(
       'is_abandoned',
     ];
 
-    // Build dynamic update query
+    // Fields that need text sanitization
+    const textFields = ['title', 'item_name', 'creator', 'instruction', 'ugc_code'];
+    // Fields that need URL sanitization
+    const urlFields = ['game_link', 'item_link', 'image_url'];
+    // Allowed methods
+    const allowedMethods = ['Web Drop', 'In-Game', 'Code Drop', 'Unknown'];
+
+    // Build dynamic update query with sanitization
     allowedFields.forEach((field) => {
       const value = body[field];
       if (value !== undefined) {
@@ -81,6 +102,19 @@ export async function PUT(
           } else {
             updates[field] = parseInt(value);
           }
+        } else if (field === 'method') {
+          // Validate method is allowed
+          updates[field] = allowedMethods.includes(value) ? value : 'Unknown';
+        } else if (textFields.includes(field)) {
+          // Sanitize text fields
+          const limit = FIELD_LIMITS[field as keyof typeof FIELD_LIMITS] || 200;
+          updates[field] = truncateField(sanitizeString(value), limit);
+        } else if (urlFields.includes(field)) {
+          // Sanitize URL fields
+          updates[field] = sanitizeUrl(value);
+        } else if (field === 'stock') {
+          // Validate stock is a positive number
+          updates[field] = typeof value === 'number' && value >= 0 ? value : 0;
         } else if (value !== null && value !== '') {
           updates[field] = value;
         }

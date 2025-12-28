@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { requireRole } from '@/lib/auth-server';
+import { sanitizeString, sanitizeUrl, truncateField, FIELD_LIMITS } from '@/lib/security';
 
 /**
  * GET /api/scheduled
@@ -47,9 +49,15 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/scheduled
- * Create a new scheduled item
+ * Create a new scheduled item (requires 'editor' role)
  */
 export async function POST(request: Request) {
+  // Require editor or owner role
+  const authResult = requireRole(request, 'editor');
+  if ('error' in authResult) {
+    return authResult.error;
+  }
+
   try {
     const body = await request.json();
     const {
@@ -78,6 +86,22 @@ export async function POST(request: Request) {
 
     const uuid = uuidv4();
 
+    // Sanitize all text inputs
+    const sanitizedTitle = truncateField(sanitizeString(title), FIELD_LIMITS.title);
+    const sanitizedItemName = truncateField(sanitizeString(item_name), FIELD_LIMITS.item_name);
+    const sanitizedCreator = truncateField(sanitizeString(creator), FIELD_LIMITS.creator);
+    const sanitizedInstruction = truncateField(sanitizeString(instruction), FIELD_LIMITS.instruction);
+    const sanitizedUgcCode = ugc_code ? truncateField(sanitizeString(ugc_code), FIELD_LIMITS.ugc_code) : null;
+
+    // Validate and sanitize URLs
+    const sanitizedGameLink = sanitizeUrl(game_link);
+    const sanitizedItemLink = sanitizeUrl(item_link);
+    const sanitizedImageUrl = sanitizeUrl(image_url);
+
+    // Validate method is one of allowed values
+    const allowedMethods = ['Web Drop', 'In-Game', 'Code Drop', 'Unknown'];
+    const sanitizedMethod = allowedMethods.includes(method) ? method : 'Unknown';
+
     // LOGIC UPDATE: Handle 'Unlimited' string, -1 number, or explicit null
     let limitValue: number | null = 1;
     if (limit_per_user === 'Unlimited' || limit_per_user === -1 || limit_per_user === null || limit_per_user === undefined) {
@@ -89,6 +113,9 @@ export async function POST(request: Request) {
       limitValue = limit_per_user === -1 ? null : limit_per_user;
     }
 
+    // Validate stock is a positive number
+    const sanitizedStock = typeof stock === 'number' && stock >= 0 ? stock : 0;
+
     const result = await pool.query(
       `INSERT INTO scheduled_items (
         uuid, title, item_name, creator, stock, 
@@ -98,18 +125,18 @@ export async function POST(request: Request) {
       RETURNING *`,
       [
         uuid,
-        title,
-        item_name,
-        creator,
-        stock || 0,
+        sanitizedTitle,
+        sanitizedItemName,
+        sanitizedCreator,
+        sanitizedStock,
         release_date_time,
-        method || 'Web Drop',
-        instruction || '',
-        game_link || '',
-        item_link || '',
-        image_url || '',
+        sanitizedMethod,
+        sanitizedInstruction,
+        sanitizedGameLink,
+        sanitizedItemLink,
+        sanitizedImageUrl,
         limitValue,
-        ugc_code || null,
+        sanitizedUgcCode,
         is_abandoned || false
       ]
     );
