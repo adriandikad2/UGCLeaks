@@ -300,11 +300,21 @@ export default function LeaksPage() {
         }
 
         // Only process items that are sold out (currentStock === 0) and have valid data
+        // Skip items with unknown stock (stock === -1 or stock === 'unknown') - they should not be auto-marked as sold out
         if (data.currentStock === 0 && data.totalStock > 0 && !data.error) {
           if (itemId) {
             // Find the item to check if it's already marked as sold out
             const item = allItems.find(i => i.id === itemId);
-            if (item && !item.soldOut) {
+
+            // Skip if item has unknown stock - don't auto-mark as sold out
+            const hasUnknownStock = item && (
+              item.stock === -1 ||
+              item.stock === 'unknown' ||
+              item.stock === 'Unknown' ||
+              item.stock === 0  // Stock of 0 means unknown, not sold out
+            );
+
+            if (item && !item.soldOut && !hasUnknownStock) {
               // Auto-mark as sold out and persist final stock values
               console.log(`Auto-marking item ${itemId} as sold out with stock ${data.currentStock}/${data.totalStock}`);
               updateScheduledItem(itemId, {

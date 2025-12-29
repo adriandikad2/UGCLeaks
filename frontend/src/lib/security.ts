@@ -103,14 +103,14 @@ if (typeof setInterval !== 'undefined') {
 
 /**
  * Sanitize string input to prevent XSS attacks
- * Only escapes characters that can create HTML tags or entities
- * Preserves quotes, apostrophes, and slashes for normal text display
+ * Only escapes HTML tag characters (< >) to prevent script injection
+ * React already escapes content on render, so we only need to prevent HTML tag injection
+ * Ampersands, quotes, and slashes are preserved for normal text display
  */
 export function sanitizeString(input: string | null | undefined): string {
     if (!input) return '';
 
     return String(input)
-        .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .trim();
