@@ -651,12 +651,14 @@ export default function LeaksPage() {
                       className="p-2 rounded-lg border-2 theme-bg-card"
                       style={{ borderColor: shuffledColors[0] }}
                     >
-                      <p className="text-xs font-bold text-gray-600 uppercase">📦 Stock</p>
+                      <p className="text-xs font-bold theme-text-secondary uppercase">📦 Stock</p>
                       <p className="font-black text-xs mt-1" style={{ color: isSoldOut ? '#888' : shuffledColors[0] }}>
                         {hasLiveStock
                           ? `${liveStockData.currentStock}/${liveStockData.totalStock}`
-                          : (item.soldOut && item.finalCurrentStock !== undefined && item.finalTotalStock !== undefined
-                            ? `${item.finalCurrentStock}/${item.finalTotalStock}`
+                          : (item.soldOut
+                            ? (item.finalCurrentStock !== undefined && item.finalTotalStock !== undefined
+                              ? `${item.finalCurrentStock}/${item.finalTotalStock}`
+                              : `0/${item.stock || '?'}`)
                             : (item.stock === 'unknown' || item.stock === 'Unknown' || item.stock === -1
                               ? '❓ Unknown'
                               : (typeof item.stock === 'number' ? item.stock : 'OUT')))}
@@ -667,7 +669,7 @@ export default function LeaksPage() {
                       className="p-2 rounded-lg border-2 theme-bg-card"
                       style={{ borderColor: shuffledColors[1] }}
                     >
-                      <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
+                      <p className="text-xs font-bold theme-text-secondary uppercase">🎯 Method</p>
                       <p className="font-black text-xs mt-1 line-clamp-2" style={{ color: shuffledColors[1] }}>
                         {item.method === UGCMethod.WebDrop
                           ? 'Web Drop'
@@ -681,7 +683,7 @@ export default function LeaksPage() {
                       className="p-2 rounded-lg border-2 theme-bg-card"
                       style={{ borderColor: shuffledColors[2] }}
                     >
-                      <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
+                      <p className="text-xs font-bold theme-text-secondary uppercase">🔢 Limit</p>
                       <p className="font-black text-xs mt-1" style={{ color: shuffledColors[2] }}>
                         {item.limitPerUser}x
                       </p>
@@ -691,7 +693,7 @@ export default function LeaksPage() {
                       className="p-2 rounded-lg border-2 theme-bg-card"
                       style={{ borderColor: shuffledColors[3] }}
                     >
-                      <p className="text-xs font-bold text-gray-600 uppercase">📅 Release</p>
+                      <p className="text-xs font-bold theme-text-secondary uppercase">📅 Release</p>
                       <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: shuffledColors[3] }}>
                         {timers[item.id] === 'Unknown' ? '❓ Unknown' : (timers[item.id] || 'Loading...')}
                       </p>

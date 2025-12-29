@@ -677,7 +677,7 @@ export default function SchedulePage() {
               value={formData.instruction}
               onChange={(e) => handleFormChange('instruction', e.target.value)}
               placeholder="Instructions for obtaining the item..."
-              className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none h-24 resize-none theme-bg-card"
+              className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none h-40 resize-y theme-bg-card"
               style={{ borderColor: 'var(--theme-gradient-3)' }}
             />
           </div>
@@ -828,7 +828,7 @@ export default function SchedulePage() {
                         )}
 
                         {/* Creator */}
-                        <p className="text-center text-sm font-bold text-gray-600 mb-4">
+                        <p className="text-center text-sm font-bold theme-text-secondary mb-4">
                           by <span style={{ color: primaryColor }}>{item.creator}</span>
                         </p>
 
@@ -839,9 +839,9 @@ export default function SchedulePage() {
                             className="p-3 rounded-lg border-2 theme-bg-card"
                             style={{ borderColor: shuffledColors[0] }}
                           >
-                            <p className="text-xs font-bold text-gray-600 uppercase">📦 Stock</p>
-                            <p className="font-black text-sm mt-1" style={{ color: shuffledColors[0] }}>
-                              {typeof item.stock === 'number' ? item.stock : 'OUT'}
+                            <p className="text-xs font-bold theme-text-secondary uppercase">📦 Stock</p>
+                            <p className="font-black text-sm mt-1" style={{ color: item.sold_out ? '#888' : shuffledColors[0] }}>
+                              {item.sold_out ? `0/${item.stock || '?'}` : (typeof item.stock === 'number' ? item.stock : 'OUT')}
                             </p>
                           </div>
 
@@ -850,7 +850,7 @@ export default function SchedulePage() {
                             className="p-3 rounded-lg border-2 theme-bg-card"
                             style={{ borderColor: shuffledColors[1] }}
                           >
-                            <p className="text-xs font-bold text-gray-600 uppercase">⏰ In</p>
+                            <p className="text-xs font-bold theme-text-secondary uppercase">⏰ In</p>
                             <p className="font-black text-sm mt-1" style={{ color: shuffledColors[1] }}>
                               {formatRelativeTime(item.release_date_time)}
                             </p>
@@ -861,7 +861,7 @@ export default function SchedulePage() {
                             className="p-3 rounded-lg border-2 theme-bg-card"
                             style={{ borderColor: shuffledColors[2] }}
                           >
-                            <p className="text-xs font-bold text-gray-600 uppercase">🎯 Method</p>
+                            <p className="text-xs font-bold theme-text-secondary uppercase">🎯 Method</p>
                             <p className="font-black text-sm mt-1" style={{ color: shuffledColors[2] }}>
                               {item.method === UGCMethod.WebDrop ? '🌐 Web' : item.method === UGCMethod.InGame ? '🎮 Game' : '❓'}
                             </p>
@@ -872,7 +872,7 @@ export default function SchedulePage() {
                             className="p-3 rounded-lg border-2 theme-bg-card"
                             style={{ borderColor: shuffledColors[3] }}
                           >
-                            <p className="text-xs font-bold text-gray-600 uppercase">🔢 Limit</p>
+                            <p className="text-xs font-bold theme-text-secondary uppercase">🔢 Limit</p>
                             <p className="font-black text-sm mt-1" style={{ color: shuffledColors[3] }}>
                               {(item.limit_per_user === null || item.limit_per_user === -1) ? '∞' : `${item.limit_per_user}x`}
                             </p>
@@ -881,15 +881,15 @@ export default function SchedulePage() {
 
                         {/* Exact Date & Time */}
                         <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[0] }}>
-                          <p className="text-xs font-bold text-gray-600 uppercase mb-2">📅 Exact Time</p>
-                          <p className="text-gray-700 text-sm font-medium">
+                          <p className="text-xs font-bold theme-text-secondary uppercase mb-2">📅 Exact Time</p>
+                          <p className="theme-text-primary text-sm font-medium">
                             {formatLocalDateTime(item.release_date_time)}
                           </p>
                         </div>
 
                         {/* Game Link */}
                         <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[1] }}>
-                          <p className="text-xs font-bold text-gray-600 uppercase mb-2">🔗 Game Link</p>
+                          <p className="text-xs font-bold theme-text-secondary uppercase mb-2">🔗 Game Link</p>
                           {item.game_link ? (
                             <a
                               href={item.game_link}
@@ -902,16 +902,16 @@ export default function SchedulePage() {
                             </a>
                           ) : (
                             <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">
-                              <p className="text-sm font-semibold text-gray-500">⚠️ Link Status</p>
-                              <p className="text-xs text-gray-400 mt-1">Game not yet published</p>
+                              <p className="text-sm font-semibold theme-text-secondary">⚠️ Link Status</p>
+                              <p className="text-xs theme-text-secondary mt-1">Game not yet published</p>
                             </div>
                           )}
                         </div>
 
                         {/* Instructions */}
                         <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[2] }}>
-                          <p className="text-xs font-bold text-gray-600 uppercase mb-2">📖 How to Get It</p>
-                          <div className="text-gray-700 text-sm font-medium break-words whitespace-pre-wrap select-text cursor-text">
+                          <p className="text-xs font-bold theme-text-secondary uppercase mb-2">📖 How to Get It</p>
+                          <div className="theme-text-primary text-sm font-medium break-words whitespace-pre-wrap select-text cursor-text">
                             <ClickableInstructions text={item.instruction || ''} color={primaryColor} />
                           </div>
                         </div>
