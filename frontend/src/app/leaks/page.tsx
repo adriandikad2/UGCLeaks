@@ -89,6 +89,7 @@ export default function LeaksPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [liveStock, setLiveStock] = useState<{ [assetId: string]: RobloxStockData }>({});
+  const [checkedItemIds, setCheckedItemIds] = useState<Set<string>>(new Set());
   const [lastStockUpdate, setLastStockUpdate] = useState<Date | null>(null);
   const [isHudMinimized, setIsHudMinimized] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -239,30 +240,45 @@ export default function LeaksPage() {
     return () => clearInterval(interval);
   }, [items, scheduledItems]);
 
-  // Stock polling effect - fetch live stock every 60 seconds
+  // Stock polling effect - fetch live stock with priority for unchecked items
   const fetchLiveStock = useCallback(async () => {
     const allItems = [...items, ...scheduledItems];
-    const assetIds: string[] = [];
+    const uncheckedAssetIds: string[] = [];
+    const checkedAssetIds: string[] = [];
     const assetIdToItemId: { [assetId: string]: string } = {};
 
-    // Extract asset IDs from item links (skip sold-out items to reduce API calls)
+    // Extract asset IDs from item links, separating unchecked from checked
     allItems.forEach(item => {
-      // Skip items marked as sold out by schedulers
+      // Skip items marked as sold out by schedulers (no need to recheck)
       if (item.soldOut) return;
 
       if (item.itemLink) {
         const assetId = extractRobloxAssetId(item.itemLink);
         if (assetId) {
-          assetIds.push(assetId);
           assetIdToItemId[assetId] = item.id;
+
+          // Prioritize by separating unchecked from checked
+          if (checkedItemIds.has(item.id)) {
+            checkedAssetIds.push(assetId);
+          } else {
+            uncheckedAssetIds.push(assetId);
+          }
         }
       }
     });
 
-    if (assetIds.length === 0) return;
+    // Prioritize unchecked items first, then checked items
+    // This ensures new items get checked before re-checking old ones
+    const prioritizedAssetIds = [...uncheckedAssetIds, ...checkedAssetIds];
+
+    if (prioritizedAssetIds.length === 0) return;
+
+    // Limit batch size to reduce API pressure (check 20 at a time, prioritizing unchecked)
+    const batchSize = 20;
+    const assetIdsToCheck = prioritizedAssetIds.slice(0, batchSize);
 
     try {
-      const stockData = await getRobloxStock(assetIds);
+      const stockData = await getRobloxStock(assetIdsToCheck);
       // Merge new data with existing data (don't replace, to avoid losing data for items not in current response)
       setLiveStock(prev => ({
         ...prev,
@@ -270,12 +286,21 @@ export default function LeaksPage() {
       }));
       setLastStockUpdate(new Date());
 
+      // Track successfully checked items
+      const newlyCheckedIds = new Set<string>();
+
       // Auto-persist sold-out items: detect items with currentStock === 0 and save their final stock values
       for (const assetId of Object.keys(stockData)) {
         const data = stockData[assetId];
+        const itemId = assetIdToItemId[assetId];
+
+        // Track this item as checked if we got valid data (not an error)
+        if (itemId && !data.error) {
+          newlyCheckedIds.add(itemId);
+        }
+
         // Only process items that are sold out (currentStock === 0) and have valid data
         if (data.currentStock === 0 && data.totalStock > 0 && !data.error) {
-          const itemId = assetIdToItemId[assetId];
           if (itemId) {
             // Find the item to check if it's already marked as sold out
             const item = allItems.find(i => i.id === itemId);
@@ -298,10 +323,19 @@ export default function LeaksPage() {
           }
         }
       }
+
+      // Update checked items set with newly checked items
+      if (newlyCheckedIds.size > 0) {
+        setCheckedItemIds(prev => {
+          const updated = new Set(prev);
+          newlyCheckedIds.forEach(id => updated.add(id));
+          return updated;
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch live stock:', error);
     }
-  }, [items, scheduledItems]);
+  }, [items, scheduledItems, checkedItemIds]);
 
   useEffect(() => {
     // Initial fetch after a short delay
