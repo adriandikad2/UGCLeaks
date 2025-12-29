@@ -252,6 +252,16 @@ export default function LeaksPage() {
       // Skip items marked as sold out by schedulers (no need to recheck)
       if (item.soldOut) return;
 
+      // Skip items with unknown stock (-1) - they haven't gone limited yet
+      // API returns 0 for items not yet limited, which would incorrectly mark them as sold out
+      // Note: stock === 0 is actual 0 remaining stock, stock === -1 is "unknown"
+      const hasUnknownStock = (
+        item.stock === -1 ||
+        item.stock === 'unknown' ||
+        item.stock === 'Unknown'
+      );
+      if (hasUnknownStock) return;
+
       if (item.itemLink) {
         const assetId = extractRobloxAssetId(item.itemLink);
         if (assetId) {
@@ -306,12 +316,12 @@ export default function LeaksPage() {
             // Find the item to check if it's already marked as sold out
             const item = allItems.find(i => i.id === itemId);
 
-            // Skip if item has unknown stock - don't auto-mark as sold out
+            // Skip if item has unknown stock (-1) - don't auto-mark as sold out
+            // Note: stock === 0 is actual 0 remaining stock and SHOULD be marked as sold out
             const hasUnknownStock = item && (
               item.stock === -1 ||
               item.stock === 'unknown' ||
-              item.stock === 'Unknown' ||
-              item.stock === 0  // Stock of 0 means unknown, not sold out
+              item.stock === 'Unknown'
             );
 
             if (item && !item.soldOut && !hasUnknownStock) {
