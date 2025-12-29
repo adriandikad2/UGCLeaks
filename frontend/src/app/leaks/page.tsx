@@ -656,7 +656,7 @@ export default function LeaksPage() {
                         {hasLiveStock
                           ? `${liveStockData.currentStock}/${liveStockData.totalStock}`
                           : (item.soldOut
-                            ? (item.finalCurrentStock !== undefined && item.finalTotalStock !== undefined
+                            ? (item.finalCurrentStock != null && item.finalTotalStock != null
                               ? `${item.finalCurrentStock}/${item.finalTotalStock}`
                               : `0/${item.stock || '?'}`)
                             : (item.stock === 'unknown' || item.stock === 'Unknown' || item.stock === -1
