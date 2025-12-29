@@ -103,7 +103,7 @@ if (typeof setInterval !== 'undefined') {
 
 /**
  * Sanitize string input to prevent XSS attacks
- * Escapes HTML special characters
+ * Escapes HTML special characters (not forward slashes to preserve URLs)
  */
 export function sanitizeString(input: string | null | undefined): string {
     if (!input) return '';
@@ -114,7 +114,6 @@ export function sanitizeString(input: string | null | undefined): string {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#x27;')
-        .replace(/\//g, '&#x2F;')
         .trim();
 }
 
