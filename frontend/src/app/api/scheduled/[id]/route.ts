@@ -113,8 +113,8 @@ export async function PUT(
           // Sanitize URL fields
           updates[field] = sanitizeUrl(value);
         } else if (field === 'stock') {
-          // Validate stock is a positive number
-          updates[field] = typeof value === 'number' && value >= 0 ? value : 0;
+          // Validate stock is a positive number or -1 (unknown stock)
+          updates[field] = typeof value === 'number' && (value === -1 || value >= 0) ? value : 0;
         } else if (value !== null && value !== '') {
           updates[field] = value;
         }

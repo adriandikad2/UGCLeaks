@@ -637,11 +637,21 @@ export default function LeaksPage() {
             const assetId = item.itemLink ? extractRobloxAssetId(item.itemLink) : null;
             const liveStockData = assetId ? liveStock[assetId] : null;
             const hasLiveStock = liveStockData && liveStockData.currentStock >= 0 && liveStockData.totalStock >= 0;
-            // Item is sold out if: manually marked OR live stock shows 0 OR scheduled stock is 0
-            const isSoldOut = item.soldOut ||
+            // Items with unknown stock (-1) should NEVER show as sold out
+            // even if the soldOut flag was incorrectly set previously
+            const hasUnknownStock = (
+              item.stock === -1 ||
+              item.stock === 'unknown' ||
+              item.stock === 'Unknown'
+            );
+
+            // Item is sold out if: manually marked OR live stock shows 0 OR scheduled stock is 0/'OUT OF STOCK'
+            // BUT only if stock is not unknown
+            const isSoldOut = !hasUnknownStock && (
+              item.soldOut ||
               (hasLiveStock && liveStockData.currentStock === 0) ||
-              (item.stock === 0) ||
-              (item.stock === 'OUT OF STOCK');
+              (item.stock === 'OUT OF STOCK')
+            );
 
             return (
               <div
@@ -709,12 +719,12 @@ export default function LeaksPage() {
                       <p className="font-black text-xs mt-1" style={{ color: isSoldOut ? '#888' : shuffledColors[0] }}>
                         {hasLiveStock
                           ? `${liveStockData.currentStock}/${liveStockData.totalStock}`
-                          : (item.soldOut
-                            ? (item.finalCurrentStock != null && item.finalTotalStock != null
-                              ? `${item.finalCurrentStock}/${item.finalTotalStock}`
-                              : `0/${item.stock || '?'}`)
-                            : (item.stock === 'unknown' || item.stock === 'Unknown' || item.stock === -1
-                              ? '❓ Unknown'
+                          : (hasUnknownStock
+                            ? '❓ Unknown'
+                            : (item.soldOut
+                              ? (item.finalCurrentStock != null && item.finalTotalStock != null
+                                ? `${item.finalCurrentStock}/${item.finalTotalStock}`
+                                : `0/${item.stock || '?'}`)
                               : (typeof item.stock === 'number' ? item.stock : 'OUT')))}
                       </p>
                     </div>

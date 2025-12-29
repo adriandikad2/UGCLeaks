@@ -113,8 +113,8 @@ export async function POST(request: Request) {
       limitValue = limit_per_user === -1 ? null : limit_per_user;
     }
 
-    // Validate stock is a positive number
-    const sanitizedStock = typeof stock === 'number' && stock >= 0 ? stock : 0;
+    // Validate stock is a positive number or -1 (unknown stock)
+    const sanitizedStock = typeof stock === 'number' && (stock === -1 || stock >= 0) ? stock : 0;
 
     const result = await pool.query(
       `INSERT INTO scheduled_items (
