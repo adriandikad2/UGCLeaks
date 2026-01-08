@@ -21,15 +21,21 @@ export interface TokenPayload {
 export function verifyToken(request: Request): TokenPayload | null {
     try {
         const authHeader = request.headers.get('authorization');
+        console.log('[Auth Debug] Authorization header present:', !!authHeader);
+
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.log('[Auth Debug] No valid Bearer token in header');
             return null;
         }
 
         const token = authHeader.replace('Bearer ', '');
+        console.log('[Auth Debug] Token length:', token.length);
+
         const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+        console.log('[Auth Debug] Token decoded successfully. Role:', decoded.role, 'Email:', decoded.email);
         return decoded;
     } catch (error) {
-        console.error('Token verification failed:', error);
+        console.error('[Auth Debug] Token verification failed:', error instanceof Error ? error.message : error);
         return null;
     }
 }

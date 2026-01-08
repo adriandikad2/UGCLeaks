@@ -6,6 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const LOGS = [
     {
+        version: 'v1.9',
+        date: 'Jan 8, 2026',
+        changes: [
+            '🛠️ Feature enhancements for editors.'
+        ]
+    },
+    {
         version: 'v1.8',
         date: 'Dec 29, 2025',
         changes: [

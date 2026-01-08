@@ -115,6 +115,14 @@ export default function SchedulePage() {
   // Internal state for "Unknown" checkboxes
   const [isUnknownStock, setIsUnknownStock] = useState(false);
   const [isUnknownSchedule, setIsUnknownSchedule] = useState(false);
+
+  // Filtering states (matching /leaks page)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterMethod, setFilterMethod] = useState<UGCMethod | 'All'>('All');
+  const [sortBy, setSortBy] = useState<'recent' | 'stock' | 'limit' | 'upcoming'>('upcoming');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [viewMode, setViewMode] = useState<'active' | 'abandoned'>('active');
+
   // Filter state for released/upcoming items
   const [releaseStatusFilter, setReleaseStatusFilter] = useState<'all' | 'released' | 'upcoming'>('all');
   // Sold out confirmation checkbox
@@ -728,40 +736,181 @@ export default function SchedulePage() {
 
         {/* Scheduled Items */}
         {scheduledItems.length > 0 && (() => {
-          // Filter items based on release status
+          // Filter items with all criteria
           const now = new Date();
-          const filteredItems = scheduledItems.filter((item) => {
-            if (releaseStatusFilter === 'all') return true;
-            // Items with no release time are considered "unknown" - show in both
-            if (!item.release_date_time) return true;
-            const releaseTime = new Date(item.release_date_time);
-            if (releaseStatusFilter === 'released') {
-              return releaseTime <= now;
-            } else {
-              return releaseTime > now;
-            }
-          });
+          const filteredItems = scheduledItems
+            .filter((item) => {
+              // Filter by View Mode (Active vs Abandoned)
+              const itemIsAbandoned = item.is_abandoned || false;
+              if (viewMode === 'active' && itemIsAbandoned) return false;
+              if (viewMode === 'abandoned' && !itemIsAbandoned) return false;
+
+              // Search filter
+              const searchLower = searchTerm.toLowerCase();
+              const matchesSearch = searchTerm === '' ||
+                (item.item_name || item.title || '').toLowerCase().includes(searchLower) ||
+                (item.creator || '').toLowerCase().includes(searchLower);
+
+              // Method filter - also match null/undefined/empty methods when filtering for 'Unknown'
+              const matchesMethod = filterMethod === 'All' ||
+                item.method === filterMethod ||
+                (filterMethod === UGCMethod.Unknown && (!item.method || (item.method as unknown) === '' || item.method === UGCMethod.Unknown));
+
+              // Release status filter
+              let matchesReleaseStatus = true;
+              if (releaseStatusFilter !== 'all' && item.release_date_time) {
+                // Ignore items with unknown release (sentinel date)
+                if (!item.release_date_time.startsWith('9999')) {
+                  const releaseTime = new Date(item.release_date_time);
+                  if (releaseStatusFilter === 'released') {
+                    matchesReleaseStatus = releaseTime <= now;
+                  } else if (releaseStatusFilter === 'upcoming') {
+                    matchesReleaseStatus = releaseTime > now;
+                  }
+                }
+              }
+
+              return matchesSearch && matchesMethod && matchesReleaseStatus;
+            })
+            .sort((a, b) => {
+              let result = 0;
+              const nowTime = now.getTime();
+
+              if (sortBy === 'upcoming') {
+                const timeA = a.release_date_time?.startsWith('9999') ? Infinity : new Date(a.release_date_time || 0).getTime();
+                const timeB = b.release_date_time?.startsWith('9999') ? Infinity : new Date(b.release_date_time || 0).getTime();
+                const diffA = timeA - nowTime;
+                const diffB = timeB - nowTime;
+
+                if (diffA > 0 && diffB > 0) {
+                  result = diffA - diffB;
+                } else if (diffA > 0) {
+                  result = -1;
+                } else if (diffB > 0) {
+                  result = 1;
+                } else {
+                  result = diffB - diffA;
+                }
+              } else if (sortBy === 'recent') {
+                const timeA = a.release_date_time?.startsWith('9999') ? 0 : new Date(a.release_date_time || 0).getTime();
+                const timeB = b.release_date_time?.startsWith('9999') ? 0 : new Date(b.release_date_time || 0).getTime();
+                result = timeB - timeA;
+              } else if (sortBy === 'stock') {
+                const stockA = typeof a.stock === 'number' ? a.stock : -1;
+                const stockB = typeof b.stock === 'number' ? b.stock : -1;
+                result = stockB - stockA;
+              } else if (sortBy === 'limit') {
+                const limitA = a.limit_per_user ?? -1;
+                const limitB = b.limit_per_user ?? -1;
+                result = limitB - limitA;
+              }
+
+              return sortDirection === 'desc' ? -result : result;
+            });
 
           return (
-            <div className="space-y-8">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="text-3xl font-black theme-on-bg-text drop-shadow-lg">📋 Scheduled Items ({filteredItems.length}/{scheduledItems.length})</h2>
+            <div className="space-y-6">
+              {/* View Mode Tabs */}
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => setViewMode('active')}
+                  className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'active'
+                    ? 'text-white shadow-lg scale-105 ring-2 ring-white'
+                    : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
+                    }`}
+                  style={viewMode === 'active' ? { background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2))' } : {}}
+                >
+                  🚀 Active ({scheduledItems.filter(i => !i.is_abandoned).length})
+                </button>
+                <button
+                  onClick={() => setViewMode('abandoned')}
+                  className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'abandoned'
+                    ? 'bg-gradient-to-r from-gray-500 to-gray-700 text-white shadow-lg scale-105 ring-2 ring-white'
+                    : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
+                    }`}
+                >
+                  🏚️ Abandoned ({scheduledItems.filter(i => i.is_abandoned).length})
+                </button>
+              </div>
+
+              {/* Filter Controls */}
+              <div className="flex flex-wrap gap-4 items-end">
+                {/* Search */}
+                <div className="space-y-2 flex-1 min-w-[200px]">
+                  <label className="theme-on-bg-text font-bold uppercase text-sm">🔍 Search</label>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Item name, creator..."
+                    className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                    style={{ borderColor: 'var(--theme-gradient-2)' }}
+                  />
+                </div>
+
+                {/* Method Filter */}
+                <div className="flex flex-col gap-2">
+                  <label className="theme-on-bg-text font-bold uppercase text-sm">🎯 Method</label>
+                  <select
+                    value={filterMethod}
+                    onChange={(e) => setFilterMethod(e.target.value as UGCMethod | 'All')}
+                    className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                    style={{ borderColor: 'var(--theme-gradient-3)' }}
+                  >
+                    <option value="All">All Methods</option>
+                    <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
+                    <option value={UGCMethod.InGame}>🎮 In-Game</option>
+                    <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
+                    <option value={UGCMethod.Unknown}>❓ Unknown</option>
+                  </select>
+                </div>
 
                 {/* Release Status Filter */}
-                <div className="flex items-center gap-3">
-                  <span className="theme-on-bg-text font-bold text-sm">Filter:</span>
+                <div className="flex flex-col gap-2">
+                  <label className="theme-on-bg-text font-bold uppercase text-sm">📅 Status</label>
                   <select
                     value={releaseStatusFilter}
                     onChange={(e) => setReleaseStatusFilter(e.target.value as 'all' | 'released' | 'upcoming')}
-                    className="px-4 py-2 rounded-lg border-4 font-bold text-gray-900 focus:outline-none theme-bg-card"
-                    style={{ borderColor: 'var(--theme-secondary)' }}
+                    className="px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                    style={{ borderColor: 'var(--theme-gradient-3)' }}
                   >
-                    <option value="all">📋 All Items</option>
+                    <option value="all">📋 All</option>
                     <option value="upcoming">⏳ Upcoming</option>
                     <option value="released">✅ Released</option>
                   </select>
                 </div>
+
+                {/* Sort Options */}
+                <div className="space-y-2">
+                  <label className="theme-on-bg-text font-bold uppercase text-sm">📊 Sort</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'recent' | 'stock' | 'limit' | 'upcoming')}
+                      className="px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                      style={{ borderColor: 'var(--theme-gradient-4)' }}
+                    >
+                      <option value="upcoming">🚀 Next Up</option>
+                      <option value="recent">⏱️ Recent</option>
+                      <option value="stock">📦 Stock</option>
+                      <option value="limit">🔢 Limit</option>
+                    </select>
+                    <button
+                      onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
+                      className="px-4 py-3 rounded-lg border-4 theme-bg-card font-bold theme-text-primary hover:opacity-80 transition-all"
+                      style={{ borderColor: 'var(--theme-gradient-3)' }}
+                      title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+                    >
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* Results Count */}
+              <h2 className="text-2xl font-black theme-on-bg-text drop-shadow-lg">
+                📋 Showing {filteredItems.length} of {scheduledItems.length} items
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {filteredItems.map((item, index) => {
                   // Use shuffled theme gradient colors based on item ID for variety
@@ -863,7 +1012,7 @@ export default function SchedulePage() {
                           >
                             <p className="text-xs font-bold theme-text-secondary uppercase">🎯 Method</p>
                             <p className="font-black text-sm mt-1" style={{ color: shuffledColors[2] }}>
-                              {item.method === UGCMethod.WebDrop ? '🌐 Web' : item.method === UGCMethod.InGame ? '🎮 Game' : '❓'}
+                              {item.method === UGCMethod.WebDrop ? '🌐 Web' : item.method === UGCMethod.InGame ? '🎮 Game' : item.method === UGCMethod.CodeDrop ? '🗝️ Code' : '❓'}
                             </p>
                           </div>
 
