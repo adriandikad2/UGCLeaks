@@ -157,6 +157,109 @@ body.theme-clean {
   animation: none !important;
 }
 
+/* Ultra Dark theme - pure black with white outlines */
+body.theme-ultradark {
+  background: #000000 !important;
+  animation: none !important;
+}
+
+body.theme-ultradark ::-webkit-scrollbar-track {
+  background: #000000 !important;
+}
+
+body.theme-ultradark ::-webkit-scrollbar-thumb {
+  background: #ffffff !important;
+  border: 2px solid #000000 !important;
+}
+
+body.theme-ultradark ::-webkit-scrollbar-thumb:hover {
+  background: #cccccc !important;
+}
+
+/* Ultra Dark - Button overrides */
+body.theme-ultradark button,
+body.theme-ultradark .gradient-button,
+body.theme-ultradark [class*="btn"],
+body.theme-ultradark a[class*="button"] {
+  background: #000000 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+body.theme-ultradark button:hover,
+body.theme-ultradark .gradient-button:hover,
+body.theme-ultradark [class*="btn"]:hover {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+body.theme-ultradark button:disabled {
+  background: #0a0a0a !important;
+  color: #666666 !important;
+  border-color: #444444 !important;
+}
+
+/* Ultra Dark - Input and Select overrides */
+body.theme-ultradark input,
+body.theme-ultradark textarea,
+body.theme-ultradark select {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+body.theme-ultradark input::placeholder,
+body.theme-ultradark textarea::placeholder {
+  color: #888888 !important;
+}
+
+body.theme-ultradark input:disabled,
+body.theme-ultradark textarea:disabled,
+body.theme-ultradark select:disabled {
+  background: #0a0a0a !important;
+  color: #666666 !important;
+  border-color: #444444 !important;
+}
+
+/* Ultra Dark - Select dropdown options */
+body.theme-ultradark option {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Ultra Dark - Card and container overrides */
+body.theme-ultradark .theme-bg-card,
+body.theme-ultradark .card-colorful {
+  background: #0a0a0a !important;
+}
+
+/* Ultra Dark - Rainbow text override to white */
+body.theme-ultradark .rainbow-text {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Ultra Dark - Gradient bar override */
+body.theme-ultradark .theme-gradient-bar {
+  background: #ffffff !important;
+}
+
+/* Ultra Dark - Checkbox label containers */
+body.theme-ultradark div[class*="bg-gray"],
+body.theme-ultradark div[class*="bg-red-50"],
+body.theme-ultradark div[class*="bg-orange"] {
+  background: #0a0a0a !important;
+  border-color: #ffffff !important;
+}
+
+body.theme-ultradark label {
+  color: #ffffff !important;
+}
+
 /* 2. THE EXCEPTIONS: Re-enable for Inputs, Textareas, and your specific class */
 input,
 textarea,

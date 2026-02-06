@@ -140,7 +140,11 @@ export default function ThemeSwitcher({ inline = false }: ThemeSwitcherProps) {
                                         style={{
                                             background: theme.name === 'bw'
                                                 ? 'linear-gradient(135deg, #333 0%, #888 50%, #ccc 100%)'
-                                                : `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`,
+                                                : theme.name === 'clean'
+                                                    ? 'linear-gradient(135deg, #f9fafb, #e5e7eb, #ffffff)' // White gradient
+                                                    : theme.name === 'ultradark'
+                                                        ? 'linear-gradient(135deg, #000000, #1a1a1a, #000000)' // Black gradient
+                                                        : `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`,
                                             boxShadow: isActive ? `0 4px 15px ${theme.colors.primary}60` : 'none',
                                         }}
                                     />

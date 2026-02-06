@@ -10,6 +10,7 @@ import { ToastContainer, useToast } from '../Toast';
 import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
 import { useTheme } from '../components/ThemeContext'; // <--- Import Global Theme
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import CloudinaryUpload from '../components/CloudinaryUpload';
 import { hasAccess } from '@/lib/auth';
 
 enum UGCMethod {
@@ -39,6 +40,8 @@ type UGCItem = {
   final_total_stock?: number; // Persisted total stock when item sold out
   ugc_code?: string; // Code for Code Drop items
   is_abandoned?: boolean; // Abandoned status
+  is_paid?: boolean; // Paid item status (not free)
+  is_regular?: boolean; // Regular item status (unlimited/event)
 };
 
 // Seeded random function for deterministic gradient generation
@@ -121,7 +124,7 @@ export default function SchedulePage() {
   const [filterMethod, setFilterMethod] = useState<UGCMethod | 'All'>('All');
   const [sortBy, setSortBy] = useState<'recent' | 'stock' | 'limit' | 'upcoming'>('upcoming');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'active' | 'abandoned'>('active');
+  const [viewMode, setViewMode] = useState<'active' | 'upcoming' | 'paid' | 'regular' | 'abandoned'>('upcoming');
 
   // Filter state for released/upcoming items
   const [releaseStatusFilter, setReleaseStatusFilter] = useState<'all' | 'released' | 'upcoming'>('all');
@@ -129,6 +132,10 @@ export default function SchedulePage() {
   const [isSoldOut, setIsSoldOut] = useState(false);
   // Abandoned confirmation checkbox
   const [isAbandoned, setIsAbandoned] = useState(false);
+  // Paid item checkbox
+  const [isPaid, setIsPaid] = useState(false);
+  // Regular item checkbox
+  const [isRegular, setIsRegular] = useState(false);
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   // Delete modal state
@@ -220,6 +227,8 @@ export default function SchedulePage() {
       limit_per_user: isUnlimitedLimit ? -1 : (formData.limit_per_user || 1),
       sold_out: isSoldOut, // Manual sold out confirmation
       is_abandoned: isAbandoned, // Abandoned status
+      is_paid: isPaid, // Paid item status
+      is_regular: isRegular, // Regular item status
     };
 
     try {
@@ -295,6 +304,12 @@ export default function SchedulePage() {
     // Check if item is abandoned
     setIsAbandoned(item.is_abandoned === true);
 
+    // Check if item is paid
+    setIsPaid(item.is_paid === true);
+
+    // Check if item is regular
+    setIsRegular(item.is_regular === true);
+
     setFormData({
       title: item.item_name || item.title || '',
       item_name: item.item_name || item.title || '',
@@ -323,6 +338,8 @@ export default function SchedulePage() {
     setIsUnknownSchedule(false);
     setIsSoldOut(false);
     setIsAbandoned(false);
+    setIsPaid(false);
+    setIsRegular(false);
     setIsEditModalOpen(false);
     document.body.style.overflow = 'unset';
     setFormData({
@@ -463,7 +480,8 @@ export default function SchedulePage() {
 
         <button
           onClick={() => router.push('/leaks')}
-          className="mb-8 px-6 py-3 bg-white text-gray-900 font-bold rounded-lg blocky-shadow hover:scale-105 transition-all"
+          className="mb-8 px-6 py-3 theme-bg-card theme-text-primary font-bold rounded-lg blocky-shadow hover:scale-105 transition-all"
+          style={{ border: '2px solid var(--theme-secondary)' }}
         >
           ← Back to Leaks
         </button>
@@ -479,8 +497,8 @@ export default function SchedulePage() {
         )}
 
         {/* Creation Form - Always for creating new items */}
-        <div ref={formRef} className="mb-12 p-8 bg-white rounded-2xl shadow-2xl blocky-shadow space-y-6">
-          <h2 className="text-3xl font-black text-gray-900">➕ Create New Schedule</h2>
+        <div ref={formRef} className="mb-12 p-8 theme-bg-card rounded-2xl shadow-2xl blocky-shadow space-y-6" style={{ border: '2px solid var(--theme-primary)' }}>
+          <h2 className="text-3xl font-black theme-text-primary">➕ Create New Schedule</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Item Name */}
@@ -589,8 +607,36 @@ export default function SchedulePage() {
                   onChange={(e) => setIsAbandoned(e.target.checked)}
                   className="w-5 h-5 accent-gray-600"
                 />
-                <label htmlFor="abandoned-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+                <label htmlFor="abandoned-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
                   🏚️ Mark as ABANDONED
+                </label>
+              </div>
+
+              {/* Paid Item Status */}
+              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2" style={{ borderColor: 'var(--theme-gradient-4)', background: 'var(--theme-card-bg)' }}>
+                <input
+                  type="checkbox"
+                  id="paid-check"
+                  checked={isPaid}
+                  onChange={(e) => setIsPaid(e.target.checked)}
+                  className="w-5 h-5 accent-yellow-600"
+                />
+                <label htmlFor="paid-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
+                  💰 Mark as PAID ITEM (not free)
+                </label>
+              </div>
+
+              {/* Regular Item Status */}
+              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2" style={{ borderColor: 'var(--theme-gradient-4)', background: 'var(--theme-card-bg)' }}>
+                <input
+                  type="checkbox"
+                  id="regular-check"
+                  checked={isRegular}
+                  onChange={(e) => setIsRegular(e.target.checked)}
+                  className="w-5 h-5 accent-purple-600"
+                />
+                <label htmlFor="regular-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
+                  ♾️ Mark as REGULAR (non-limited)
                 </label>
               </div>
             </div>
@@ -690,33 +736,29 @@ export default function SchedulePage() {
             />
           </div>
 
-          {/* Image URL */}
+          {/* Image Upload */}
           <div className="space-y-2">
-            <label className="block text-sm font-bold theme-text-secondary uppercase">Image URL</label>
-            <input
-              type="url"
-              value={formData.image_url}
-              onChange={(e) => handleFormChange('image_url', e.target.value)}
-              placeholder="https://..."
-              className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
-              style={{ borderColor: 'var(--theme-gradient-4)' }}
+            <label className="block text-sm font-bold theme-text-secondary uppercase">📷 Item Image</label>
+            <CloudinaryUpload
+              onImageChange={(url) => handleFormChange('image_url', url)}
+              currentImageUrl={formData.image_url}
             />
           </div>
 
           {/* Preview */}
           {formData.item_name && (
-            <div className="p-6 bg-gray-50 rounded-xl border-4 border-dashed border-gray-300 space-y-3">
-              <p className="text-sm font-bold text-gray-600 uppercase">Preview</p>
+            <div className="p-6 theme-bg-card rounded-xl border-4 border-dashed space-y-3" style={{ borderColor: 'var(--theme-secondary)' }}>
+              <p className="text-sm font-bold theme-text-secondary uppercase">Preview</p>
               <div className="flex items-center gap-4">
                 <img
                   src={formData.image_url}
                   alt="Preview"
-                  className="w-24 h-24 object-contain rounded-lg border-2 border-gray-300"
+                  className="w-24 h-24 object-contain rounded-lg border-2" style={{ borderColor: 'var(--theme-secondary)' }}
                 />
                 <div>
-                  <p className="font-black text-lg text-gray-900">{formData.item_name}</p>
-                  <p className="text-sm text-gray-600">by {formData.creator}</p>
-                  <p className="text-xs text-gray-500 mt-2">{formatLocalDateTime(formData.release_date_time)}</p>
+                  <p className="font-black text-lg theme-text-primary">{formData.item_name}</p>
+                  <p className="text-sm theme-text-secondary">by {formData.creator}</p>
+                  <p className="text-xs theme-text-secondary mt-2">{formatLocalDateTime(formData.release_date_time)}</p>
                 </div>
               </div>
             </div>
@@ -740,10 +782,22 @@ export default function SchedulePage() {
           const now = new Date();
           const filteredItems = scheduledItems
             .filter((item) => {
-              // Filter by View Mode (Active vs Abandoned)
+              // Filter by View Mode
               const itemIsAbandoned = item.is_abandoned || false;
-              if (viewMode === 'active' && itemIsAbandoned) return false;
+              const itemIsPaid = item.is_paid || false;
+              const itemIsRegular = item.is_regular || false;
+              const releaseTime = item.release_date_time && !item.release_date_time.startsWith('9999')
+                ? new Date(item.release_date_time)
+                : null;
+              const isReleased = releaseTime ? releaseTime <= now : false;
+              const isUpcoming = releaseTime ? releaseTime > now : true; // Unknown dates count as upcoming
+
+              // View mode filtering
               if (viewMode === 'abandoned' && !itemIsAbandoned) return false;
+              if (viewMode === 'paid' && (!itemIsPaid || itemIsAbandoned)) return false;
+              if (viewMode === 'regular' && (!itemIsRegular || itemIsAbandoned)) return false;
+              if (viewMode === 'active' && (itemIsAbandoned || itemIsPaid || itemIsRegular || !isReleased)) return false;
+              if (viewMode === 'upcoming' && (itemIsAbandoned || itemIsPaid || itemIsRegular || !isUpcoming)) return false;
 
               // Search filter
               const searchLower = searchTerm.toLowerCase();
@@ -756,16 +810,15 @@ export default function SchedulePage() {
                 item.method === filterMethod ||
                 (filterMethod === UGCMethod.Unknown && (!item.method || (item.method as unknown) === '' || item.method === UGCMethod.Unknown));
 
-              // Release status filter
+              // Release status filter (only applies within current view mode)
               let matchesReleaseStatus = true;
               if (releaseStatusFilter !== 'all' && item.release_date_time) {
                 // Ignore items with unknown release (sentinel date)
                 if (!item.release_date_time.startsWith('9999')) {
-                  const releaseTime = new Date(item.release_date_time);
                   if (releaseStatusFilter === 'released') {
-                    matchesReleaseStatus = releaseTime <= now;
+                    matchesReleaseStatus = isReleased;
                   } else if (releaseStatusFilter === 'upcoming') {
-                    matchesReleaseStatus = releaseTime > now;
+                    matchesReleaseStatus = isUpcoming;
                   }
                 }
               }
@@ -811,20 +864,56 @@ export default function SchedulePage() {
           return (
             <div className="space-y-6">
               {/* View Mode Tabs */}
-              <div className="flex justify-center gap-4">
+              <div className="flex justify-center gap-2 md:gap-4 flex-wrap">
+                <button
+                  onClick={() => setViewMode('upcoming')}
+                  className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'upcoming'
+                    ? 'text-white shadow-lg scale-105 ring-2 ring-white'
+                    : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
+                    }`}
+                  style={viewMode === 'upcoming' ? { background: 'linear-gradient(to right, var(--theme-gradient-3), var(--theme-gradient-4))' } : {}}
+                >
+                  ⏳ Upcoming ({scheduledItems.filter(i => {
+                    if (i.is_abandoned || i.is_paid) return false;
+                    if (!i.release_date_time || i.release_date_time.startsWith('9999')) return true;
+                    return new Date(i.release_date_time) > new Date();
+                  }).length})
+                </button>
                 <button
                   onClick={() => setViewMode('active')}
-                  className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'active'
+                  className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'active'
                     ? 'text-white shadow-lg scale-105 ring-2 ring-white'
                     : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
                     }`}
                   style={viewMode === 'active' ? { background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2))' } : {}}
                 >
-                  🚀 Active ({scheduledItems.filter(i => !i.is_abandoned).length})
+                  🚀 Active ({scheduledItems.filter(i => {
+                    if (i.is_abandoned || i.is_paid) return false;
+                    if (!i.release_date_time || i.release_date_time.startsWith('9999')) return false;
+                    return new Date(i.release_date_time) <= new Date();
+                  }).length})
+                </button>
+                <button
+                  onClick={() => setViewMode('paid')}
+                  className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'paid'
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg scale-105 ring-2 ring-white'
+                    : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
+                    }`}
+                >
+                  💰 Paid ({scheduledItems.filter(i => i.is_paid && !i.is_abandoned).length})
+                </button>
+                <button
+                  onClick={() => setViewMode('regular')}
+                  className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'regular'
+                    ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg scale-105 ring-2 ring-white'
+                    : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
+                    }`}
+                >
+                  ♾️ Regular ({scheduledItems.filter(i => i.is_regular && !i.is_abandoned).length})
                 </button>
                 <button
                   onClick={() => setViewMode('abandoned')}
-                  className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'abandoned'
+                  className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'abandoned'
                     ? 'bg-gradient-to-r from-gray-500 to-gray-700 text-white shadow-lg scale-105 ring-2 ring-white'
                     : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
                     }`}
@@ -1133,10 +1222,10 @@ export default function SchedulePage() {
 
         {/* Empty State */}
         {scheduledItems.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-2xl shadow-2xl pop-in">
+          <div className="text-center py-12 theme-bg-card rounded-2xl shadow-2xl pop-in" style={{ border: '2px solid var(--theme-primary)' }}>
             <div className="text-6xl mb-4">📭</div>
-            <h3 className="text-2xl font-black text-gray-900 mb-2">No Scheduled Items Yet</h3>
-            <p className="text-gray-600 text-lg font-semibold">Create your first schedule above!</p>
+            <h3 className="text-2xl font-black theme-text-primary mb-2">No Scheduled Items Yet</h3>
+            <p className="theme-text-secondary text-lg font-semibold">Create your first schedule above!</p>
           </div>
         )}
       </div>
@@ -1151,9 +1240,9 @@ export default function SchedulePage() {
           ></div>
 
           {/* Modal Content */}
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in">
+          <div className="theme-bg-card w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in" style={{ border: '2px solid var(--theme-primary)' }}>
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-noob-pink via-noob-purple to-noob-cyan p-6 rounded-t-3xl flex items-center justify-between">
+            <div className="sticky top-0 p-6 rounded-t-3xl flex items-center justify-between" style={{ background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2), var(--theme-gradient-3))' }}>
               <h2 className="text-2xl font-black text-white drop-shadow-lg">✏️ Edit Schedule</h2>
               <button
                 onClick={handleCancelEdit}
@@ -1168,31 +1257,31 @@ export default function SchedulePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Item Name */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold text-gray-700 uppercase">Item Name</label>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Item Name</label>
                   <input
                     type="text"
                     value={formData.item_name}
                     onChange={(e) => handleFormChange('item_name', e.target.value)}
                     placeholder="e.g., Red Valkyrie Helm"
-                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-pink font-bold text-gray-900 focus:outline-none focus:border-noob-cyan"
+                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-pink font-bold theme-text-primary theme-bg-card focus:outline-none focus:border-noob-cyan"
                   />
                 </div>
 
                 {/* Creator */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold text-gray-700 uppercase">Creator Name</label>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Creator Name</label>
                   <input
                     type="text"
                     value={formData.creator}
                     onChange={(e) => handleFormChange('creator', e.target.value)}
                     placeholder="e.g., RobloxianCreations"
-                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-cyan font-bold text-gray-900 focus:outline-none focus:border-noob-pink"
+                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-cyan font-bold theme-text-primary theme-bg-card focus:outline-none focus:border-noob-pink"
                   />
                 </div>
 
                 {/* Release Date & Time */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold text-gray-700 uppercase">Release Date & Time</label>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Release Date & Time</label>
                   <div className="flex gap-4 items-center">
                     <input
                       type="datetime-local"
@@ -1216,7 +1305,7 @@ export default function SchedulePage() {
 
                 {/* Stock */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold text-gray-700 uppercase">Stock Amount</label>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Stock Amount</label>
                   <div className="flex gap-4 items-center">
                     <input
                       type="number"
@@ -1260,15 +1349,43 @@ export default function SchedulePage() {
                       onChange={(e) => setIsAbandoned(e.target.checked)}
                       className="w-5 h-5 accent-gray-600"
                     />
-                    <label htmlFor="modal-abandoned" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+                    <label htmlFor="modal-abandoned" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
                       🏚️ Mark as ABANDONED
+                    </label>
+                  </div>
+
+                  {/* Paid Item Status */}
+                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2" style={{ borderColor: 'var(--theme-gradient-4)', background: 'var(--theme-card-bg)' }}>
+                    <input
+                      type="checkbox"
+                      id="modal-paid"
+                      checked={isPaid}
+                      onChange={(e) => setIsPaid(e.target.checked)}
+                      className="w-5 h-5 accent-yellow-600"
+                    />
+                    <label htmlFor="modal-paid" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
+                      💰 Mark as PAID ITEM (not free)
+                    </label>
+                  </div>
+
+                  {/* Regular Item Status */}
+                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2" style={{ borderColor: 'var(--theme-gradient-4)', background: 'var(--theme-card-bg)' }}>
+                    <input
+                      type="checkbox"
+                      id="modal-regular"
+                      checked={isRegular}
+                      onChange={(e) => setIsRegular(e.target.checked)}
+                      className="w-5 h-5 accent-purple-600"
+                    />
+                    <label htmlFor="modal-regular" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
+                      ♾️ Mark as REGULAR (non-limited)
                     </label>
                   </div>
                 </div>
 
                 {/* Method */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold text-gray-700 uppercase">Drop Method</label>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Drop Method</label>
                   <select
                     value={formData.method}
                     onChange={(e) => handleFormChange('method', e.target.value)}
@@ -1355,15 +1472,12 @@ export default function SchedulePage() {
                 />
               </div>
 
-              {/* Image URL */}
+              {/* Image Upload */}
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 uppercase">Image URL</label>
-                <input
-                  type="url"
-                  value={formData.image_url}
-                  onChange={(e) => handleFormChange('image_url', e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-4 py-3 rounded-lg border-4 border-noob-cyan font-bold text-gray-900 focus:outline-none focus:border-noob-pink"
+                <label className="block text-sm font-bold text-gray-700 uppercase">📷 Item Image</label>
+                <CloudinaryUpload
+                  onImageChange={(url) => handleFormChange('image_url', url)}
+                  currentImageUrl={formData.image_url}
                 />
               </div>
 

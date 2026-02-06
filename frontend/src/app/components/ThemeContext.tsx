@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 // Theme definitions
-export type ThemeName = 'default' | 'bw' | 'midnight' | 'cosmic' | 'skies' | 'sakura' | 'nature' | 'noob' | 'clean';
+export type ThemeName = 'default' | 'bw' | 'midnight' | 'cosmic' | 'skies' | 'sakura' | 'nature' | 'noob' | 'clean' | 'ultradark';
 export type EffectType = 'blocks' | 'stars' | 'orbs' | 'clouds' | 'petals' | 'leaves' | 'none';
 
 export interface ThemeColors {
@@ -231,6 +231,29 @@ export const THEMES: Theme[] = [
       gradient2: '#6b7280',
       gradient3: '#000000ff',
       gradient4: '#25d6f1ff',
+    },
+  },
+  {
+    name: 'ultradark',
+    label: 'Ultra Dark',
+    emoji: '⬛',
+    effectType: 'none',
+    isSpecial: true,
+    colors: {
+      primary: '#ffffff',
+      secondary: '#cccccc',
+      accent: '#ffffff',
+      success: '#ffffff',
+      background: '#000000',
+      cardBg: '#0a0a0a',
+      textPrimary: '#ffffff',
+      textSecondary: '#cccccc',
+      onBgText: '#ffffff',
+      onBgTextSecondary: '#cccccc',
+      gradient1: '#ffffff',
+      gradient2: '#cccccc',
+      gradient3: '#ffffff',
+      gradient4: '#cccccc',
     },
   },
 ];

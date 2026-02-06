@@ -6,6 +6,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const LOGS = [
     {
+        version: 'v2.0',
+        date: 'Feb 6, 2026',
+        changes: [
+            '☁️ New Cloudinary integration for leakers my beloved.',
+            '⚫ New Ultra Black theme for you night owls.',
+            '💵 New Paid UGC section.',
+            '🟥 New Regular drops section.',
+            '🛍️ Separated active drops from upcoming drops.',
+            '🛠️ Several component changes to further suit themes.'
+        ]
+    },
+    {
         version: 'v1.9',
         date: 'Jan 8, 2026',
         changes: [

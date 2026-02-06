@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS scheduled_items (
   image_url VARCHAR(2048),
   limit_per_user INTEGER DEFAULT 1,
   color VARCHAR(7), -- HEX color code for card background gradient
+  is_paid BOOLEAN DEFAULT FALSE, -- Whether this is a paid item (not free)
+  is_regular BOOLEAN DEFAULT FALSE, -- Whether this is a regular item (unlimited/event)
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

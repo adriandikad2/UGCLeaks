@@ -39,6 +39,8 @@ type UGCItem = {
   finalTotalStock?: number; // Persisted total stock when item sold out
   ugcCode?: string; // Code for Code Drop items
   isAbandoned?: boolean; // Abandoned status
+  isPaid?: boolean; // Paid item status (not free)
+  isRegular?: boolean; // Regular item status (unlimited/event)
 };
 
 const OUTLINE_COLORS = ['#ff006e', '#00d9ff', '#ffbe0b', '#00ff41', '#b54eff'];
@@ -85,7 +87,7 @@ export default function LeaksPage() {
   const [items, setItems] = useState<UGCItem[]>([]);
   const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]);
   const [gradients, setGradients] = useState<{ [key: string]: string[] }>({});
-  const [viewMode, setViewMode] = useState<'active' | 'abandoned'>('active');
+  const [viewMode, setViewMode] = useState<'active' | 'upcoming' | 'paid' | 'regular' | 'abandoned'>('upcoming');
   const [isMounted, setIsMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [liveStock, setLiveStock] = useState<{ [assetId: string]: RobloxStockData }>({});
@@ -163,6 +165,8 @@ export default function LeaksPage() {
           finalTotalStock: item.final_total_stock, // Persisted total stock
           ugcCode: item.ugc_code, // Code if applicable
           isAbandoned: item.is_abandoned, // Abandoned status
+          isPaid: item.is_paid, // Paid item status
+          isRegular: item.is_regular, // Regular item status
         }));
         setScheduledItems(converted);
 
@@ -374,10 +378,22 @@ export default function LeaksPage() {
 
   const filteredItems = [...items, ...scheduledItems]
     .filter(item => {
-      // Filter by View Mode (Active vs Abandoned)
-      const isAbandoned = item.isAbandoned || false;
-      if (viewMode === 'active' && isAbandoned) return false;
-      if (viewMode === 'abandoned' && !isAbandoned) return false;
+      const itemIsAbandoned = item.isAbandoned || false;
+      const itemIsPaid = item.isPaid || false;
+      const itemIsRegular = item.isRegular || false;
+      const now = new Date();
+      const releaseTime = item.releaseDateTime && !item.releaseDateTime.startsWith('9999')
+        ? new Date(item.releaseDateTime)
+        : null;
+      const isReleased = releaseTime ? releaseTime <= now : false;
+      const isUpcoming = releaseTime ? releaseTime > now : true; // Unknown dates count as upcoming
+
+      // View mode filtering
+      if (viewMode === 'abandoned' && !itemIsAbandoned) return false;
+      if (viewMode === 'paid' && (!itemIsPaid || itemIsAbandoned)) return false;
+      if (viewMode === 'regular' && (!itemIsRegular || itemIsAbandoned)) return false;
+      if (viewMode === 'active' && (itemIsAbandoned || itemIsPaid || itemIsRegular || !isReleased)) return false;
+      if (viewMode === 'upcoming' && (itemIsAbandoned || itemIsPaid || itemIsRegular || !isUpcoming)) return false;
 
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
@@ -386,15 +402,15 @@ export default function LeaksPage() {
         item.itemName.toLowerCase().includes(searchLower);
       const matchesMethod = filterMethod === 'All' || item.method === filterMethod;
 
-      // Release status filter
+      // Release status filter (only applies within current view mode)
       let matchesReleaseStatus = true;
       if (releaseStatusFilter !== 'all' && item.releaseDateTime) {
-        const now = new Date().getTime();
-        const releaseTime = new Date(item.releaseDateTime).getTime();
-        if (releaseStatusFilter === 'released') {
-          matchesReleaseStatus = releaseTime <= now;
-        } else if (releaseStatusFilter === 'upcoming') {
-          matchesReleaseStatus = releaseTime > now;
+        if (!item.releaseDateTime.startsWith('9999')) {
+          if (releaseStatusFilter === 'released') {
+            matchesReleaseStatus = isReleased;
+          } else if (releaseStatusFilter === 'upcoming') {
+            matchesReleaseStatus = isUpcoming;
+          }
         }
       }
 
@@ -525,10 +541,20 @@ export default function LeaksPage() {
         </div>
 
         {/* --- TABS --- */}
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center gap-2 md:gap-4 flex-wrap">
+          <button
+            onClick={() => setViewMode('upcoming')}
+            className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'upcoming'
+              ? 'text-white shadow-lg scale-105 ring-2 ring-white'
+              : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
+              }`}
+            style={viewMode === 'upcoming' ? { background: 'linear-gradient(to right, var(--theme-gradient-3), var(--theme-gradient-4))' } : {}}
+          >
+            ⏳ Upcoming
+          </button>
           <button
             onClick={() => setViewMode('active')}
-            className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'active'
+            className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'active'
               ? 'text-white shadow-lg scale-105 ring-2 ring-white'
               : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
               }`}
@@ -537,8 +563,26 @@ export default function LeaksPage() {
             🚀 Active Drops
           </button>
           <button
+            onClick={() => setViewMode('paid')}
+            className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'paid'
+              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg scale-105 ring-2 ring-white'
+              : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
+              }`}
+          >
+            💰 Paid
+          </button>
+          <button
+            onClick={() => setViewMode('regular')}
+            className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'regular'
+              ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg scale-105 ring-2 ring-white'
+              : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
+              }`}
+          >
+            ♾️ Regular
+          </button>
+          <button
             onClick={() => setViewMode('abandoned')}
-            className={`px-6 py-2 rounded-full font-black text-sm md:text-lg transition-all ${viewMode === 'abandoned'
+            className={`px-4 md:px-6 py-2 rounded-full font-black text-xs md:text-lg transition-all ${viewMode === 'abandoned'
               ? 'bg-gradient-to-r from-gray-500 to-gray-700 text-white shadow-lg scale-105 ring-2 ring-white'
               : 'bg-white/10 theme-on-bg-text hover:bg-white/20'
               }`}

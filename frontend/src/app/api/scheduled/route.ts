@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     // The database stores UTC times, but 'timestamp without time zone' is interpreted as local by the driver
     let query = `SELECT uuid, title, item_name, creator, stock, 
       release_date_time, method, instruction, game_link, item_link, 
-      image_url, limit_per_user, ugc_code, is_abandoned, sold_out,
+      image_url, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, sold_out,
       final_current_stock, final_total_stock,
       TO_CHAR(release_date_time, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as release_date_time_utc 
       FROM scheduled_items ORDER BY release_date_time ASC`;
@@ -75,6 +75,8 @@ export async function POST(request: Request) {
       limit_per_user,
       ugc_code,
       is_abandoned,
+      is_paid,
+      is_regular,
     } = body;
 
     if (!title || !item_name || !creator) {
@@ -120,8 +122,8 @@ export async function POST(request: Request) {
       `INSERT INTO scheduled_items (
         uuid, title, item_name, creator, stock, 
         release_date_time, method, instruction, game_link, item_link, 
-        image_url, limit_per_user, ugc_code, is_abandoned
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        image_url, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`,
       [
         uuid,
@@ -137,7 +139,9 @@ export async function POST(request: Request) {
         sanitizedImageUrl,
         limitValue,
         sanitizedUgcCode,
-        is_abandoned || false
+        is_abandoned || false,
+        is_paid || false,
+        is_regular || false
       ]
     );
 

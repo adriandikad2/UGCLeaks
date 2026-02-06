@@ -269,11 +269,12 @@ export const SECURITY_HEADERS = {
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'Content-Security-Policy': [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Required for Next.js
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://upload-widget.cloudinary.com https://widget.cloudinary.com https://va.vercel-scripts.com https://cdnjs.cloudflare.com", // Required for Next.js + Cloudinary + Vercel Analytics
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: https: blob:",
-        "connect-src 'self' https://apis.roblox.com https://thumbnails.roblox.com https://economy.roblox.com",
+        "connect-src 'self' https://apis.roblox.com https://thumbnails.roblox.com https://economy.roblox.com https://api.cloudinary.com https://res.cloudinary.com https://va.vercel-scripts.com",
+        "frame-src https://upload-widget.cloudinary.com https://widget.cloudinary.com", // Allow Cloudinary widget iframe
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",

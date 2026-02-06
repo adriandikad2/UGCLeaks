@@ -82,6 +82,8 @@ export async function PUT(
       'final_total_stock',
       'ugc_code',
       'is_abandoned',
+      'is_paid',
+      'is_regular'
     ];
 
     // Fields that need text sanitization

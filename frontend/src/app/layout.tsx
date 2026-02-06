@@ -13,6 +13,11 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'UGC Leaks - Track Daily Roblox Limiteds',
   description: 'Get the latest information on Roblox UGC drops and leaks',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
@@ -33,7 +38,7 @@ export default function RootLayout({
             <div className="relative z-10">
               {children}
             </div>
-            <Analytics />
+            {process.env.NODE_ENV === 'production' && <Analytics />}
           </ThemeProvider>
         </PlaygroundProvider>
       </body>
