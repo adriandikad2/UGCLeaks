@@ -805,6 +805,16 @@ export default function LeaksPage() {
                       <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: shuffledColors[3] }}>
                         {timers[item.id] === 'Unknown' ? '❓ Unknown' : (timers[item.id] || 'Loading...')}
                       </p>
+                      {timers[item.id] && timers[item.id] !== 'Unknown' && item.releaseDateTime && !item.releaseDateTime.startsWith('9999') && (
+                        <p className="text-[10px] font-bold theme-text-secondary mt-0.5 leading-tight">
+                          {(() => {
+                            const d = new Date(item.releaseDateTime);
+                            const day = d.toLocaleDateString('en-US', { weekday: 'long' });
+                            const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                            return `${day}, ${time}`;
+                          })()}
+                        </p>
+                      )}
                     </div>
                   </div>
 
