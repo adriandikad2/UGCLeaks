@@ -809,7 +809,7 @@ export default function LeaksPage() {
                         <p className="text-[10px] font-bold theme-text-secondary mt-0.5 leading-tight">
                           {(() => {
                             const d = new Date(item.releaseDateTime);
-                            const day = d.toLocaleDateString('en-US', { weekday: 'long' });
+                            const day = d.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
                             const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
                             return `${day}, ${time}`;
                           })()}
