@@ -815,3 +815,27 @@ article {
     transform: translateX(20px) rotate(30deg);
   }
 }
+
+/* ============================== */
+/* GOOGLE TRANSLATE OVERRIDES     */
+/* ============================== */
+
+/* Hide Google Translate top banner and remove body shift */
+body {
+  top: 0 !important;
+}
+
+.skiptranslate iframe, 
+.skiptranslate {
+  display: none !important;
+}
+
+#goog-gt-tt, 
+.goog-te-balloon-frame {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}

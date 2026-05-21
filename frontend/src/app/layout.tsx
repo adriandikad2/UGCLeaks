@@ -1,12 +1,14 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { headers } from 'next/headers';
 import ThemeEffects from './components/ThemeEffects';
 import { ThemeProvider } from './components/ThemeContext';
 import { Analytics } from "@vercel/analytics/next";
 import { PlaygroundProvider } from './components/playground/PlaygroundContext';
 import ToolBelt from './components/playground/ToolBelt';
 import PlaygroundCanvas from './components/playground/PlaygroundCanvas';
+import TranslationBanner from './components/TranslationBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -25,6 +27,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const headersList = headers();
+  const acceptLanguage = headersList.get('accept-language');
+
   return (
     <html lang="en">
       {/* 'select-none' prevents text highlighting as requested */}
@@ -33,6 +38,8 @@ export default function RootLayout({
           <ToolBelt />
           <PlaygroundCanvas />
           <ThemeProvider>
+            {/* Translation Banner */}
+            <TranslationBanner acceptLanguage={acceptLanguage} />
             {/* Theme-specific particle effects (stars, petals, leaves, etc.) */}
             <ThemeEffects />
             <div className="relative z-10">

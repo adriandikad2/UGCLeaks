@@ -10,6 +10,7 @@ import { ToastContainer, useToast } from '../Toast';
 import { createScheduledItem, updateScheduledItem, deleteScheduledItem, getScheduledItems } from '@/lib/api';
 import { useTheme } from '../components/ThemeContext'; // <--- Import Global Theme
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import TranslateWidget from '../components/TranslateWidget';
 import CloudinaryUpload from '../components/CloudinaryUpload';
 import { hasAccess } from '@/lib/auth';
 
@@ -460,8 +461,9 @@ export default function SchedulePage() {
     <div className={`min-h-screen py-12 relative transition-all duration-700 ${isGrayscale ? 'bg-gray-900' : ''}`}>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-      {/* --- THEME PALETTE SWITCHER --- */}
+      {/* --- THEME PALETTE SWITCHER & TRANSLATE --- */}
       <ThemeSwitcher />
+      <TranslateWidget />
 
       <div className="max-w-7xl mx-auto px-4 relative z-10">
         {/* Header */}

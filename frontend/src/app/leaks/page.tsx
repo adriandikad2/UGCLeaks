@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { ClickableInstructions, NoLinkTemplate } from '../InstructionParser';
 import { useTheme } from '../components/ThemeContext';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import TranslateWidget from '../components/TranslateWidget';
 import { hasAccess, isAuthenticated, signout, getUserRole } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
 import { getRobloxStock, extractRobloxAssetId, RobloxStockData, updateScheduledItem } from '@/lib/api';
@@ -509,8 +510,11 @@ export default function LeaksPage() {
             )}
           </div>
 
-          {/* Right: Theme Switcher */}
-          <ThemeSwitcher inline />
+          {/* Right: Translate & Theme Switcher */}
+          <div className="flex items-center gap-2 relative z-40">
+            <TranslateWidget inline />
+            <ThemeSwitcher inline />
+          </div>
         </div>
       </div>
 
