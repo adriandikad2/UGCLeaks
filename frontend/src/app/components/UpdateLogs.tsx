@@ -6,6 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const LOGS = [
     {
+        version: 'v2.1',
+        date: 'May 21, 2026',
+        changes: [
+            '🔡 Let us all welcome the brand new translator button next to the theme switch button 🎉'
+        ]
+    },
+    {
         version: 'v2.0',
         date: 'Feb 6, 2026',
         changes: [
