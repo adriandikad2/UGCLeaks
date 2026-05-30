@@ -9,7 +9,6 @@ import { ClickableInstructions, NoLinkTemplate } from '../InstructionParser';
 import { useTheme } from '../components/ThemeContext';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import TranslateWidget from '../components/TranslateWidget';
-import AnnouncementAlert from '../components/AnnouncementAlert';
 import { hasAccess, isAuthenticated, signout, getUserRole } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
 import { getRobloxStock, extractRobloxAssetId, RobloxStockData, updateScheduledItem } from '@/lib/api';
@@ -521,7 +520,6 @@ export default function LeaksPage() {
 
       {/* --- TOAST NOTIFICATIONS --- */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-      <AnnouncementAlert />
 
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="text-center space-y-4 pop-in">

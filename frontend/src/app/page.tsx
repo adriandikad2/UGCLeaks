@@ -7,7 +7,6 @@ import ThemeSwitcher from './components/ThemeSwitcher';
 import { isAuthenticated, signout, hasAccess } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import UpdateLogs from './components/UpdateLogs';
-import AnnouncementAlert from './components/AnnouncementAlert';
 
 export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -42,9 +41,6 @@ export default function Home() {
 
       {/* --- THEME PALETTE SWITCHER --- */}
       <ThemeSwitcher />
-
-      {/* --- ANNOUNCEMENT ALERT --- */}
-      <AnnouncementAlert />
 
       {/* --- AUTH BUTTONS --- */}
       <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50 flex gap-2 md:gap-3">
