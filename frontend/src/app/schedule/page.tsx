@@ -16,8 +16,11 @@ import { hasAccess } from '@/lib/auth';
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
-  InGame = 'In-Game',
+  Quest = 'Quest',
+  Launcher = 'Launcher',
+  JoinAndClaim = 'J&C',
   CodeDrop = 'Code Drop',
+  InGame = 'In-Game', // Legacy — kept for backward compatibility with existing data
   Unknown = 'Unknown'
 }
 
@@ -653,7 +656,9 @@ export default function SchedulePage() {
                 style={{ borderColor: 'var(--theme-secondary)' }}
               >
                 <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
-                <option value={UGCMethod.InGame}>🎮 In-Game</option>
+                <option value={UGCMethod.Quest}>🏰 Quest</option>
+                <option value={UGCMethod.Launcher}>🚀 Launcher</option>
+                <option value={UGCMethod.JoinAndClaim}>🤝 J&C</option>
                 <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
                 <option value={UGCMethod.Unknown}>❓ Unknown</option>
               </select>

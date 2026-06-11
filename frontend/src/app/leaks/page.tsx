@@ -15,8 +15,11 @@ import { updateScheduledItem } from '@/lib/api';
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
-  InGame = 'In-Game',
+  Quest = 'Quest',
+  Launcher = 'Launcher',
+  JoinAndClaim = 'J&C',
   CodeDrop = 'Code Drop',
+  InGame = 'In-Game', // Legacy — kept for backward compatibility with existing data
   Unknown = 'Unknown'
 }
 
@@ -486,7 +489,9 @@ export default function LeaksPage() {
             >
               <option value="All">All Methods</option>
               <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
-              <option value={UGCMethod.InGame}>🎮 In-Game</option>
+              <option value={UGCMethod.Quest}>🏰 Quest</option>
+              <option value={UGCMethod.Launcher}>🚀 Launcher</option>
+              <option value={UGCMethod.JoinAndClaim}>🤝 J&C</option>
               <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
               <option value={UGCMethod.Unknown}>❓ Unknown</option>
             </select>
@@ -647,7 +652,13 @@ export default function LeaksPage() {
                           ? 'Web Drop'
                           : item.method === UGCMethod.CodeDrop
                             ? 'Code Drop'
-                            : 'In-Game'}
+                            : item.method === UGCMethod.Quest || item.method === UGCMethod.InGame
+                              ? 'Quest'
+                              : item.method === UGCMethod.Launcher
+                                ? 'Launcher'
+                                : item.method === UGCMethod.JoinAndClaim
+                                  ? 'J&C'
+                                  : item.method || 'Unknown'}
                       </p>
                     </div>
 
