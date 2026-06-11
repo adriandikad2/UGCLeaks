@@ -11,7 +11,7 @@ import ThemeSwitcher from '../components/ThemeSwitcher';
 import TranslateWidget from '../components/TranslateWidget';
 import { hasAccess, isAuthenticated, signout, getUserRole } from '@/lib/auth';
 import { ToastContainer, useToast } from '@/app/Toast';
-import { getRobloxStock, extractRobloxAssetId, RobloxStockData, updateScheduledItem } from '@/lib/api';
+import { updateScheduledItem } from '@/lib/api';
 
 enum UGCMethod {
   WebDrop = 'Web Drop',
@@ -91,9 +91,7 @@ export default function LeaksPage() {
   const [viewMode, setViewMode] = useState<'active' | 'upcoming' | 'paid' | 'regular' | 'abandoned'>('upcoming');
   const [isMounted, setIsMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [liveStock, setLiveStock] = useState<{ [assetId: string]: RobloxStockData }>({});
-  const [checkedItemIds, setCheckedItemIds] = useState<Set<string>>(new Set());
-  const [lastStockUpdate, setLastStockUpdate] = useState<Date | null>(null);
+
   const [isHudMinimized, setIsHudMinimized] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ugc-hud-minimized') === 'true';
@@ -245,137 +243,7 @@ export default function LeaksPage() {
     return () => clearInterval(interval);
   }, [items, scheduledItems]);
 
-  // Stock polling effect - fetch live stock with priority for unchecked items
-  const fetchLiveStock = useCallback(async () => {
-    const allItems = [...items, ...scheduledItems];
-    const uncheckedAssetIds: string[] = [];
-    const checkedAssetIds: string[] = [];
-    const assetIdToItemId: { [assetId: string]: string } = {};
 
-    // Extract asset IDs from item links, separating unchecked from checked
-    allItems.forEach(item => {
-      // Skip items marked as sold out by schedulers (no need to recheck)
-      if (item.soldOut) return;
-
-      // Skip items with unknown stock (-1) - they haven't gone limited yet
-      // API returns 0 for items not yet limited, which would incorrectly mark them as sold out
-      // Note: stock === 0 is actual 0 remaining stock, stock === -1 is "unknown"
-      const hasUnknownStock = (
-        item.stock === -1 ||
-        item.stock === 'unknown' ||
-        item.stock === 'Unknown'
-      );
-      if (hasUnknownStock) return;
-
-      if (item.itemLink) {
-        const assetId = extractRobloxAssetId(item.itemLink);
-        if (assetId) {
-          assetIdToItemId[assetId] = item.id;
-
-          // Prioritize by separating unchecked from checked
-          if (checkedItemIds.has(item.id)) {
-            checkedAssetIds.push(assetId);
-          } else {
-            uncheckedAssetIds.push(assetId);
-          }
-        }
-      }
-    });
-
-    // Prioritize unchecked items first, then checked items
-    // This ensures new items get checked before re-checking old ones
-    const prioritizedAssetIds = [...uncheckedAssetIds, ...checkedAssetIds];
-
-    if (prioritizedAssetIds.length === 0) return;
-
-    // Limit batch size to reduce API pressure (check 20 at a time, prioritizing unchecked)
-    const batchSize = 20;
-    const assetIdsToCheck = prioritizedAssetIds.slice(0, batchSize);
-
-    try {
-      const stockData = await getRobloxStock(assetIdsToCheck);
-      // Merge new data with existing data (don't replace, to avoid losing data for items not in current response)
-      setLiveStock(prev => ({
-        ...prev,
-        ...stockData
-      }));
-      setLastStockUpdate(new Date());
-
-      // Track successfully checked items
-      const newlyCheckedIds = new Set<string>();
-
-      // Auto-persist sold-out items: detect items with currentStock === 0 and save their final stock values
-      for (const assetId of Object.keys(stockData)) {
-        const data = stockData[assetId];
-        const itemId = assetIdToItemId[assetId];
-
-        // Track this item as checked if we got valid data (not an error)
-        if (itemId && !data.error) {
-          newlyCheckedIds.add(itemId);
-        }
-
-        // Only process items that are sold out (currentStock === 0) and have valid data
-        // Skip items with unknown stock (stock === -1 or stock === 'unknown') - they should not be auto-marked as sold out
-        if (data.currentStock === 0 && data.totalStock > 0 && !data.error) {
-          if (itemId) {
-            // Find the item to check if it's already marked as sold out
-            const item = allItems.find(i => i.id === itemId);
-
-            // Skip if item has unknown stock (-1) - don't auto-mark as sold out
-            // Note: stock === 0 is actual 0 remaining stock and SHOULD be marked as sold out
-            const hasUnknownStock = item && (
-              item.stock === -1 ||
-              item.stock === 'unknown' ||
-              item.stock === 'Unknown'
-            );
-
-            if (item && !item.soldOut && !hasUnknownStock) {
-              // Auto-mark as sold out and persist final stock values
-              console.log(`Auto-marking item ${itemId} as sold out with stock ${data.currentStock}/${data.totalStock}`);
-              updateScheduledItem(itemId, {
-                sold_out: true,
-                final_current_stock: data.currentStock,
-                final_total_stock: data.totalStock
-              }).catch(err => console.error('Failed to auto-persist sold-out item:', err));
-
-              // Update local state immediately to prevent re-checking
-              setScheduledItems(prev => prev.map(i =>
-                i.id === itemId
-                  ? { ...i, soldOut: true, finalCurrentStock: data.currentStock, finalTotalStock: data.totalStock }
-                  : i
-              ));
-            }
-          }
-        }
-      }
-
-      // Update checked items set with newly checked items
-      if (newlyCheckedIds.size > 0) {
-        setCheckedItemIds(prev => {
-          const updated = new Set(prev);
-          newlyCheckedIds.forEach(id => updated.add(id));
-          return updated;
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch live stock:', error);
-    }
-  }, [items, scheduledItems, checkedItemIds]);
-
-  useEffect(() => {
-    // Initial fetch after a short delay
-    const initialDelay = setTimeout(() => {
-      fetchLiveStock();
-    }, 2000);
-
-    // Poll every 10 minutes (to reduce Roblox API pressure)
-    const interval = setInterval(fetchLiveStock, 600000);
-
-    return () => {
-      clearTimeout(initialDelay);
-      clearInterval(interval);
-    };
-  }, [fetchLiveStock]);
 
   const filteredItems = [...items, ...scheduledItems]
     .filter(item => {
@@ -681,23 +549,17 @@ export default function LeaksPage() {
             const outlineColor = shuffledColors[0];
             const gradientStr = `linear-gradient(135deg, ${shuffledColors[0]}, ${shuffledColors[1]}, ${shuffledColors[2]}, ${shuffledColors[3]})`;
 
-            // Get live stock data for this item
-            const assetId = item.itemLink ? extractRobloxAssetId(item.itemLink) : null;
-            const liveStockData = assetId ? liveStock[assetId] : null;
-            const hasLiveStock = liveStockData && liveStockData.currentStock >= 0 && liveStockData.totalStock >= 0;
             // Items with unknown stock (-1) should NEVER show as sold out
-            // even if the soldOut flag was incorrectly set previously
             const hasUnknownStock = (
               item.stock === -1 ||
               item.stock === 'unknown' ||
               item.stock === 'Unknown'
             );
 
-            // Item is sold out if: manually marked OR live stock shows 0 OR scheduled stock is 0/'OUT OF STOCK'
+            // Item is sold out if: manually marked OR scheduled stock is 0/'OUT OF STOCK'
             // BUT only if stock is not unknown
             const isSoldOut = !hasUnknownStock && (
               item.soldOut ||
-              (hasLiveStock && liveStockData.currentStock === 0) ||
               (item.stock === 'OUT OF STOCK')
             );
 
@@ -765,15 +627,13 @@ export default function LeaksPage() {
                     >
                       <p className="text-xs font-bold theme-text-secondary uppercase">📦 Stock</p>
                       <p className="font-black text-xs mt-1" style={{ color: isSoldOut ? '#888' : shuffledColors[0] }}>
-                        {hasLiveStock
-                          ? `${liveStockData.currentStock}/${liveStockData.totalStock}`
-                          : (hasUnknownStock
-                            ? '❓ Unknown'
-                            : (item.soldOut
-                              ? (item.finalCurrentStock != null && item.finalTotalStock != null
-                                ? `${item.finalCurrentStock}/${item.finalTotalStock}`
-                                : `0/${item.stock || '?'}`)
-                              : (typeof item.stock === 'number' ? item.stock : 'OUT')))}
+                        {hasUnknownStock
+                          ? '❓ Unknown'
+                          : (item.soldOut
+                            ? (item.finalCurrentStock != null && item.finalTotalStock != null
+                              ? `${item.finalCurrentStock}/${item.finalTotalStock}`
+                              : `0/${item.stock || '?'}`)
+                            : (typeof item.stock === 'number' ? item.stock : 'OUT'))}
                       </p>
                     </div>
 

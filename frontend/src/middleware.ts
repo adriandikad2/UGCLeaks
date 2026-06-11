@@ -21,7 +21,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://translate.googleapis.com https://www.gstatic.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob: https://www.gstatic.com",
-    "connect-src 'self' https://apis.roblox.com https://thumbnails.roblox.com https://economy.roblox.com https://api.cloudinary.com https://res.cloudinary.com https://va.vercel-scripts.com https://translate.googleapis.com https://translate-pa.googleapis.com",
+    "connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com https://va.vercel-scripts.com https://translate.googleapis.com https://translate-pa.googleapis.com",
     "frame-src https://upload-widget.cloudinary.com https://widget.cloudinary.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",

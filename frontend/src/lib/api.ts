@@ -241,48 +241,4 @@ export async function checkHealth(): Promise<boolean> {
   }
 }
 
-// ==================== ROBLOX STOCK ====================
-
-export interface RobloxStockData {
-  currentStock: number;
-  totalStock: number;
-  error?: string;
-}
-
-/**
- * Extract Roblox asset ID from a catalog URL
- */
-export function extractRobloxAssetId(url: string): string | null {
-  if (!url) return null;
-
-  // Match /catalog/{id} pattern
-  const catalogMatch = url.match(/\/catalog\/(\d+)/);
-  if (catalogMatch) return catalogMatch[1];
-
-  // Match direct asset ID if passed
-  if (/^\d+$/.test(url)) return url;
-
-  return null;
-}
-
-/**
- * Fetch real-time stock data for multiple Roblox items
- * @param assetIds Array of Roblox asset IDs
- * @returns Map of assetId -> stock data
- */
-export async function getRobloxStock(assetIds: string[]): Promise<Record<string, RobloxStockData>> {
-  if (!assetIds.length) return {};
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/roblox-stock?ids=${assetIds.join(',')}`);
-    if (!response.ok) {
-      console.error('Failed to fetch Roblox stock:', response.status);
-      return {};
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching Roblox stock:', error);
-    return {};
-  }
-}
 
