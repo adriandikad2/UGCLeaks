@@ -152,6 +152,12 @@ body.theme-noob {
   animation: gradientShift 10s ease infinite;
 }
 
+body.theme-banana {
+  background: linear-gradient(135deg, #FEF08A 0%, #FDE047 50%, #EAB308 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 10s ease infinite;
+}
+
 body.theme-clean {
   background: #f9fafb !important;
   animation: none !important;

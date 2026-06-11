@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 // Theme definitions
-export type ThemeName = 'default' | 'bw' | 'midnight' | 'cosmic' | 'skies' | 'sakura' | 'nature' | 'noob' | 'clean' | 'ultradark';
+export type ThemeName = 'default' | 'bw' | 'midnight' | 'cosmic' | 'skies' | 'sakura' | 'nature' | 'noob' | 'clean' | 'ultradark' | 'banana';
 export type EffectType = 'blocks' | 'stars' | 'orbs' | 'clouds' | 'petals' | 'leaves' | 'none';
 
 export interface ThemeColors {
@@ -254,6 +254,28 @@ export const THEMES: Theme[] = [
       gradient2: '#cccccc',
       gradient3: '#ffffff',
       gradient4: '#cccccc',
+    },
+  },
+  {
+    name: 'banana',
+    label: 'Banana',
+    emoji: '🍌',
+    effectType: 'none',
+    colors: {
+      primary: '#FDE047',
+      secondary: '#EAB308',
+      accent: '#CA8A04',
+      success: '#84CC16',
+      background: 'linear-gradient(135deg, #FEF08A 0%, #FDE047 50%, #EAB308 100%)',
+      cardBg: '#FEFCE8',
+      textPrimary: '#422006',
+      textSecondary: '#713F12',
+      onBgText: '#422006',
+      onBgTextSecondary: '#713F12',
+      gradient1: '#FEF08A',
+      gradient2: '#FDE047',
+      gradient3: '#EAB308',
+      gradient4: '#CA8A04',
     },
   },
 ];
