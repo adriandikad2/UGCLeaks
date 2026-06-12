@@ -2,7 +2,7 @@
 -- PostgreSQL Schema for Roblox UGC Items and Scheduled Releases
 
 -- Enum types
-CREATE TYPE ugc_method AS ENUM ('Web Drop', 'In-Game', 'Unknown');
+CREATE TYPE ugc_method AS ENUM ('Web Drop', 'In-Game', 'Unknown', 'Quest', 'Launcher', 'J&C', 'Code Drop');
 
 -- UGC Items table
 CREATE TABLE IF NOT EXISTS ugc_items (
@@ -88,7 +88,6 @@ CREATE INDEX idx_color_gradients_scheduled ON color_gradients(scheduled_item_id)
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   username VARCHAR(255) UNIQUE NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'editor', 'owner')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -115,7 +114,6 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 -- Indexes for authentication tables
-CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX idx_sessions_token ON sessions(token);

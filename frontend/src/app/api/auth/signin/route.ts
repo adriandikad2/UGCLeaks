@@ -3,7 +3,7 @@ import pool from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { checkRateLimit, clearRateLimit, getClientIp, isValidEmail, sanitizeString } from '@/lib/security';
+import { checkRateLimit, clearRateLimit, getClientIp, sanitizeString } from '@/lib/security';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
@@ -41,23 +41,21 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, password } = body;
+    const { username, password } = body;
 
     // Validation
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    if (!username || !password) {
+      return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
     }
 
-    // Validate email format
-    if (!isValidEmail(email)) {
-      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
-    }
+    // Sanitize username
+    const sanitizedUsername = sanitizeString(username);
 
-    // Find user by email
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    // Find user by username
+    const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [sanitizedUsername]);
 
     if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
     }
 
     const user = userResult.rows[0];
@@ -65,12 +63,12 @@ export async function POST(request: Request) {
     // Compare password
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
     }
 
     // Generate JWT token (expires in 7 days)
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { userId: user.id, username: user.username, role: user.role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -92,7 +90,6 @@ export async function POST(request: Request) {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email,
         role: user.role,
       },
     });

@@ -19,7 +19,6 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
     password: '',
     confirmPassword: '',
   });
@@ -35,7 +34,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
 
-    if (!formData.username || !formData.email || !formData.password) {
+    if (!formData.username || !formData.password) {
       addToast('Please fill in all fields', 'error');
       setLoading(false);
       return;
@@ -54,7 +53,7 @@ export default function SignupPage() {
     }
 
     try {
-      await signup(formData.username, formData.email, formData.password);
+      await signup(formData.username, formData.password);
       addToast('Account created successfully! Redirecting to signin...', 'success');
       setTimeout(() => router.push('/auth/signin'), 1500);
     } catch (error) {
@@ -101,20 +100,6 @@ export default function SignupPage() {
               value={formData.username}
               onChange={handleChange}
               placeholder="Choose your username"
-              className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none theme-text-primary theme-bg-card"
-              style={{ borderColor: 'var(--theme-gradient-1)' }}
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold theme-text-primary mb-2">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="your@email.com"
               className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none theme-text-primary theme-bg-card"
               style={{ borderColor: 'var(--theme-gradient-1)' }}
               disabled={loading}

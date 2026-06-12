@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
     // Update target user's role
     const updatedUser = await pool.query(
-      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role',
+      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, role',
       [newRole, targetUserId]
     );
 

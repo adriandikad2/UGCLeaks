@@ -7,7 +7,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 export interface User {
   id: string;
   username: string;
-  email: string;
   role: 'user' | 'editor' | 'owner';
 }
 
@@ -22,13 +21,12 @@ export interface AuthResponse {
  */
 export async function signup(
   username: string,
-  email: string,
   password: string
 ): Promise<AuthResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, email, password }),
+    body: JSON.stringify({ username, password }),
   });
 
   if (!response.ok) {
@@ -42,11 +40,11 @@ export async function signup(
 /**
  * Sign in a user
  */
-export async function signin(email: string, password: string): Promise<AuthResponse> {
+export async function signin(username: string, password: string): Promise<AuthResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/signin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ username, password }),
   });
 
   if (!response.ok) {

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
     // Get user from database
     const userResult = await pool.query(
-      'SELECT id, username, email, role FROM users WHERE id = $1',
+      'SELECT id, username, role FROM users WHERE id = $1',
       [decoded.userId]
     );
 

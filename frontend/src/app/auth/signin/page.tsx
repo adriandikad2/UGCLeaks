@@ -18,7 +18,7 @@ export default function SigninPage() {
   const isGrayscale = currentTheme.name === 'bw';
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
   });
 
@@ -33,14 +33,14 @@ export default function SigninPage() {
     e.preventDefault();
     setLoading(true);
 
-    if (!formData.email || !formData.password) {
+    if (!formData.username || !formData.password) {
       addToast('Please fill in all fields', 'error');
       setLoading(false);
       return;
     }
 
     try {
-      await signin(formData.email, formData.password);
+      await signin(formData.username, formData.password);
       addToast('Signed in successfully! Redirecting home...', 'success');
       setTimeout(() => router.push('/'), 1500);
     } catch (error) {
@@ -80,13 +80,13 @@ export default function SigninPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-bold theme-text-primary mb-2">Email</label>
+            <label className="block text-sm font-bold theme-text-primary mb-2">Username</label>
             <input
-              type="email"
-              name="email"
-              value={formData.email}
+              type="text"
+              name="username"
+              value={formData.username}
               onChange={handleChange}
-              placeholder="your@email.com"
+              placeholder="Your username"
               className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none theme-text-primary theme-bg-card"
               style={{ borderColor: 'var(--theme-gradient-1)' }}
               disabled={loading}

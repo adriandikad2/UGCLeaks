@@ -6,7 +6,6 @@ import jwt from 'jsonwebtoken';
 import {
   checkRateLimit,
   getClientIp,
-  isValidEmail,
   validatePasswordComplexity,
   sanitizeString,
   FIELD_LIMITS,
@@ -41,11 +40,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { username, email, password } = body;
+    const { username, password } = body;
 
     // Validation
-    if (!username || !email || !password) {
-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
+    if (!username || !password) {
+      return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
     }
 
     // Validate and sanitize username
@@ -57,26 +56,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Username can only contain letters, numbers, and underscores' }, { status: 400 });
     }
 
-    // Validate email
-    if (!isValidEmail(email)) {
-      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
-    }
-
     // Validate password complexity
     const passwordCheck = validatePasswordComplexity(password);
     if (!passwordCheck.valid) {
       return NextResponse.json({ error: passwordCheck.message }, { status: 400 });
     }
 
-    // Check if user already exists
+    // Check if username already exists
     const existingUser = await pool.query(
-      'SELECT * FROM users WHERE email = $1 OR username = $2',
-      [email, sanitizedUsername]
+      'SELECT * FROM users WHERE username = $1',
+      [sanitizedUsername]
     );
 
     if (existingUser.rows.length > 0) {
       return NextResponse.json(
-        { error: 'User already exists with that email or username' },
+        { error: 'Username already taken' },
         { status: 409 }
       );
     }
@@ -92,8 +86,8 @@ export async function POST(request: Request) {
     // Create user with sanitized username
     const userId = uuidv4();
     const newUser = await pool.query(
-      'INSERT INTO users (id, username, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, role, created_at',
-      [userId, sanitizedUsername, email, hashedPassword, role]
+      'INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, username, role, created_at',
+      [userId, sanitizedUsername, hashedPassword, role]
     );
 
     return NextResponse.json(
