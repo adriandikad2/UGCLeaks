@@ -64,7 +64,12 @@ export async function PUT(
     Object.keys(updates).forEach((key) => {
       if (allowedFields.includes(key)) {
         updateFields.push(`${key} = $${paramIndex}`);
-        updateValues.push(updates[key]);
+        if (key === 'method') {
+           const val = updates[key];
+           updateValues.push(Array.isArray(val) ? val : (val ? [val] : ['Unknown']));
+        } else {
+           updateValues.push(updates[key]);
+        }
         paramIndex++;
       }
     });

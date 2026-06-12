@@ -20,9 +20,20 @@ enum UGCMethod {
   Launcher = 'Launcher',
   JoinAndClaim = 'J&C',
   CodeDrop = 'Code Drop',
-  InGame = 'In-Game', // Legacy — kept for backward compatibility with existing data
+  TwitchPoints = 'Twitch Points',
+  InGame = 'In-Game', // Legacy
   Unknown = 'Unknown'
 }
+
+const METHOD_OPTIONS = [
+  { value: UGCMethod.WebDrop, label: '🌐 Web Drop' },
+  { value: UGCMethod.Quest, label: '🏰 Quest' },
+  { value: UGCMethod.Launcher, label: '🚀 Launcher' },
+  { value: UGCMethod.JoinAndClaim, label: '🤝 J&C' },
+  { value: UGCMethod.CodeDrop, label: '🗝️ Code Drop' },
+  { value: UGCMethod.TwitchPoints, label: '🟪 Twitch Points' },
+  { value: UGCMethod.Unknown, label: '❓ Unknown' },
+];
 
 // Ensure this matches your API response exactly
 type UGCItem = {
@@ -33,7 +44,7 @@ type UGCItem = {
   creator: string;
   stock?: number | string | 'OUT OF STOCK';
   release_date_time: string;
-  method: UGCMethod;
+  method: UGCMethod[];
   instruction?: string;
   game_link?: string;
   item_link?: string;
@@ -152,7 +163,7 @@ export default function SchedulePage() {
     creator: '',
     stock: 1000,
     release_date_time: getCurrentLocalDateTime(),
-    method: UGCMethod.InGame,
+    method: [UGCMethod.Unknown],
     instruction: '',
     game_link: '',
     item_link: '',
@@ -321,7 +332,7 @@ export default function SchedulePage() {
       stock: stockIsUnknown ? 1000 : (typeof item.stock === 'number' ? item.stock : 1000),
       // Convert UTC Database Time -> Local Input Format
       release_date_time: scheduleIsUnknown ? getCurrentLocalDateTime() : (item.release_date_time ? toLocalInputString(item.release_date_time) : getCurrentLocalDateTime()),
-      method: item.method || UGCMethod.WebDrop,
+      method: Array.isArray(item.method) ? item.method : (item.method ? [item.method as UGCMethod] : [UGCMethod.Unknown]),
       instruction: item.instruction || '',
       game_link: item.game_link || '',
       item_link: item.item_link || '',
@@ -352,7 +363,7 @@ export default function SchedulePage() {
       creator: '',
       stock: 1000,
       release_date_time: getCurrentLocalDateTime(),
-      method: UGCMethod.WebDrop,
+      method: [UGCMethod.Unknown],
       instruction: '',
       game_link: '',
       item_link: '',
@@ -405,17 +416,30 @@ export default function SchedulePage() {
     document.body.style.overflow = 'unset';
   };
 
-  const handleFormChange = (field: keyof UGCItem, value: any) => {
+  const toggleMethod = (methodVal: UGCMethod) => {
     setFormData(prev => {
-      const updates: any = { [field]: value };
-
-      // Auto-link for Code Drop
-      if (field === 'method' && value === UGCMethod.CodeDrop) {
+      const currentMethods = Array.isArray(prev.method) ? prev.method : [prev.method || UGCMethod.Unknown];
+      let newMethods: UGCMethod[];
+      
+      if (currentMethods.includes(methodVal)) {
+        newMethods = currentMethods.filter(m => m !== methodVal);
+        if (newMethods.length === 0) newMethods = [UGCMethod.Unknown];
+      } else {
+        newMethods = currentMethods.filter(m => m !== UGCMethod.Unknown);
+        newMethods.push(methodVal);
+      }
+      
+      const updates: any = { method: newMethods };
+      if (methodVal === UGCMethod.CodeDrop && !currentMethods.includes(UGCMethod.CodeDrop)) {
         updates.game_link = 'https://www.roblox.com/games/15108736400/';
       }
-
+      
       return { ...prev, ...updates };
     });
+  };
+
+  const handleFormChange = (field: keyof UGCItem, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const formatRelativeTime = (dateTimeString: string): string => {
@@ -648,24 +672,24 @@ export default function SchedulePage() {
 
             {/* Method */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Drop Method</label>
-              <select
-                value={formData.method}
-                onChange={(e) => handleFormChange('method', e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
-                style={{ borderColor: 'var(--theme-secondary)' }}
-              >
-                <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
-                <option value={UGCMethod.Quest}>🏰 Quest</option>
-                <option value={UGCMethod.Launcher}>🚀 Launcher</option>
-                <option value={UGCMethod.JoinAndClaim}>🤝 J&C</option>
-                <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
-                <option value={UGCMethod.Unknown}>❓ Unknown</option>
-              </select>
+              <label className="block text-sm font-bold theme-text-secondary uppercase">Drop Methods</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 p-4 rounded-lg border-4 theme-bg-card" style={{ borderColor: 'var(--theme-secondary)' }}>
+                {METHOD_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={Array.isArray(formData.method) && formData.method.includes(opt.value)}
+                      onChange={() => toggleMethod(opt.value)}
+                      className="w-4 h-4 accent-blue-500"
+                    />
+                    <span className="text-sm font-bold theme-text-primary">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             {/* Code Input (Conditional) */}
-            {formData.method === UGCMethod.CodeDrop && (
+            {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
               <div className="space-y-2">
                 <label className="block text-sm font-bold theme-text-secondary uppercase">Code</label>
                 <input
@@ -813,9 +837,10 @@ export default function SchedulePage() {
                 (item.creator || '').toLowerCase().includes(searchLower);
 
               // Method filter - also match null/undefined/empty methods when filtering for 'Unknown'
+              const itemMethods = Array.isArray(item.method) ? item.method : [item.method];
               const matchesMethod = filterMethod === 'All' ||
-                item.method === filterMethod ||
-                (filterMethod === UGCMethod.Unknown && (!item.method || (item.method as unknown) === '' || item.method === UGCMethod.Unknown));
+                itemMethods.includes(filterMethod) ||
+                (filterMethod === UGCMethod.Unknown && (!item.method || itemMethods.length === 0 || itemMethods.includes(UGCMethod.Unknown)));
 
               // Release status filter (only applies within current view mode)
               let matchesReleaseStatus = true;
@@ -954,10 +979,9 @@ export default function SchedulePage() {
                     style={{ borderColor: 'var(--theme-gradient-3)' }}
                   >
                     <option value="All">All Methods</option>
-                    <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
-                    <option value={UGCMethod.InGame}>🎮 In-Game</option>
-                    <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
-                    <option value={UGCMethod.Unknown}>❓ Unknown</option>
+                    {METHOD_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -1103,13 +1127,29 @@ export default function SchedulePage() {
 
                           {/* Method */}
                           <div
-                            className="p-3 rounded-lg border-2 theme-bg-card"
+                            className="p-3 rounded-lg border-2 theme-bg-card flex flex-col justify-center"
                             style={{ borderColor: shuffledColors[2] }}
                           >
                             <p className="text-xs font-bold theme-text-secondary uppercase">🎯 Method</p>
-                            <p className="font-black text-sm mt-1" style={{ color: shuffledColors[2] }}>
-                              {item.method === UGCMethod.WebDrop ? '🌐 Web' : item.method === UGCMethod.InGame ? '🎮 Game' : item.method === UGCMethod.CodeDrop ? '🗝️ Code' : '❓'}
-                            </p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {(Array.isArray(item.method) ? item.method : [item.method || UGCMethod.Unknown]).map((m, idx) => {
+                                let shortName = '❓';
+                                if (m === UGCMethod.WebDrop) shortName = '🌐 Web';
+                                else if (m === UGCMethod.InGame) shortName = '🎮 Game';
+                                else if (m === UGCMethod.CodeDrop) shortName = '🗝️ Code';
+                                else if (m === UGCMethod.Quest) shortName = '🏰 Quest';
+                                else if (m === UGCMethod.Launcher) shortName = '🚀 Launch';
+                                else if (m === UGCMethod.JoinAndClaim) shortName = '🤝 J&C';
+                                else if (m === UGCMethod.TwitchPoints) shortName = '🟪 Twitch';
+                                else shortName = `❓ ${m}`;
+
+                                return (
+                                  <span key={idx} className="font-black text-xs whitespace-nowrap" style={{ color: shuffledColors[2] }}>
+                                    {shortName}
+                                  </span>
+                                );
+                              })}
+                            </div>
                           </div>
 
                           {/* Limit */}
@@ -1247,7 +1287,7 @@ export default function SchedulePage() {
           ></div>
 
           {/* Modal Content */}
-          <div className="theme-bg-card w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in" style={{ border: '2px solid var(--theme-primary)' }}>
+          <div className="theme-bg-card w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in" style={{ border: '2px solid var(--theme-primary)' }}>
             {/* Modal Header */}
             <div className="sticky top-0 p-6 rounded-t-3xl flex items-center justify-between" style={{ background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2), var(--theme-gradient-3))' }}>
               <h2 className="text-2xl font-black text-white drop-shadow-lg">✏️ Edit Schedule</h2>
@@ -1392,21 +1432,24 @@ export default function SchedulePage() {
 
                 {/* Method */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Drop Method</label>
-                  <select
-                    value={formData.method}
-                    onChange={(e) => handleFormChange('method', e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-orange font-bold text-gray-900 focus:outline-none"
-                  >
-                    <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
-                    <option value={UGCMethod.InGame}>🎮 In-Game</option>
-                    <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
-                    <option value={UGCMethod.Unknown}>❓ Unknown</option>
-                  </select>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Drop Methods</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 p-4 rounded-lg border-4 border-noob-orange theme-bg-card">
+                    {METHOD_OPTIONS.map((opt) => (
+                      <label key={opt.value} className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={Array.isArray(formData.method) && formData.method.includes(opt.value)}
+                          onChange={() => toggleMethod(opt.value)}
+                          className="w-4 h-4 accent-blue-500"
+                        />
+                        <span className="text-sm font-bold text-gray-900">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Code Input (Conditional) */}
-                {formData.method === UGCMethod.CodeDrop && (
+                {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
                   <div className="space-y-2">
                     <label className="block text-sm font-bold text-gray-700 uppercase">Code</label>
                     <input

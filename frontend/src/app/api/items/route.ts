@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     }
 
     if (method) {
-      query += ' AND method = $' + (params.length + 1);
+      query += ' AND method @> ARRAY[$' + (params.length + 1) + ']::TEXT[]';
       params.push(method);
     }
 
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         creator_link || null,
         stock || 1000,
         release_date_time,
-        method || 'Unknown',
+        Array.isArray(method) ? method : (method ? [method] : ['Unknown']),
         instruction || null,
         game_link || null,
         item_link || null,

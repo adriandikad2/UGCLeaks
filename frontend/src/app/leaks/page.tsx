@@ -19,9 +19,20 @@ enum UGCMethod {
   Launcher = 'Launcher',
   JoinAndClaim = 'J&C',
   CodeDrop = 'Code Drop',
-  InGame = 'In-Game', // Legacy — kept for backward compatibility with existing data
+  TwitchPoints = 'Twitch Points',
+  InGame = 'In-Game', // Legacy
   Unknown = 'Unknown'
 }
+
+const METHOD_OPTIONS = [
+  { value: UGCMethod.WebDrop, label: '🌐 Web Drop' },
+  { value: UGCMethod.Quest, label: '🏰 Quest' },
+  { value: UGCMethod.Launcher, label: '🚀 Launcher' },
+  { value: UGCMethod.JoinAndClaim, label: '🤝 J&C' },
+  { value: UGCMethod.CodeDrop, label: '🗝️ Code Drop' },
+  { value: UGCMethod.TwitchPoints, label: '🟪 Twitch Points' },
+  { value: UGCMethod.Unknown, label: '❓ Unknown' },
+];
 
 type UGCItem = {
   id: string;
@@ -31,7 +42,7 @@ type UGCItem = {
 
   stock: number | 'OUT OF STOCK' | 'unknown' | 'Unknown';
   releaseDateTime: string;
-  method: UGCMethod;
+  method: UGCMethod[];
   instruction: string;
   gameLink: string;
   itemLink: string;
@@ -156,7 +167,7 @@ export default function LeaksPage() {
 
           stock: item.stock,
           releaseDateTime: item.release_date_time_utc || item.release_date_time,
-          method: item.method,
+          method: Array.isArray(item.method) ? item.method : [item.method || UGCMethod.Unknown],
           instruction: item.instruction,
           gameLink: item.game_link,
           itemLink: item.item_link,
@@ -272,7 +283,8 @@ export default function LeaksPage() {
         item.title.toLowerCase().includes(searchLower) ||
         item.creator.toLowerCase().includes(searchLower) ||
         item.itemName.toLowerCase().includes(searchLower);
-      const matchesMethod = filterMethod === 'All' || item.method === filterMethod;
+      const itemMethods = Array.isArray(item.method) ? item.method : [item.method];
+      const matchesMethod = filterMethod === 'All' || itemMethods.includes(filterMethod as any);
 
       // Release status filter (only applies within current view mode)
       let matchesReleaseStatus = true;
@@ -488,12 +500,9 @@ export default function LeaksPage() {
               style={{ borderColor: 'var(--theme-gradient-3)' }}
             >
               <option value="All">All Methods</option>
-              <option value={UGCMethod.WebDrop}>🌐 Web Drop</option>
-              <option value={UGCMethod.Quest}>🏰 Quest</option>
-              <option value={UGCMethod.Launcher}>🚀 Launcher</option>
-              <option value={UGCMethod.JoinAndClaim}>🤝 J&C</option>
-              <option value={UGCMethod.CodeDrop}>🗝️ Code Drop</option>
-              <option value={UGCMethod.Unknown}>❓ Unknown</option>
+              {METHOD_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 
@@ -643,23 +652,28 @@ export default function LeaksPage() {
                     </div>
 
                     <div
-                      className="p-2 rounded-lg border-2 theme-bg-card"
+                      className="p-2 rounded-lg border-2 theme-bg-card flex flex-col justify-center"
                       style={{ borderColor: shuffledColors[1] }}
                     >
                       <p className="text-xs font-bold theme-text-secondary uppercase">🎯 Method</p>
-                      <p className="font-black text-xs mt-1 line-clamp-2" style={{ color: shuffledColors[1] }}>
-                        {item.method === UGCMethod.WebDrop
-                          ? 'Web Drop'
-                          : item.method === UGCMethod.CodeDrop
-                            ? 'Code Drop'
-                            : item.method === UGCMethod.Quest || item.method === UGCMethod.InGame
-                              ? 'Quest'
-                              : item.method === UGCMethod.Launcher
-                                ? 'Launcher'
-                                : item.method === UGCMethod.JoinAndClaim
-                                  ? 'J&C'
-                                  : item.method || 'Unknown'}
-                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(Array.isArray(item.method) ? item.method : [item.method || UGCMethod.Unknown]).map((m, idx) => {
+                          let shortName = 'Unknown';
+                          if (m === UGCMethod.WebDrop) shortName = 'Web Drop';
+                          else if (m === UGCMethod.InGame || m === UGCMethod.Quest) shortName = 'Quest';
+                          else if (m === UGCMethod.CodeDrop) shortName = 'Code Drop';
+                          else if (m === UGCMethod.Launcher) shortName = 'Launcher';
+                          else if (m === UGCMethod.JoinAndClaim) shortName = 'J&C';
+                          else if (m === UGCMethod.TwitchPoints) shortName = 'Twitch';
+                          else shortName = m;
+                          
+                          return (
+                            <span key={idx} className="font-black text-[10px] sm:text-xs whitespace-nowrap" style={{ color: shuffledColors[1] }}>
+                              {shortName}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div
@@ -694,7 +708,7 @@ export default function LeaksPage() {
                   </div>
 
                   {/* Code Display for CodeDrop items */}
-                  {item.method === UGCMethod.CodeDrop && item.ugcCode && (
+                  {(Array.isArray(item.method) ? item.method : [item.method]).includes(UGCMethod.CodeDrop) && item.ugcCode && (
                     <div
                       className="mb-3 p-2 rounded-lg border-2 border-dashed flex flex-col items-center justify-center theme-bg-card"
                       style={{ borderColor: shuffledColors[1] }}

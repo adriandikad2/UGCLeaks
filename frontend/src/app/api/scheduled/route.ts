@@ -100,9 +100,15 @@ export async function POST(request: Request) {
     const sanitizedItemLink = sanitizeUrl(item_link);
     const sanitizedImageUrl = sanitizeUrl(image_url);
 
-    // Validate method is one of allowed values
-    const allowedMethods = ['Web Drop', 'In-Game', 'Code Drop', 'Unknown'];
-    const sanitizedMethod = allowedMethods.includes(method) ? method : 'Unknown';
+    // Validate method is an array of allowed values
+    const allowedMethods = ['Web Drop', 'In-Game', 'Code Drop', 'Quest', 'Launcher', 'J&C', 'Twitch Points', 'Unknown'];
+    let sanitizedMethod = ['Unknown'];
+    if (Array.isArray(method)) {
+      sanitizedMethod = method.filter(m => allowedMethods.includes(m));
+      if (sanitizedMethod.length === 0) sanitizedMethod = ['Unknown'];
+    } else if (typeof method === 'string' && allowedMethods.includes(method)) {
+      sanitizedMethod = [method];
+    }
 
     // LOGIC UPDATE: Handle 'Unlimited' string, -1 number, or explicit null
     let limitValue: number | null = 1;

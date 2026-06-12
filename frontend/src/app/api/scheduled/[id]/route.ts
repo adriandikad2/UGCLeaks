@@ -91,7 +91,7 @@ export async function PUT(
     // Fields that need URL sanitization
     const urlFields = ['game_link', 'item_link', 'image_url'];
     // Allowed methods
-    const allowedMethods = ['Web Drop', 'In-Game', 'Code Drop', 'Unknown'];
+    const allowedMethods = ['Web Drop', 'In-Game', 'Code Drop', 'Quest', 'Launcher', 'J&C', 'Twitch Points', 'Unknown'];
 
     // Build dynamic update query with sanitization
     allowedFields.forEach((field) => {
@@ -105,8 +105,15 @@ export async function PUT(
             updates[field] = parseInt(value);
           }
         } else if (field === 'method') {
-          // Validate method is allowed
-          updates[field] = allowedMethods.includes(value) ? value : 'Unknown';
+          // Validate method is allowed array
+          if (Array.isArray(value)) {
+            const validMethods = value.filter(m => allowedMethods.includes(m));
+            updates[field] = validMethods.length > 0 ? validMethods : ['Unknown'];
+          } else if (typeof value === 'string' && allowedMethods.includes(value)) {
+            updates[field] = [value];
+          } else {
+            updates[field] = ['Unknown'];
+          }
         } else if (textFields.includes(field)) {
           // Sanitize text fields
           const limit = FIELD_LIMITS[field as keyof typeof FIELD_LIMITS] || 200;
