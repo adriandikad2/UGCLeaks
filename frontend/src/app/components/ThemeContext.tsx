@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 
 // Theme definitions
 export type ThemeName = 'default' | 'bw' | 'midnight' | 'cosmic' | 'skies' | 'sakura' | 'nature' | 'noob' | 'clean' | 'ultradark' | 'banana';
-export type EffectType = 'blocks' | 'stars' | 'orbs' | 'clouds' | 'petals' | 'leaves' | 'none';
+export type EffectType = 'blocks' | 'stars' | 'orbs' | 'clouds' | 'petals' | 'leaves' | 'none' | 'bananas';
 
 export interface ThemeColors {
   primary: string;
@@ -260,22 +260,22 @@ export const THEMES: Theme[] = [
     name: 'banana',
     label: 'Banana',
     emoji: '🍌',
-    effectType: 'none',
+    effectType: 'bananas',
     colors: {
-      primary: '#FDE047',
-      secondary: '#EAB308',
-      accent: '#CA8A04',
+      primary: '#d97706',
+      secondary: '#b45309',
+      accent: '#92400e',
       success: '#84CC16',
-      background: 'linear-gradient(135deg, #FEF08A 0%, #FDE047 50%, #EAB308 100%)',
-      cardBg: '#FEFCE8',
-      textPrimary: '#422006',
-      textSecondary: '#713F12',
-      onBgText: '#422006',
-      onBgTextSecondary: '#713F12',
-      gradient1: '#FEF08A',
-      gradient2: '#FDE047',
-      gradient3: '#EAB308',
-      gradient4: '#CA8A04',
+      background: 'linear-gradient(135deg, #fef9c3 0%, #fef08a 50%, #fde047 100%)',
+      cardBg: '#fffbeb',
+      textPrimary: '#1c1917',
+      textSecondary: '#44403c',
+      onBgText: '#1c1917',
+      onBgTextSecondary: '#44403c',
+      gradient1: '#d97706',
+      gradient2: '#b45309',
+      gradient3: '#92400e',
+      gradient4: '#78350f',
     },
   },
 ];

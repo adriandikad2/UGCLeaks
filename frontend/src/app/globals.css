@@ -153,7 +153,7 @@ body.theme-noob {
 }
 
 body.theme-banana {
-  background: linear-gradient(135deg, #FEF08A 0%, #FDE047 50%, #EAB308 100%);
+  background: linear-gradient(135deg, #fef9c3 0%, #fef08a 50%, #fde047 100%);
   background-size: 400% 400%;
   animation: gradientShift 10s ease infinite;
 }

@@ -11,6 +11,7 @@ const EFFECT_CONFIG = {
     clouds: { count: 8, speed: 0.3 },
     petals: { count: 30, speed: 1.5 },
     leaves: { count: 25, speed: 1.2 },
+    bananas: { count: 15, speed: 1 },
     none: { count: 0, speed: 0 },
 };
 
@@ -228,6 +229,40 @@ function FallingLeaves() {
     );
 }
 
+// Falling Bananas Effect (Banana theme)
+function FallingBananas() {
+    const bananas = useMemo(() =>
+        Array.from({ length: 15 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            size: 30 + Math.random() * 20,
+            duration: 12 + Math.random() * 15,
+            delay: Math.random() * 15,
+            rotateDuration: 3 + Math.random() * 5,
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {bananas.map(banana => (
+                <div
+                    key={banana.id}
+                    className="absolute"
+                    style={{
+                        left: `${banana.x}%`,
+                        fontSize: `${banana.size}px`,
+                        opacity: 0.6,
+                        animation: `fall-leaf ${banana.duration}s linear infinite, sway ${banana.rotateDuration}s ease-in-out infinite alternate`,
+                        animationDelay: `${banana.delay}s`,
+                    }}
+                >
+                    🍌
+                </div>
+            ))}
+        </div>
+    );
+}
+
 // Main ThemeEffects component
 export default function ThemeEffects() {
     const { currentTheme } = useTheme();
@@ -246,6 +281,8 @@ export default function ThemeEffects() {
             return <FallingPetals />;
         case 'leaves':
             return <FallingLeaves />;
+        case 'bananas':
+            return <FallingBananas />;
         case 'none':
         default:
             return null;

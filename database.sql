@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS scheduled_items (
   color VARCHAR(7), -- HEX color code for card background gradient
   is_paid BOOLEAN DEFAULT FALSE, -- Whether this is a paid item (not free)
   is_regular BOOLEAN DEFAULT FALSE, -- Whether this is a regular item (unlimited/event)
+  ugc_code VARCHAR(255), -- Code for Code Drop items
+  is_abandoned BOOLEAN DEFAULT FALSE, -- Whether the drop was abandoned/cancelled
+  sold_out BOOLEAN DEFAULT FALSE, -- Whether the item is sold out
+  final_current_stock INTEGER, -- Final stock count after drop
+  final_total_stock INTEGER, -- Final total stock after drop
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
