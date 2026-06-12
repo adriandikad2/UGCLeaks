@@ -489,8 +489,10 @@ export default function SchedulePage() {
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       {/* --- THEME PALETTE SWITCHER & TRANSLATE --- */}
-      <ThemeSwitcher />
-      <TranslateWidget />
+      <div className="fixed top-6 right-6 z-50 flex gap-4">
+        <TranslateWidget inline={true} />
+        <ThemeSwitcher inline={true} />
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 relative z-10">
         {/* Header */}
@@ -565,11 +567,11 @@ export default function SchedulePage() {
                   value={formData.release_date_time}
                   onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                   disabled={isUnknownSchedule}
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}`}
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
                   style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
                 />
                 {/* Unknown Schedule Checkbox */}
-                <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
                   <input
                     type="checkbox"
                     id="unknown-schedule-check"
@@ -577,10 +579,10 @@ export default function SchedulePage() {
                     onChange={(e) => setIsUnknownSchedule(e.target.checked)}
                     className="w-5 h-5 accent-orange-600"
                   />
-                  <label htmlFor="unknown-schedule-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unknown</label>
+                  <label htmlFor="unknown-schedule-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
                 </div>
               </div>
-              <p className="text-xs text-gray-600 mt-1">
+              <p className="text-xs theme-text-secondary mt-1">
                 {isUnknownSchedule ? 'Release time not yet announced' : `Equivalent UTC: ${formData.release_date_time ? new Date(formData.release_date_time).toUTCString() : 'Set a date'}`}
               </p>
             </div>
@@ -594,11 +596,11 @@ export default function SchedulePage() {
                   value={typeof formData.stock === 'number' ? formData.stock : 0}
                   onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                   disabled={isUnknownStock}
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}`}
+                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
                   style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
                 />
                 {/* Unknown Stock Checkbox */}
-                <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                   <input
                     type="checkbox"
                     id="unknown-stock-check"
@@ -606,15 +608,15 @@ export default function SchedulePage() {
                     onChange={(e) => setIsUnknownStock(e.target.checked)}
                     className="w-5 h-5 accent-orange-600"
                   />
-                  <label htmlFor="unknown-stock-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unknown</label>
+                  <label htmlFor="unknown-stock-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
                 </div>
               </div>
-              <p className="text-xs text-gray-600 mt-1">
+              <p className="text-xs theme-text-secondary mt-1">
                 {isUnknownStock ? 'Stock quantity not yet announced' : 'Expected stock quantity when published'}
               </p>
 
               {/* Sold Out Confirmation */}
-              <div className="flex items-center gap-2 mt-3 p-3 bg-red-50 rounded-lg border-2 border-red-200">
+              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2 theme-bg-card" style={{ borderColor: '#ef4444' }}>
                 <input
                   type="checkbox"
                   id="sold-out-check"
@@ -622,13 +624,13 @@ export default function SchedulePage() {
                   onChange={(e) => setIsSoldOut(e.target.checked)}
                   className="w-5 h-5 accent-red-600"
                 />
-                <label htmlFor="sold-out-check" className="text-sm font-bold text-red-700 cursor-pointer select-none">
+                <label htmlFor="sold-out-check" className="text-sm font-bold theme-text-primary cursor-pointer select-none" style={{ color: '#ef4444' }}>
                   🚫 Mark as SOLD OUT (skip API stock check)
                 </label>
               </div>
 
               {/* Abandoned Status */}
-              <div className="flex items-center gap-2 mt-3 p-3 bg-gray-100 rounded-lg border-2 border-gray-300">
+              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-secondary)' }}>
                 <input
                   type="checkbox"
                   id="abandoned-check"
@@ -1217,7 +1219,8 @@ export default function SchedulePage() {
                           ) : (
                             <button
                               disabled
-                              className="w-full px-4 py-3 text-gray-400 font-black rounded-lg text-sm uppercase tracking-wide bg-gray-200 cursor-not-allowed"
+                              className="w-full px-4 py-3 theme-text-secondary font-black rounded-lg text-sm uppercase tracking-wide theme-bg-card cursor-not-allowed opacity-50 border-2"
+                              style={{ borderColor: 'var(--theme-secondary)' }}
                             >
                               🛍️ View Item
                             </button>
@@ -1237,7 +1240,8 @@ export default function SchedulePage() {
                           ) : (
                             <button
                               disabled
-                              className="w-full px-4 py-3 text-gray-400 font-black rounded-lg text-sm uppercase tracking-wide bg-gray-200 cursor-not-allowed"
+                              className="w-full px-4 py-3 theme-text-secondary font-black rounded-lg text-sm uppercase tracking-wide theme-bg-card cursor-not-allowed opacity-50 border-2"
+                              style={{ borderColor: 'var(--theme-secondary)' }}
                             >
                               🎮 Join Game
                             </button>
@@ -1335,9 +1339,10 @@ export default function SchedulePage() {
                       value={formData.release_date_time}
                       onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                       disabled={isUnknownSchedule}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownSchedule ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-noob-yellow focus:border-noob-purple'}`}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                      style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
                     />
-                    <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
                       <input
                         type="checkbox"
                         id="modal-unknown-schedule"
@@ -1345,7 +1350,7 @@ export default function SchedulePage() {
                         onChange={(e) => setIsUnknownSchedule(e.target.checked)}
                         className="w-5 h-5 accent-orange-600"
                       />
-                      <label htmlFor="modal-unknown-schedule" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unknown</label>
+                      <label htmlFor="modal-unknown-schedule" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
                     </div>
                   </div>
                 </div>
@@ -1359,9 +1364,10 @@ export default function SchedulePage() {
                       value={typeof formData.stock === 'number' ? formData.stock : 0}
                       onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                       disabled={isUnknownStock}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnknownStock ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-noob-purple focus:border-noob-pink'}`}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                      style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
                     />
-                    <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                       <input
                         type="checkbox"
                         id="modal-unknown-stock"
@@ -1369,12 +1375,12 @@ export default function SchedulePage() {
                         onChange={(e) => setIsUnknownStock(e.target.checked)}
                         className="w-5 h-5 accent-orange-600"
                       />
-                      <label htmlFor="modal-unknown-stock" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unknown</label>
+                      <label htmlFor="modal-unknown-stock" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
                     </div>
                   </div>
 
                   {/* Sold Out Confirmation */}
-                  <div className="flex items-center gap-2 mt-3 p-3 bg-red-50 rounded-lg border-2 border-red-200">
+                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2 theme-bg-card" style={{ borderColor: '#ef4444' }}>
                     <input
                       type="checkbox"
                       id="modal-sold-out"
@@ -1382,13 +1388,13 @@ export default function SchedulePage() {
                       onChange={(e) => setIsSoldOut(e.target.checked)}
                       className="w-5 h-5 accent-red-600"
                     />
-                    <label htmlFor="modal-sold-out" className="text-sm font-bold text-red-700 cursor-pointer select-none">
+                    <label htmlFor="modal-sold-out" className="text-sm font-bold theme-text-primary cursor-pointer select-none" style={{ color: '#ef4444' }}>
                       🚫 Mark as SOLD OUT
                     </label>
                   </div>
 
                   {/* Abandoned Status */}
-                  <div className="flex items-center gap-2 mt-3 p-3 bg-gray-100 rounded-lg border-2 border-gray-300">
+                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-secondary)' }}>
                     <input
                       type="checkbox"
                       id="modal-abandoned"
@@ -1442,7 +1448,7 @@ export default function SchedulePage() {
                           onChange={() => toggleMethod(opt.value)}
                           className="w-4 h-4 accent-blue-500"
                         />
-                        <span className="text-sm font-bold text-gray-900">{opt.label}</span>
+                        <span className="text-sm font-bold theme-text-primary">{opt.label}</span>
                       </label>
                     ))}
                   </div>
@@ -1451,29 +1457,31 @@ export default function SchedulePage() {
                 {/* Code Input (Conditional) */}
                 {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
                   <div className="space-y-2">
-                    <label className="block text-sm font-bold text-gray-700 uppercase">Code</label>
+                    <label className="block text-sm font-bold theme-text-secondary uppercase">Code</label>
                     <input
                       type="text"
                       value={formData.ugc_code || ''}
                       onChange={(e) => handleFormChange('ugc_code', e.target.value)}
                       placeholder="Enter Code..."
-                      className="w-full px-4 py-3 rounded-lg border-4 border-noob-cyan font-bold text-gray-900 focus:outline-none"
+                      className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                      style={{ borderColor: 'var(--theme-accent)' }}
                     />
                   </div>
                 )}
 
                 {/* Limit Per User */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold text-gray-700 uppercase">Limit Per User</label>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Limit Per User</label>
                   <div className="flex gap-4 items-center">
                     <input
                       type="number"
                       value={formData.limit_per_user || 1}
                       onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
                       disabled={isUnlimitedLimit}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold focus:outline-none ${isUnlimitedLimit ? 'theme-bg-card border-gray-500 theme-text-secondary opacity-50' : 'theme-bg-card theme-text-primary'}`}
+                      style={{ borderColor: isUnlimitedLimit ? 'gray' : 'var(--theme-gradient-4)' }}
                     />
-                    <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                       <input
                         type="checkbox"
                         id="modal-unlimited"
@@ -1481,50 +1489,53 @@ export default function SchedulePage() {
                         onChange={(e) => setIsUnlimitedLimit(e.target.checked)}
                         className="w-5 h-5 accent-blue-600"
                       />
-                      <label htmlFor="modal-unlimited" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unlimited</label>
+                      <label htmlFor="modal-unlimited" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unlimited</label>
                     </div>
                   </div>
                 </div>
 
                 {/* Game Link */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold text-gray-700 uppercase">Game Link</label>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Game Link</label>
                   <input
                     type="url"
                     value={formData.game_link}
                     onChange={(e) => handleFormChange('game_link', e.target.value)}
                     placeholder="https://www.roblox.com/games/..."
-                    className="w-full px-4 py-3 rounded-lg border-4 border-indigo-500 font-bold text-gray-900 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary theme-bg-card focus:outline-none"
+                    style={{ borderColor: 'var(--theme-gradient-2)' }}
                   />
                 </div>
 
                 {/* Item Link */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold text-gray-700 uppercase">Item Link</label>
+                  <label className="block text-sm font-bold theme-text-secondary uppercase">Item Link</label>
                   <input
                     type="url"
                     value={formData.item_link}
                     onChange={(e) => handleFormChange('item_link', e.target.value)}
                     placeholder="https://www.roblox.com/catalog/..."
-                    className="w-full px-4 py-3 rounded-lg border-4 border-violet-500 font-bold text-gray-900 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary theme-bg-card focus:outline-none"
+                    style={{ borderColor: 'var(--theme-gradient-3)' }}
                   />
                 </div>
               </div>
 
               {/* Instructions */}
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 uppercase">How to Get It</label>
+                <label className="block text-sm font-bold theme-text-secondary uppercase">How to Get It</label>
                 <textarea
                   value={formData.instruction}
                   onChange={(e) => handleFormChange('instruction', e.target.value)}
                   placeholder="Instructions for obtaining the item..."
-                  className="w-full px-4 py-3 rounded-lg border-4 border-noob-pink font-bold text-gray-900 focus:outline-none focus:border-noob-cyan h-24 resize-none"
+                  className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary theme-bg-card focus:outline-none h-24 resize-none"
+                  style={{ borderColor: 'var(--theme-primary)' }}
                 />
               </div>
 
               {/* Image Upload */}
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 uppercase">📷 Item Image</label>
+                <label className="block text-sm font-bold theme-text-secondary uppercase">📷 Item Image</label>
                 <CloudinaryUpload
                   onImageChange={(url) => handleFormChange('image_url', url)}
                   currentImageUrl={formData.image_url}
@@ -1533,18 +1544,19 @@ export default function SchedulePage() {
 
               {/* Preview */}
               {formData.item_name && (
-                <div className="p-6 bg-gray-50 rounded-xl border-4 border-dashed border-gray-300 space-y-3">
-                  <p className="text-sm font-bold text-gray-600 uppercase">Preview</p>
+                <div className="p-6 rounded-xl border-4 border-dashed space-y-3 theme-bg-card" style={{ borderColor: 'var(--theme-primary)' }}>
+                  <p className="text-sm font-bold theme-text-secondary uppercase">Preview</p>
                   <div className="flex items-center gap-4">
                     <img
                       src={formData.image_url}
                       alt="Preview"
-                      className="w-24 h-24 object-contain rounded-lg border-2 border-gray-300"
+                      className="w-24 h-24 object-contain rounded-lg border-2"
+                      style={{ borderColor: 'var(--theme-secondary)' }}
                     />
                     <div>
-                      <p className="font-black text-lg text-gray-900">{formData.item_name}</p>
-                      <p className="text-sm text-gray-600">by {formData.creator}</p>
-                      <p className="text-xs text-gray-500 mt-2">{formatLocalDateTime(formData.release_date_time)}</p>
+                      <p className="font-black text-lg theme-text-primary">{formData.item_name}</p>
+                      <p className="text-sm theme-text-secondary">by {formData.creator}</p>
+                      <p className="text-xs theme-text-secondary mt-2 opacity-75">{formatLocalDateTime(formData.release_date_time)}</p>
                     </div>
                   </div>
                 </div>
@@ -1577,19 +1589,19 @@ export default function SchedulePage() {
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={cancelDelete}></div>
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 pop-in overflow-hidden">
+          <div className="theme-bg-card w-full max-w-md rounded-2xl shadow-2xl relative z-10 pop-in overflow-hidden border-4" style={{ borderColor: '#dc2626' }}>
             <div className="bg-red-600 p-6 text-white text-center">
               <div className="text-5xl mb-2">🗑️</div>
               <h2 className="text-2xl font-black uppercase">Confirm Delete</h2>
             </div>
             <div className="p-8 text-center space-y-6">
-              <p className="text-gray-700 font-bold text-lg">
+              <p className="theme-text-primary font-bold text-lg">
                 Are you sure you want to delete this schedule?
                 <br />
-                <span className="text-sm text-gray-500 font-normal">This action cannot be undone.</span>
+                <span className="text-sm theme-text-secondary font-normal">This action cannot be undone.</span>
               </p>
               <div className="flex gap-3">
-                <button onClick={cancelDelete} className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg uppercase tracking-wide transition-all">
+                <button onClick={cancelDelete} className="flex-1 px-4 py-3 border-2 theme-text-primary font-bold rounded-lg uppercase tracking-wide transition-all" style={{ borderColor: 'var(--theme-secondary)' }}>
                   Cancel
                 </button>
                 <button onClick={confirmDeleteSchedule} className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg uppercase tracking-wide transition-all shadow-lg shadow-red-200">
