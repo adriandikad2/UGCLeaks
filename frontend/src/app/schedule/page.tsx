@@ -47,8 +47,10 @@ type UGCItem = {
   method: UGCMethod[];
   instruction?: string;
   game_link?: string;
+  game_links?: string[];
   item_link?: string;
   image_url?: string;
+  screenshots?: string[];
   limit_per_user: number | null;
   sold_out?: boolean; // Manual sold out confirmation by scheduler
   final_current_stock?: number; // Persisted current stock when item sold out
@@ -156,6 +158,9 @@ export default function SchedulePage() {
   // Delete modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  // Image viewer modal state
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [viewerZoom, setViewerZoom] = useState(1);
 
   const [formData, setFormData] = useState<UGCItem>({
     title: '',
@@ -166,8 +171,10 @@ export default function SchedulePage() {
     method: [UGCMethod.Unknown],
     instruction: '',
     game_link: '',
+    game_links: [],
     item_link: '',
     image_url: 'https://placehold.co/400x400?text=img+placeholder',
+    screenshots: [],
     limit_per_user: 1,
     ugc_code: '',
   });
@@ -244,6 +251,9 @@ export default function SchedulePage() {
       is_abandoned: isAbandoned, // Abandoned status
       is_paid: isPaid, // Paid item status
       is_regular: isRegular, // Regular item status
+      game_links: formData.game_links || [],
+      game_link: (formData.game_links && formData.game_links.length > 0) ? formData.game_links[0] : formData.game_link,
+      screenshots: formData.screenshots || [],
     };
 
     try {
@@ -335,8 +345,10 @@ export default function SchedulePage() {
       method: Array.isArray(item.method) ? item.method : (item.method ? [item.method as UGCMethod] : [UGCMethod.Unknown]),
       instruction: item.instruction || '',
       game_link: item.game_link || '',
+      game_links: Array.isArray(item.game_links) && item.game_links.length > 0 ? item.game_links : (item.game_link ? [item.game_link] : []),
       item_link: item.item_link || '',
       image_url: item.image_url || 'https://placehold.co/400x400?text=img+placeholder',
+      screenshots: Array.isArray(item.screenshots) ? item.screenshots : [],
       limit_per_user: isUnlimited ? 1 : (item.limit_per_user || 1),
       ugc_code: item.ugc_code || '',
     });
@@ -366,8 +378,10 @@ export default function SchedulePage() {
       method: [UGCMethod.Unknown],
       instruction: '',
       game_link: '',
+      game_links: [],
       item_link: '',
       image_url: 'https://placehold.co/400x400?text=img+placeholder',
+      screenshots: [],
       limit_per_user: 1,
       ugc_code: '',
     });
@@ -440,6 +454,107 @@ export default function SchedulePage() {
 
   const handleFormChange = (field: keyof UGCItem, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // --- Game Links Helpers ---
+  const addGameLink = () => {
+    setFormData(prev => ({
+      ...prev,
+      game_links: [...(prev.game_links || []), ''],
+    }));
+  };
+
+  const removeGameLink = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      game_links: (prev.game_links || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateGameLink = (index: number, value: string) => {
+    setFormData(prev => {
+      const links = [...(prev.game_links || [])];
+      links[index] = value;
+      return { ...prev, game_links: links, game_link: links[0] || '' };
+    });
+  };
+
+  // --- Screenshot Helpers ---
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+  const uploadScreenshotToCloudinary = async (file: File): Promise<string | null> => {
+    if (!cloudName || !uploadPreset) return null;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', uploadPreset);
+    fd.append('folder', 'ugc-leaks/screenshots');
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: fd,
+      });
+      const data = await res.json();
+      return data.secure_url || null;
+    } catch (err) {
+      console.error('Screenshot upload failed:', err);
+      return null;
+    }
+  };
+
+  const handleScreenshotFiles = async (files: FileList | File[]) => {
+    const fileArr = Array.from(files);
+    addToast(`Uploading ${fileArr.length} screenshot(s)...`, 'info');
+    const urls: string[] = [];
+    for (const file of fileArr) {
+      if (!file.type.startsWith('image/')) continue;
+      const url = await uploadScreenshotToCloudinary(file);
+      if (url) urls.push(url);
+    }
+    if (urls.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        screenshots: [...(prev.screenshots || []), ...urls],
+      }));
+      addToast(`${urls.length} screenshot(s) uploaded! 📸`, 'success');
+    } else {
+      addToast('Screenshot upload failed', 'error');
+    }
+  };
+
+  const handleScreenshotPaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      await handleScreenshotFiles(imageFiles);
+    }
+  };
+
+  const removeScreenshot = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      screenshots: (prev.screenshots || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const openImageViewer = (url: string) => {
+    setViewerImage(url);
+    setViewerZoom(1);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeImageViewer = () => {
+    setViewerImage(null);
+    setViewerZoom(1);
+    document.body.style.overflow = 'unset';
   };
 
   const formatRelativeTime = (dateTimeString: string): string => {
@@ -730,17 +845,42 @@ export default function SchedulePage() {
               </div>
             </div>
 
-            {/* Game Link */}
+            {/* Game Links (Multiple) */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Game Link</label>
-              <input
-                type="url"
-                value={formData.game_link}
-                onChange={(e) => handleFormChange('game_link', e.target.value)}
-                placeholder="https://www.roblox.com/games/..."
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
-                style={{ borderColor: 'var(--theme-gradient-1)' }}
-              />
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-bold theme-text-secondary uppercase">🎮 Game Links</label>
+                <button
+                  type="button"
+                  onClick={addGameLink}
+                  className="text-xs font-bold px-3 py-1 rounded-lg transition-all hover:scale-105"
+                  style={{ background: 'var(--theme-gradient-1)', color: 'white' }}
+                >
+                  + Add Link
+                </button>
+              </div>
+              {(formData.game_links || []).length === 0 && (
+                <p className="text-xs theme-text-secondary italic">No game links added yet. Click &quot;+ Add Link&quot; to add one.</p>
+              )}
+              {(formData.game_links || []).map((link, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <span className="text-xs font-bold theme-text-secondary w-6 text-center">{idx + 1}.</span>
+                  <input
+                    type="url"
+                    value={link}
+                    onChange={(e) => updateGameLink(idx, e.target.value)}
+                    placeholder="https://www.roblox.com/games/..."
+                    className="flex-1 px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                    style={{ borderColor: 'var(--theme-gradient-1)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeGameLink(idx)}
+                    className="text-red-500 hover:text-red-700 font-bold text-lg px-2 transition-all hover:scale-110"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
 
             {/* Item Link */}
@@ -776,6 +916,59 @@ export default function SchedulePage() {
               onImageChange={(url) => handleFormChange('image_url', url)}
               currentImageUrl={formData.image_url}
             />
+          </div>
+
+          {/* Screenshots Upload */}
+          <div className="space-y-3">
+            <label className="block text-sm font-bold theme-text-secondary uppercase">🖼️ Screenshots</label>
+            <div
+              className="p-6 rounded-xl border-4 border-dashed theme-bg-card transition-all cursor-pointer hover:opacity-80 text-center"
+              style={{ borderColor: 'var(--theme-gradient-4)' }}
+              onPaste={handleScreenshotPaste}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files.length > 0) handleScreenshotFiles(e.dataTransfer.files); }}
+              tabIndex={0}
+            >
+              <p className="theme-text-secondary font-bold text-sm">📋 Paste from clipboard (Ctrl+V) or drag & drop images here</p>
+              <p className="theme-text-secondary text-xs mt-1 opacity-75">Supports PNG, JPG, GIF, WebP</p>
+              <label className="mt-3 inline-block px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-all hover:scale-105 text-white"
+                style={{ background: 'linear-gradient(135deg, var(--theme-gradient-3), var(--theme-gradient-4))' }}
+              >
+                📁 Browse Files
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => { if (e.target.files) handleScreenshotFiles(e.target.files); e.target.value = ''; }}
+                />
+              </label>
+            </div>
+            {/* Screenshot Thumbnails */}
+            {(formData.screenshots || []).length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {(formData.screenshots || []).map((url, idx) => (
+                  <div key={idx} className="relative group rounded-lg overflow-hidden border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                    <img
+                      src={url}
+                      alt={`Screenshot ${idx + 1}`}
+                      className="w-full h-auto object-contain cursor-pointer transition-all hover:scale-105"
+                      onClick={() => openImageViewer(url)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeScreenshot(idx)}
+                      className="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    >
+                      ✕
+                    </button>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-0.5 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                      Click to preview
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Preview */}
@@ -1174,26 +1367,59 @@ export default function SchedulePage() {
                           </p>
                         </div>
 
-                        {/* Game Link */}
+                        {/* Game Links */}
                         <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[1] }}>
-                          <p className="text-xs font-bold theme-text-secondary uppercase mb-2">🔗 Game Link</p>
-                          {item.game_link ? (
-                            <a
-                              href={item.game_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-bold break-all hover:underline"
-                              style={{ color: primaryColor }}
-                            >
-                              {item.game_link}
-                            </a>
-                          ) : (
-                            <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">
-                              <p className="text-sm font-semibold theme-text-secondary">⚠️ Link Status</p>
-                              <p className="text-xs theme-text-secondary mt-1">Game not yet published</p>
-                            </div>
-                          )}
+                          <p className="text-xs font-bold theme-text-secondary uppercase mb-2">🔗 Game Links</p>
+                          {(() => {
+                            const links = Array.isArray(item.game_links) && item.game_links.length > 0
+                              ? item.game_links
+                              : (item.game_link ? [item.game_link] : []);
+                            if (links.length === 0) {
+                              return (
+                                <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">
+                                  <p className="text-sm font-semibold theme-text-secondary">⚠️ Link Status</p>
+                                  <p className="text-xs theme-text-secondary mt-1">Game not yet published</p>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="space-y-1.5">
+                                {links.filter(l => l && l.length > 0).map((link, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-bold break-all hover:underline flex items-center gap-1.5"
+                                    style={{ color: primaryColor }}
+                                  >
+                                    <span className="text-xs theme-text-secondary">{idx + 1}.</span>
+                                    {link}
+                                  </a>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
+
+                        {/* Screenshots */}
+                        {Array.isArray(item.screenshots) && item.screenshots.length > 0 && (
+                          <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[3] }}>
+                            <p className="text-xs font-bold theme-text-secondary uppercase mb-2">🖼️ Screenshots ({item.screenshots.length})</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {item.screenshots.map((url, idx) => (
+                                <img
+                                  key={idx}
+                                  src={url}
+                                  alt={`Screenshot ${idx + 1}`}
+                                  className="w-full h-auto object-contain rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-lg border"
+                                  style={{ borderColor: shuffledColors[3] }}
+                                  onClick={() => openImageViewer(url)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Instructions */}
                         <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[2] }}>
@@ -1226,26 +1452,45 @@ export default function SchedulePage() {
                             </button>
                           )}
 
-                          {item.game_link ? (
-                            <Link href={item.game_link} target="_blank" rel="noopener noreferrer" className="w-full">
-                              <button
-                                className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
-                                style={{
-                                  background: gradientStr,
-                                }}
-                              >
-                                🎮 Join Game
-                              </button>
-                            </Link>
-                          ) : (
-                            <button
-                              disabled
-                              className="w-full px-4 py-3 theme-text-secondary font-black rounded-lg text-sm uppercase tracking-wide theme-bg-card cursor-not-allowed opacity-50 border-2"
-                              style={{ borderColor: 'var(--theme-secondary)' }}
-                            >
-                              🎮 Join Game
-                            </button>
-                          )}
+                          {/* Multi Join Game Buttons */}
+                          {(() => {
+                            const links = Array.isArray(item.game_links) && item.game_links.length > 0
+                              ? item.game_links.filter(l => l && l.length > 0)
+                              : (item.game_link ? [item.game_link] : []);
+                            if (links.length === 0) {
+                              return (
+                                <button
+                                  disabled
+                                  className="w-full px-4 py-3 theme-text-secondary font-black rounded-lg text-sm uppercase tracking-wide theme-bg-card cursor-not-allowed opacity-50 border-2"
+                                  style={{ borderColor: 'var(--theme-secondary)' }}
+                                >
+                                  🎮 Join Game
+                                </button>
+                              );
+                            }
+                            if (links.length === 1) {
+                              return (
+                                <Link href={links[0]} target="_blank" rel="noopener noreferrer" className="w-full">
+                                  <button
+                                    className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
+                                    style={{ background: gradientStr }}
+                                  >
+                                    🎮 Join Game
+                                  </button>
+                                </Link>
+                              );
+                            }
+                            return links.map((link, idx) => (
+                              <Link key={idx} href={link} target="_blank" rel="noopener noreferrer" className="w-full">
+                                <button
+                                  className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
+                                  style={{ background: gradientStr }}
+                                >
+                                  🎮 Join Game {idx + 1}
+                                </button>
+                              </Link>
+                            ));
+                          })()}
 
                           <div className="flex gap-2">
                             <button
@@ -1494,17 +1739,42 @@ export default function SchedulePage() {
                   </div>
                 </div>
 
-                {/* Game Link */}
+                {/* Game Links (Multiple) */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Game Link</label>
-                  <input
-                    type="url"
-                    value={formData.game_link}
-                    onChange={(e) => handleFormChange('game_link', e.target.value)}
-                    placeholder="https://www.roblox.com/games/..."
-                    className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary theme-bg-card focus:outline-none"
-                    style={{ borderColor: 'var(--theme-gradient-2)' }}
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-bold theme-text-secondary uppercase">🎮 Game Links</label>
+                    <button
+                      type="button"
+                      onClick={addGameLink}
+                      className="text-xs font-bold px-3 py-1 rounded-lg transition-all hover:scale-105 text-white"
+                      style={{ background: 'var(--theme-gradient-2)' }}
+                    >
+                      + Add Link
+                    </button>
+                  </div>
+                  {(formData.game_links || []).length === 0 && (
+                    <p className="text-xs theme-text-secondary italic">No game links. Click &quot;+ Add Link&quot;.</p>
+                  )}
+                  {(formData.game_links || []).map((link, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <span className="text-xs font-bold theme-text-secondary w-6 text-center">{idx + 1}.</span>
+                      <input
+                        type="url"
+                        value={link}
+                        onChange={(e) => updateGameLink(idx, e.target.value)}
+                        placeholder="https://www.roblox.com/games/..."
+                        className="flex-1 px-4 py-3 rounded-lg border-4 font-bold theme-text-primary theme-bg-card focus:outline-none"
+                        style={{ borderColor: 'var(--theme-gradient-2)' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeGameLink(idx)}
+                        className="text-red-500 hover:text-red-700 font-bold text-lg px-2 transition-all hover:scale-110"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Item Link */}
@@ -1540,6 +1810,58 @@ export default function SchedulePage() {
                   onImageChange={(url) => handleFormChange('image_url', url)}
                   currentImageUrl={formData.image_url}
                 />
+              </div>
+
+              {/* Screenshots Upload */}
+              <div className="space-y-3">
+                <label className="block text-sm font-bold theme-text-secondary uppercase">🖼️ Screenshots</label>
+                <div
+                  className="p-6 rounded-xl border-4 border-dashed theme-bg-card transition-all cursor-pointer hover:opacity-80 text-center"
+                  style={{ borderColor: 'var(--theme-gradient-4)' }}
+                  onPaste={handleScreenshotPaste}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files.length > 0) handleScreenshotFiles(e.dataTransfer.files); }}
+                  tabIndex={0}
+                >
+                  <p className="theme-text-secondary font-bold text-sm">📋 Paste from clipboard (Ctrl+V) or drag & drop</p>
+                  <p className="theme-text-secondary text-xs mt-1 opacity-75">PNG, JPG, GIF, WebP</p>
+                  <label className="mt-3 inline-block px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-all hover:scale-105 text-white"
+                    style={{ background: 'linear-gradient(135deg, var(--theme-gradient-3), var(--theme-gradient-4))' }}
+                  >
+                    📁 Browse Files
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => { if (e.target.files) handleScreenshotFiles(e.target.files); e.target.value = ''; }}
+                    />
+                  </label>
+                </div>
+                {(formData.screenshots || []).length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {(formData.screenshots || []).map((url, idx) => (
+                      <div key={idx} className="relative group rounded-lg overflow-hidden border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                        <img
+                          src={url}
+                          alt={`Screenshot ${idx + 1}`}
+                          className="w-full h-auto object-contain cursor-pointer transition-all hover:scale-105"
+                          onClick={() => openImageViewer(url)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeScreenshot(idx)}
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        >
+                          ✕
+                        </button>
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-0.5 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                          Click to preview
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Preview */}
@@ -1609,6 +1931,58 @@ export default function SchedulePage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- IMAGE VIEWER MODAL --- */}
+      {viewerImage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md transition-all">
+          <button
+            onClick={closeImageViewer}
+            className="absolute top-6 right-6 text-white bg-white/20 hover:bg-white/40 rounded-full p-3 transition-all transform hover:scale-110 z-10"
+          >
+            ✕
+          </button>
+          
+          {/* Zoom Controls */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4 bg-black/50 p-3 rounded-full backdrop-blur-sm z-10">
+            <button 
+              onClick={() => setViewerZoom(prev => Math.max(0.5, prev - 0.25))}
+              className="w-10 h-10 flex items-center justify-center text-white bg-white/20 hover:bg-white/40 rounded-full font-bold transition-all"
+              title="Zoom Out"
+            >
+              -
+            </button>
+            <button 
+              onClick={() => setViewerZoom(1)}
+              className="px-4 h-10 flex items-center justify-center text-white bg-white/20 hover:bg-white/40 rounded-full font-bold text-sm transition-all"
+              title="Reset Zoom"
+            >
+              {Math.round(viewerZoom * 100)}%
+            </button>
+            <button 
+              onClick={() => setViewerZoom(prev => Math.min(3, prev + 0.25))}
+              className="w-10 h-10 flex items-center justify-center text-white bg-white/20 hover:bg-white/40 rounded-full font-bold transition-all"
+              title="Zoom In"
+            >
+              +
+            </button>
+          </div>
+
+          <div 
+            className="w-full h-full flex items-center justify-center overflow-auto cursor-zoom-in"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeImageViewer();
+            }}
+          >
+            <img 
+              src={viewerImage} 
+              alt="Expanded view" 
+              className="max-w-full max-h-full object-contain transition-transform duration-200"
+              style={{ transform: `scale(${viewerZoom})`, cursor: viewerZoom > 1 ? 'grab' : 'zoom-in' }}
+              onClick={() => setViewerZoom(prev => prev === 1 ? 2 : 1)}
+            />
           </div>
         </div>
       )}

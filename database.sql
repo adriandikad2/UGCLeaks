@@ -17,8 +17,10 @@ CREATE TABLE IF NOT EXISTS ugc_items (
   method TEXT[] DEFAULT ARRAY['Unknown']::TEXT[],
   instruction TEXT,
   game_link VARCHAR(2048),
+  game_links TEXT[] DEFAULT ARRAY[]::TEXT[],
   item_link VARCHAR(2048),
   image_url VARCHAR(2048),
+  screenshots TEXT[] DEFAULT ARRAY[]::TEXT[],
   limit_per_user INTEGER DEFAULT 1,
   color VARCHAR(7), -- HEX color code for card border (#RRGGBB)
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -39,8 +41,10 @@ CREATE TABLE IF NOT EXISTS scheduled_items (
   method TEXT[] DEFAULT ARRAY['Unknown']::TEXT[],
   instruction TEXT,
   game_link VARCHAR(2048),
+  game_links TEXT[] DEFAULT ARRAY[]::TEXT[],
   item_link VARCHAR(2048),
   image_url VARCHAR(2048),
+  screenshots TEXT[] DEFAULT ARRAY[]::TEXT[],
   limit_per_user INTEGER DEFAULT 1,
   color VARCHAR(7), -- HEX color code for card background gradient
   is_paid BOOLEAN DEFAULT FALSE, -- Whether this is a paid item (not free)

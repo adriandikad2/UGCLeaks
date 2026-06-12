@@ -17,8 +17,8 @@ export async function GET(request: Request) {
     // Cast release_date_time to text to prevent pg driver from treating it as local time
     // The database stores UTC times, but 'timestamp without time zone' is interpreted as local by the driver
     let query = `SELECT uuid, title, item_name, creator, stock, 
-      release_date_time, method, instruction, game_link, item_link, 
-      image_url, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, sold_out,
+      release_date_time, method, instruction, game_link, game_links, item_link, 
+      image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, sold_out,
       final_current_stock, final_total_stock,
       TO_CHAR(release_date_time, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as release_date_time_utc 
       FROM scheduled_items ORDER BY release_date_time ASC`;
@@ -70,8 +70,10 @@ export async function POST(request: Request) {
       method,
       instruction,
       game_link,
+      game_links,
       item_link,
       image_url,
+      screenshots,
       limit_per_user,
       ugc_code,
       is_abandoned,
@@ -100,6 +102,16 @@ export async function POST(request: Request) {
     const sanitizedItemLink = sanitizeUrl(item_link);
     const sanitizedImageUrl = sanitizeUrl(image_url);
 
+    // Sanitize game_links array
+    const sanitizedGameLinks = Array.isArray(game_links)
+      ? game_links.map((link: string) => sanitizeUrl(link)).filter((link: string | null) => link && link.length > 0)
+      : (sanitizedGameLink ? [sanitizedGameLink] : []);
+
+    // Sanitize screenshots array
+    const sanitizedScreenshots = Array.isArray(screenshots)
+      ? screenshots.map((url: string) => sanitizeUrl(url)).filter((url: string | null) => url && url.length > 0)
+      : [];
+
     // Validate method is an array of allowed values
     const allowedMethods = ['Web Drop', 'In-Game', 'Code Drop', 'Quest', 'Launcher', 'J&C', 'Twitch Points', 'Unknown'];
     let sanitizedMethod = ['Unknown'];
@@ -127,9 +139,9 @@ export async function POST(request: Request) {
     const result = await pool.query(
       `INSERT INTO scheduled_items (
         uuid, title, item_name, creator, stock, 
-        release_date_time, method, instruction, game_link, item_link, 
-        image_url, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        release_date_time, method, instruction, game_link, game_links, item_link, 
+        image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *`,
       [
         uuid,
@@ -140,9 +152,11 @@ export async function POST(request: Request) {
         release_date_time,
         sanitizedMethod,
         sanitizedInstruction,
-        sanitizedGameLink,
+        sanitizedGameLinks.length > 0 ? sanitizedGameLinks[0] : sanitizedGameLink,
+        sanitizedGameLinks,
         sanitizedItemLink,
         sanitizedImageUrl,
+        sanitizedScreenshots,
         limitValue,
         sanitizedUgcCode,
         is_abandoned || false,

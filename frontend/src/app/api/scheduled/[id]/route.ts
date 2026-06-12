@@ -74,8 +74,10 @@ export async function PUT(
       'method',
       'instruction',
       'game_link',
+      'game_links',
       'item_link',
       'image_url',
+      'screenshots',
       'limit_per_user',
       'sold_out',
       'final_current_stock',
@@ -113,6 +115,24 @@ export async function PUT(
             updates[field] = [value];
           } else {
             updates[field] = ['Unknown'];
+          }
+        } else if (field === 'game_links') {
+          // Sanitize array of game links
+          if (Array.isArray(value)) {
+            updates[field] = value.map((link: string) => sanitizeUrl(link)).filter((link: string | null) => link && link.length > 0);
+            // Also update the legacy game_link field to first link
+            if (updates[field].length > 0) {
+              updates['game_link'] = updates[field][0];
+            }
+          } else {
+            updates[field] = [];
+          }
+        } else if (field === 'screenshots') {
+          // Sanitize array of screenshot URLs
+          if (Array.isArray(value)) {
+            updates[field] = value.map((url: string) => sanitizeUrl(url)).filter((url: string | null) => url && url.length > 0);
+          } else {
+            updates[field] = [];
           }
         } else if (textFields.includes(field)) {
           // Sanitize text fields

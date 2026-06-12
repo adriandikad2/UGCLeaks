@@ -45,8 +45,10 @@ type UGCItem = {
   method: UGCMethod[];
   instruction: string;
   gameLink: string;
+  gameLinks?: string[];
   itemLink: string;
   imageUrl: string;
+  screenshots?: string[];
   limitPerUser: number;
 
   soldOut?: boolean; // Manual sold out confirmation by scheduler
@@ -152,6 +154,20 @@ export default function LeaksPage() {
   // Viewport/Modal States
   const [selectedItem, setSelectedItem] = useState<UGCItem | null>(null);
   const [timers, setTimers] = useState<{ [key: string]: string }>({});
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [viewerZoom, setViewerZoom] = useState(1);
+
+  const openImageViewer = (url: string) => {
+    setViewerImage(url);
+    setViewerZoom(1);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeImageViewer = () => {
+    setViewerImage(null);
+    setViewerZoom(1);
+    document.body.style.overflow = 'unset';
+  };
 
   // Extract load function so it can be called for refresh
   const loadScheduledItems = async () => {
@@ -170,8 +186,10 @@ export default function LeaksPage() {
           method: Array.isArray(item.method) ? item.method : [item.method || UGCMethod.Unknown],
           instruction: item.instruction,
           gameLink: item.game_link,
+          gameLinks: item.game_links,
           itemLink: item.item_link,
           imageUrl: item.image_url,
+          screenshots: item.screenshots,
           limitPerUser: item.limit_per_user,
           soldOut: item.sold_out, // Manual sold out confirmation
           finalCurrentStock: item.final_current_stock, // Persisted current stock
@@ -774,7 +792,7 @@ export default function LeaksPage() {
                 </button>
 
                 {/* Floating Image in Header */}
-                <div className="absolute -bottom-12 p-2 theme-bg-card rounded-xl shadow-lg">
+                <div className="absolute -bottom-12 p-2 theme-bg-card rounded-xl shadow-lg cursor-pointer transition-transform hover:scale-105" onClick={() => openImageViewer(selectedItem.imageUrl)}>
                   <img
                     src={selectedItem.imageUrl}
                     className="w-32 h-32 object-contain rounded-lg"
@@ -805,6 +823,25 @@ export default function LeaksPage() {
                   </div>
                 </div>
 
+                {/* Screenshots Gallery */}
+                {Array.isArray(selectedItem.screenshots) && selectedItem.screenshots.length > 0 && (
+                  <div className="theme-bg-card border-2 p-6 rounded-xl text-left" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                    <h3 className="text-lg font-black theme-text-primary mb-4">Screenshots ({selectedItem.screenshots.length})</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {selectedItem.screenshots.map((url, idx) => (
+                        <img
+                          key={idx}
+                          src={url}
+                          alt={`Screenshot ${idx + 1}`}
+                          className="w-full h-auto object-contain rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-lg border-2"
+                          style={{ borderColor: 'var(--theme-gradient-4)' }}
+                          onClick={() => openImageViewer(url)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Links Section */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                   {selectedItem.itemLink && (
@@ -817,16 +854,34 @@ export default function LeaksPage() {
                       </button>
                     </Link>
                   )}
-                  {selectedItem.gameLink && (
-                    <Link href={selectedItem.gameLink} target="_blank" className="w-full">
-                      <button
-                        className="w-full py-4 text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all"
-                        style={{ background: 'var(--theme-gradient-2)' }}
-                      >
-                        🎮 Join Game
-                      </button>
-                    </Link>
-                  )}
+                  {(() => {
+                    const links = Array.isArray(selectedItem.gameLinks) && selectedItem.gameLinks.length > 0
+                      ? selectedItem.gameLinks.filter(l => l && l.length > 0)
+                      : (selectedItem.gameLink ? [selectedItem.gameLink] : []);
+                    if (links.length === 0) return null;
+                    if (links.length === 1) {
+                      return (
+                        <Link href={links[0]} target="_blank" className="w-full">
+                          <button
+                            className="w-full py-4 text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                            style={{ background: 'var(--theme-gradient-2)' }}
+                          >
+                            🎮 Join Game
+                          </button>
+                        </Link>
+                      );
+                    }
+                    return links.map((link, idx) => (
+                      <Link key={idx} href={link} target="_blank" className="w-full">
+                        <button
+                          className="w-full py-4 text-white font-black rounded-xl text-xl uppercase shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                          style={{ background: 'var(--theme-gradient-2)' }}
+                        >
+                          🎮 Join Game {idx + 1}
+                        </button>
+                      </Link>
+                    ));
+                  })()}
                 </div>
               </div>
             </div>
@@ -891,6 +946,59 @@ export default function LeaksPage() {
           </div>
         )
       }
+
+      {/* --- IMAGE VIEWER MODAL --- */}
+      {viewerImage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md transition-all">
+          <button
+            onClick={closeImageViewer}
+            className="absolute top-6 right-6 text-white bg-white/20 hover:bg-white/40 rounded-full p-3 transition-all transform hover:scale-110 z-10"
+          >
+            ✕
+          </button>
+          
+          {/* Zoom Controls */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4 bg-black/50 p-3 rounded-full backdrop-blur-sm z-10">
+            <button 
+              onClick={() => setViewerZoom(prev => Math.max(0.5, prev - 0.25))}
+              className="w-10 h-10 flex items-center justify-center text-white bg-white/20 hover:bg-white/40 rounded-full font-bold transition-all"
+              title="Zoom Out"
+            >
+              -
+            </button>
+            <button 
+              onClick={() => setViewerZoom(1)}
+              className="px-4 h-10 flex items-center justify-center text-white bg-white/20 hover:bg-white/40 rounded-full font-bold text-sm transition-all"
+              title="Reset Zoom"
+            >
+              {Math.round(viewerZoom * 100)}%
+            </button>
+            <button 
+              onClick={() => setViewerZoom(prev => Math.min(3, prev + 0.25))}
+              className="w-10 h-10 flex items-center justify-center text-white bg-white/20 hover:bg-white/40 rounded-full font-bold transition-all"
+              title="Zoom In"
+            >
+              +
+            </button>
+          </div>
+
+          <div 
+            className="w-full h-full flex items-center justify-center overflow-auto cursor-zoom-in"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeImageViewer();
+            }}
+          >
+            <img 
+              src={viewerImage} 
+              alt="Expanded view" 
+              className="max-w-full max-h-full object-contain transition-transform duration-200"
+              style={{ transform: `scale(${viewerZoom})`, cursor: viewerZoom > 1 ? 'grab' : 'zoom-in' }}
+              onClick={() => setViewerZoom(prev => prev === 1 ? 2 : 1)}
+            />
+          </div>
+        </div>
+      )}
+
     </div >
   );
 }
