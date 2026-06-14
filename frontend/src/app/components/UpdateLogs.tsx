@@ -178,7 +178,7 @@ export default function UpdateLogs() {
                         </div>
 
                         <div className="mt-4 pt-3 border-t border-white/10 text-center">
-                            <p className="text-xs text-white/40">UGC Leaks © 2025</p>
+                            <p className="text-xs text-white/40">UGC Leaks © 2026</p>
                         </div>
                     </motion.div>
                 )}

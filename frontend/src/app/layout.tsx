@@ -10,6 +10,7 @@ import ToolBelt from './components/playground/ToolBelt';
 import PlaygroundCanvas from './components/playground/PlaygroundCanvas';
 import TranslationBanner from './components/TranslationBanner';
 import ServiceAlert from './components/ServiceAlert';
+import AboutWidget from './components/AboutWidget';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -32,9 +33,9 @@ export default function RootLayout({
   const acceptLanguage = headersList.get('accept-language');
 
   return (
-    <html lang="en">
+    <html lang="en" className="overflow-x-hidden">
       {/* 'select-none' prevents text highlighting as requested */}
-      <body className={`${inter.className} select-none`}>
+      <body className={`${inter.className} select-none overflow-x-hidden`}>
         <PlaygroundProvider>
           <ToolBelt />
           <PlaygroundCanvas />
@@ -44,6 +45,8 @@ export default function RootLayout({
             <TranslationBanner acceptLanguage={acceptLanguage} />
             {/* Theme-specific particle effects (stars, petals, leaves, etc.) */}
             <ThemeEffects />
+            {/* Global right-edge About widget */}
+            <AboutWidget />
             <div className="relative z-10">
               {children}
             </div>

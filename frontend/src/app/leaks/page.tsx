@@ -412,7 +412,7 @@ export default function LeaksPage() {
           </div>
 
           {/* Right: Translate & Theme Switcher */}
-          <div className="flex items-center gap-2 relative z-40">
+          <div className="flex items-center gap-1.5 sm:gap-2 relative z-40 scale-90 sm:scale-100 origin-right">
             <TranslateWidget inline />
             <ThemeSwitcher inline />
           </div>

@@ -604,7 +604,7 @@ export default function SchedulePage() {
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       {/* --- THEME PALETTE SWITCHER & TRANSLATE --- */}
-      <div className="fixed top-6 right-6 z-50 flex gap-4">
+      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 flex gap-2 sm:gap-4 scale-90 sm:scale-100 origin-top-right">
         <TranslateWidget inline={true} />
         <ThemeSwitcher inline={true} />
       </div>
