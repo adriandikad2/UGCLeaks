@@ -186,7 +186,17 @@ export default function SchedulePage() {
   const loadScheduledItems = useCallback(async () => {
     try {
       const items = await getScheduledItems();
-      setScheduledItems(items as unknown as UGCItem[]);
+      
+      // Force UTC timezone by adding Z if missing (Database may strip 'Z' from timestamp)
+      const sanitizedItems = items.map((item: any) => {
+        let dateStr = item.release_date_time_utc || item.release_date_time;
+        if (dateStr && typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+          dateStr = dateStr.replace(' ', 'T') + 'Z';
+        }
+        return { ...item, release_date_time: dateStr };
+      });
+
+      setScheduledItems(sanitizedItems as unknown as UGCItem[]);
 
       // Only generate gradients for new items, preserve existing ones
       setGradients(prevGradients => {
@@ -262,8 +272,12 @@ export default function SchedulePage() {
         const result = await updateScheduledItem(editingId, payload as any);
 
         if (result) {
-          // Cast result to UGCItem to satisfy strict TypeScript checks
-          const typedResult = result as unknown as UGCItem;
+          // Cast result to UGCItem and force UTC timezone
+          let dateStr = (result as any).release_date_time_utc || (result as any).release_date_time;
+          if (dateStr && typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+            dateStr = dateStr.replace(' ', 'T') + 'Z';
+          }
+          const typedResult = { ...result, release_date_time: dateStr } as unknown as UGCItem;
 
           setScheduledItems(items =>
             items.map(item => {
@@ -285,7 +299,13 @@ export default function SchedulePage() {
         const result = await createScheduledItem(payload as any);
 
         if (result) {
-          const typedResult = result as unknown as UGCItem; // Cast here
+          // Cast result to UGCItem and force UTC timezone
+          let dateStr = (result as any).release_date_time_utc || (result as any).release_date_time;
+          if (dateStr && typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+            dateStr = dateStr.replace(' ', 'T') + 'Z';
+          }
+          const typedResult = { ...result, release_date_time: dateStr } as unknown as UGCItem;
+          
           const newId = String(typedResult.uuid || typedResult.id);
 
           setScheduledItems([...scheduledItems, typedResult]);
@@ -557,6 +577,13 @@ export default function SchedulePage() {
     document.body.style.overflow = 'unset';
   };
 
+  // Live countdown tick — forces re-render every second so timers stay accurate
+  const [, setCountdownTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setCountdownTick(t => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const formatRelativeTime = (dateTimeString: string): string => {
     if (!dateTimeString) return 'No Date';
     try {
@@ -572,9 +599,13 @@ export default function SchedulePage() {
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-      if (days > 0) return `${days}d ${hours}h`;
-      if (hours > 0) return `${hours}h ${minutes}m`;
-      return `${minutes}m ${seconds}s`;
+      const parts: string[] = [];
+      if (days > 0) parts.push(`${days}d`);
+      if (hours > 0 || days > 0) parts.push(`${hours}h`);
+      parts.push(`${minutes}m`);
+      parts.push(`${seconds}s`);
+
+      return parts.join(' ');
     } catch {
       return 'Invalid time';
     }
@@ -1276,7 +1307,7 @@ export default function SchedulePage() {
                         {item.item_link ? (
                           <Link href={item.item_link} target="_blank" rel="noopener noreferrer">
                             <h2
-                              className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all"
+                              className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all break-words overflow-hidden"
                               style={{ color: primaryColor }}
                             >
                               {item.item_name}
@@ -1284,7 +1315,7 @@ export default function SchedulePage() {
                           </Link>
                         ) : (
                           <h2
-                            className="text-2xl font-black mb-1 text-center transition-all"
+                            className="text-2xl font-black mb-1 text-center transition-all break-words overflow-hidden"
                             style={{ color: primaryColor }}
                           >
                             {item.item_name}
@@ -1304,7 +1335,7 @@ export default function SchedulePage() {
                             style={{ borderColor: shuffledColors[0] }}
                           >
                             <p className="text-xs font-bold theme-text-secondary uppercase">📦 Stock</p>
-                            <p className="font-black text-sm mt-1" style={{ color: item.sold_out ? '#888' : shuffledColors[0] }}>
+                            <p className="font-black text-sm mt-1 truncate" style={{ color: item.sold_out ? 'var(--theme-text-secondary)' : shuffledColors[0] }}>
                               {item.sold_out ? `0/${item.stock || '?'}` : (typeof item.stock === 'number' ? item.stock : 'OUT')}
                             </p>
                           </div>
@@ -1315,7 +1346,7 @@ export default function SchedulePage() {
                             style={{ borderColor: shuffledColors[1] }}
                           >
                             <p className="text-xs font-bold theme-text-secondary uppercase">⏰ In</p>
-                            <p className="font-black text-sm mt-1" style={{ color: shuffledColors[1] }}>
+                            <p className="font-black text-xs mt-1 leading-snug" style={{ color: shuffledColors[1] }}>
                               {formatRelativeTime(item.release_date_time)}
                             </p>
                           </div>
@@ -1353,7 +1384,7 @@ export default function SchedulePage() {
                             style={{ borderColor: shuffledColors[3] }}
                           >
                             <p className="text-xs font-bold theme-text-secondary uppercase">🔢 Limit</p>
-                            <p className="font-black text-sm mt-1" style={{ color: shuffledColors[3] }}>
+                            <p className="font-black text-sm mt-1 truncate" style={{ color: shuffledColors[3] }}>
                               {(item.limit_per_user === null || item.limit_per_user === -1) ? '∞' : `${item.limit_per_user}x`}
                             </p>
                           </div>
@@ -1376,7 +1407,7 @@ export default function SchedulePage() {
                               : (item.game_link ? [item.game_link] : []);
                             if (links.length === 0) {
                               return (
-                                <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center">
+                                <div className="border-2 border-dashed rounded p-3 text-center" style={{ borderColor: 'var(--theme-text-secondary)' }}>
                                   <p className="text-sm font-semibold theme-text-secondary">⚠️ Link Status</p>
                                   <p className="text-xs theme-text-secondary mt-1">Game not yet published</p>
                                 </div>
@@ -1390,11 +1421,11 @@ export default function SchedulePage() {
                                     href={link}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-sm font-bold break-all hover:underline flex items-center gap-1.5"
+                                    className="text-sm font-bold break-all hover:underline flex items-center gap-1.5 overflow-hidden"
                                     style={{ color: primaryColor }}
                                   >
-                                    <span className="text-xs theme-text-secondary">{idx + 1}.</span>
-                                    {link}
+                                    <span className="text-xs theme-text-secondary flex-shrink-0">{idx + 1}.</span>
+                                    <span className="truncate">{link}</span>
                                   </a>
                                 ))}
                               </div>
@@ -1584,8 +1615,8 @@ export default function SchedulePage() {
                       value={formData.release_date_time}
                       onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                       disabled={isUnknownSchedule}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
-                      style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 theme-text-secondary' : ''}`}
+                      style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : { borderColor: 'var(--theme-text-secondary)' }}
                     />
                     <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
                       <input
@@ -1609,8 +1640,8 @@ export default function SchedulePage() {
                       value={typeof formData.stock === 'number' ? formData.stock : 0}
                       onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                       disabled={isUnknownStock}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
-                      style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
+                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 theme-text-secondary' : ''}`}
+                      style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : { borderColor: 'var(--theme-text-secondary)' }}
                     />
                     <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                       <input

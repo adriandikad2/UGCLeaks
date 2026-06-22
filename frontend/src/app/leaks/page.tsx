@@ -255,19 +255,26 @@ export default function LeaksPage() {
           const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
           const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
           const secs = Math.floor((diff % (1000 * 60)) / 1000);
-          if (days > 0) newTimers[item.id] = `in ${days}d ${hours}h`;
-          else if (hours > 0) newTimers[item.id] = `in ${hours}h ${mins}m`;
-          else newTimers[item.id] = `in ${mins}m ${secs}s`;
+          
+          const parts = [];
+          if (days > 0) parts.push(`${days}d`);
+          if (hours > 0 || days > 0) parts.push(`${hours}h`);
+          parts.push(`${mins}m`);
+          parts.push(`${secs}s`);
+          newTimers[item.id] = `in ${parts.join(' ')}`;
         } else {
           const elapsed = Math.abs(diff);
           const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
           const hours = Math.floor((elapsed % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
           const mins = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
           const secs = Math.floor((elapsed % (1000 * 60)) / 1000);
-          if (days > 0) newTimers[item.id] = `${days}d ${hours}h ago`;
-          else if (hours > 0) newTimers[item.id] = `${hours}h ${mins}m ago`;
-          else if (mins > 0) newTimers[item.id] = `${mins}m ${secs}s ago`;
-          else newTimers[item.id] = `${secs}s ago`;
+          
+          const parts = [];
+          if (days > 0) parts.push(`${days}d`);
+          if (hours > 0 || days > 0) parts.push(`${hours}h`);
+          parts.push(`${mins}m`);
+          parts.push(`${secs}s`);
+          newTimers[item.id] = `${parts.join(' ')} ago`;
         }
       });
       setTimers(newTimers);
@@ -648,7 +655,7 @@ export default function LeaksPage() {
                     {item.title}
                   </h2>
 
-                  <p className="text-center text-xs font-bold text-gray-600 mb-3">
+                  <p className="text-center text-xs font-bold theme-text-secondary mb-3">
                     by <span style={{ color: outlineColor }}>{item.creator}</span>
                   </p>
 
@@ -658,7 +665,7 @@ export default function LeaksPage() {
                       style={{ borderColor: shuffledColors[0] }}
                     >
                       <p className="text-xs font-bold theme-text-secondary uppercase">📦 Stock</p>
-                      <p className="font-black text-xs mt-1" style={{ color: isSoldOut ? '#888' : shuffledColors[0] }}>
+                      <p className="font-black text-xs mt-1 truncate" style={{ color: isSoldOut ? 'var(--theme-text-secondary)' : shuffledColors[0] }}>
                         {hasUnknownStock
                           ? '❓ Unknown'
                           : (item.soldOut
@@ -709,11 +716,11 @@ export default function LeaksPage() {
                       style={{ borderColor: shuffledColors[3] }}
                     >
                       <p className="text-xs font-bold theme-text-secondary uppercase">📅 Release</p>
-                      <p className="font-black text-xs mt-1 whitespace-nowrap" style={{ color: shuffledColors[3] }}>
+                      <p className="font-black text-[11px] mt-1 leading-snug break-words" style={{ color: shuffledColors[3] }}>
                         {timers[item.id] === 'Unknown' ? '❓ Unknown' : (timers[item.id] || 'Loading...')}
                       </p>
                       {timers[item.id] && timers[item.id] !== 'Unknown' && item.releaseDateTime && !item.releaseDateTime.startsWith('9999') && (
-                        <p className="text-[10px] font-bold theme-text-secondary mt-0.5 leading-tight">
+                        <p className="text-[10px] font-bold theme-text-secondary mt-0.5 leading-tight break-words">
                           {(() => {
                             const d = new Date(item.releaseDateTime);
                             const day = d.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
@@ -738,16 +745,16 @@ export default function LeaksPage() {
                     </div>
                   )}
 
-                  <div className="mb-3 p-2 bg-gray-50 rounded border border-gray-200 flex-1 relative">
-                    <p className="text-xs font-bold text-gray-600 uppercase mb-1">📖 Info</p>
-                    <p className="text-gray-700 text-xs font-medium break-words line-clamp-3 select-text cursor-text">
+                  <div className="mb-3 p-2 theme-bg-card rounded border theme-border-secondary flex-1 relative border-2">
+                    <p className="text-xs font-bold theme-text-secondary uppercase mb-1">📖 Info</p>
+                    <p className="theme-text-primary text-xs font-medium break-words line-clamp-3 select-text cursor-text">
                       {item.instruction}
                     </p>
-                    <div className="absolute bottom-0 left-0 w-full h-4 bg-gradient-to-t from-gray-50 to-transparent"></div>
+                    <div className="absolute bottom-0 left-0 w-full h-4" style={{ background: 'linear-gradient(to top, var(--theme-card-bg), transparent)' }}></div>
                   </div>
 
                   <div className="mt-auto text-center">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Click for Details</span>
+                    <span className="text-xs font-bold theme-text-secondary opacity-75 uppercase tracking-widest">Click for Details</span>
                   </div>
                 </div>
               </div>
@@ -756,10 +763,10 @@ export default function LeaksPage() {
         </div>
 
         {filteredItems.length === 0 && (
-          <div className="text-center py-20 bg-white rounded-2xl shadow-2xl pop-in">
+          <div className="text-center py-20 theme-bg-card rounded-2xl shadow-2xl pop-in border-4" style={{ borderColor: 'var(--theme-primary)' }}>
             <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-2xl font-black text-gray-900 mb-2">No Items Found</h3>
-            <p className="text-gray-600 text-lg font-semibold">Try adjusting your search or filters</p>
+            <h3 className="text-2xl font-black theme-text-primary mb-2">No Items Found</h3>
+            <p className="theme-text-secondary text-lg font-semibold">Try adjusting your search or filters</p>
           </div>
         )}
       </div>
