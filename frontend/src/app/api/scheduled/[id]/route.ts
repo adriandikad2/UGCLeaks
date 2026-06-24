@@ -85,7 +85,8 @@ export async function PUT(
       'ugc_code',
       'is_abandoned',
       'is_paid',
-      'is_regular'
+      'is_regular',
+      'region_lock'
     ];
 
     // Fields that need text sanitization
@@ -144,6 +145,13 @@ export async function PUT(
         } else if (field === 'stock') {
           // Validate stock is a positive number or -1 (unknown stock)
           updates[field] = typeof value === 'number' && (value === -1 || value >= 0) ? value : 0;
+        } else if (field === 'region_lock') {
+          // Region lock: valid 2-char country code, empty string, or null to clear
+          if (value === null || value === '' || value === 'none') {
+            updates[field] = null;
+          } else if (typeof value === 'string' && value.length <= 2) {
+            updates[field] = value.toUpperCase();
+          }
         } else if (value !== null && value !== '') {
           updates[field] = value;
         }

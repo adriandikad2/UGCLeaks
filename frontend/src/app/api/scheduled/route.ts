@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     let query = `SELECT uuid, title, item_name, creator, stock, 
       release_date_time, method, instruction, game_link, game_links, item_link, 
       image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, sold_out,
-      final_current_stock, final_total_stock,
+      final_current_stock, final_total_stock, region_lock,
       TO_CHAR(release_date_time, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as release_date_time_utc 
       FROM scheduled_items ORDER BY release_date_time ASC`;
     const params: any[] = [];
@@ -79,6 +79,7 @@ export async function POST(request: Request) {
       is_abandoned,
       is_paid,
       is_regular,
+      region_lock,
     } = body;
 
     if (!title || !item_name || !creator) {
@@ -136,12 +137,17 @@ export async function POST(request: Request) {
     // Validate stock is a positive number or -1 (unknown stock)
     const sanitizedStock = typeof stock === 'number' && (stock === -1 || stock >= 0) ? stock : 0;
 
+    // Sanitize region_lock - must be a valid ISO country code or null
+    const sanitizedRegionLock = region_lock && typeof region_lock === 'string' && region_lock.length <= 2
+      ? region_lock.toUpperCase()
+      : null;
+
     const result = await pool.query(
       `INSERT INTO scheduled_items (
         uuid, title, item_name, creator, stock, 
         release_date_time, method, instruction, game_link, game_links, item_link, 
-        image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, region_lock
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *`,
       [
         uuid,
@@ -161,7 +167,8 @@ export async function POST(request: Request) {
         sanitizedUgcCode,
         is_abandoned || false,
         is_paid || false,
-        is_regular || false
+        is_regular || false,
+        sanitizedRegionLock
       ]
     );
 
