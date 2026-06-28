@@ -1876,14 +1876,19 @@ export default function SchedulePage() {
 
                         {/* Restock Info (if enabled) */}
                         {item.restock_info?.enabled && (
-                          <div className="p-2 rounded border theme-bg-card text-xs flex flex-col gap-1" style={{ borderColor: shuffledColors[1] }}>
-                            <div className="flex justify-between items-center">
-                              <span className="font-bold theme-text-secondary">🔄 Restock:</span>
-                              <span className="font-black" style={{ color: shuffledColors[1] }}>
-                                {item.restock_info.next_restock_time ? 'Manual Time' : `Every ${item.restock_info.interval_hours}h`} · {item.restock_info.restock_amount} units
+                          <div className="p-2 rounded border theme-bg-card text-xs flex flex-col gap-1 overflow-hidden break-words" style={{ borderColor: shuffledColors[1] }}>
+                            <div className="flex justify-between items-center gap-2">
+                              <span className="font-bold theme-text-secondary flex items-center gap-1">
+                                <span>🔄 Restock</span>
+                                <span className="text-[9px] px-1 py-0.2 rounded font-black uppercase" style={{ background: 'var(--theme-gradient-2)', color: '#fff' }}>
+                                  {item.restock_info.mode === 'manual' || item.restock_info.next_restock_time ? 'Manual' : 'Auto'}
+                                </span>
+                              </span>
+                              <span className="font-black text-right break-words" style={{ color: shuffledColors[1] }}>
+                                Every {item.restock_info.interval_hours}h · {item.restock_info.restock_amount} units
                               </span>
                             </div>
-                            <div className="flex justify-between items-center pt-1 border-t theme-border-secondary">
+                            <div className="flex justify-between items-center pt-1 border-t theme-border-secondary gap-2">
                               <span className="font-bold theme-text-secondary">🕐 Next:</span>
                               <span className="font-black" style={{ color: shuffledColors[2] }}>
                                 {(() => {

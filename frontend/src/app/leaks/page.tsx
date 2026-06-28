@@ -964,21 +964,26 @@ export default function LeaksPage() {
 
                   {/* Restock Info */}
                   {item.restockInfo?.enabled && (
-                    <div className="mb-3 p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[1] }}>
-                      <p className="text-xs font-bold theme-text-secondary uppercase">🔄 Restock</p>
-                      <p className="font-black text-xs mt-1" style={{ color: shuffledColors[1] }}>
-                        {item.restockInfo.next_restock_time ? 'Manual Exact Time' : `Every ${item.restockInfo.interval_hours}h`} · {item.restockInfo.restock_amount} units
+                    <div className="mb-3 p-2 rounded-lg border-2 theme-bg-card overflow-hidden break-words" style={{ borderColor: shuffledColors[1] }}>
+                      <p className="text-xs font-bold theme-text-secondary uppercase tracking-wider flex items-center justify-between">
+                        <span>🔄 Restock</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-black uppercase" style={{ background: 'var(--theme-gradient-2)', color: '#fff' }}>
+                          {item.restockInfo.mode === 'manual' || item.restockInfo.next_restock_time ? 'Manual' : 'Auto'}
+                        </span>
                       </p>
-                      <p className="text-[10px] font-bold theme-text-secondary mt-0.5 leading-tight">
+                      <p className="font-black text-xs mt-1 leading-tight break-words" style={{ color: shuffledColors[1] }}>
+                        Every {item.restockInfo.interval_hours}h · {item.restockInfo.restock_amount} units
+                      </p>
+                      <p className="text-[10px] font-bold theme-text-secondary mt-0.5 leading-tight break-words">
                         🕐 Next: {(() => {
                           const now = new Date();
-                          if (item.restockInfo.next_restock_time) {
-                            let manualStr = item.restockInfo.next_restock_time;
+                          if (item.restockInfo.mode === 'manual' || item.restockInfo.next_restock_time) {
+                            let manualStr = item.restockInfo.next_restock_time!;
                             if (!manualStr.endsWith('Z') && !manualStr.includes('+') && !manualStr.includes('-', 10)) {
                               manualStr = manualStr.replace(' ', 'T') + 'Z';
                             }
                             const manualDate = new Date(manualStr);
-                            if (isNaN(manualDate.getTime())) return '⚠️ Invalid manual date';
+                            if (isNaN(manualDate.getTime())) return '⚠️ Invalid date';
                             const diff = manualDate.getTime() - now.getTime();
                             if (diff > 0) {
                               const h = Math.floor(diff / 3600000);
