@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     let query = `SELECT uuid, title, item_name, creator, stock, 
       release_date_time, method, instruction, game_link, game_links, item_link, 
       image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, sold_out,
-      final_current_stock, final_total_stock, region_lock,
+      final_current_stock, final_total_stock, region_lock, restock_info,
       TO_CHAR(release_date_time, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as release_date_time_utc 
       FROM scheduled_items ORDER BY release_date_time ASC`;
     const params: any[] = [];
@@ -80,6 +80,7 @@ export async function POST(request: Request) {
       is_paid,
       is_regular,
       region_lock,
+      restock_info,
     } = body;
 
     if (!title || !item_name || !creator) {
@@ -142,12 +143,40 @@ export async function POST(request: Request) {
       ? region_lock.toUpperCase()
       : null;
 
+    // Sanitize restock_info - validate it's a proper object with expected fields
+    let sanitizedRestockInfo = null;
+    if (restock_info && typeof restock_info === 'object') {
+      const mode = restock_info.mode === 'manual' ? 'manual' : 'auto';
+      const manual_type = restock_info.manual_type === 'date' ? 'date' : 'hours';
+      let interval = typeof restock_info.interval_hours === 'number' && restock_info.interval_hours > 0 ? restock_info.interval_hours : 0;
+      const t1Str = mode === 'manual' && restock_info.next_restock_time && typeof restock_info.next_restock_time === 'string' ? restock_info.next_restock_time : null;
+      const t2Str = mode === 'manual' && manual_type === 'date' && restock_info.second_restock_time && typeof restock_info.second_restock_time === 'string' ? restock_info.second_restock_time : null;
+      
+      if (mode === 'manual' && manual_type === 'date' && t1Str && t2Str) {
+        const d1 = new Date(t1Str).getTime();
+        const d2 = new Date(t2Str).getTime();
+        if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+          interval = Number(((d2 - d1) / 3600000).toFixed(2));
+        }
+      }
+      sanitizedRestockInfo = {
+        enabled: !!restock_info.enabled,
+        mode,
+        manual_type,
+        interval_hours: interval,
+        restock_amount: typeof restock_info.restock_amount === 'number' && restock_info.restock_amount > 0 ? restock_info.restock_amount : 0,
+        next_restock_time: t1Str,
+        second_restock_time: t2Str,
+      };
+      if (!sanitizedRestockInfo.enabled) sanitizedRestockInfo = null;
+    }
+
     const result = await pool.query(
       `INSERT INTO scheduled_items (
         uuid, title, item_name, creator, stock, 
         release_date_time, method, instruction, game_link, game_links, item_link, 
-        image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, region_lock
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, region_lock, restock_info
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *`,
       [
         uuid,
@@ -168,7 +197,8 @@ export async function POST(request: Request) {
         is_abandoned || false,
         is_paid || false,
         is_regular || false,
-        sanitizedRegionLock
+        sanitizedRegionLock,
+        sanitizedRestockInfo ? JSON.stringify(sanitizedRestockInfo) : null
       ]
     );
 

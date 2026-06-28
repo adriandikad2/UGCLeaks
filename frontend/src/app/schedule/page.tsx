@@ -260,6 +260,7 @@ type UGCItem = {
   is_paid?: boolean; // Paid item status (not free)
   is_regular?: boolean; // Regular item status (unlimited/event)
   region_lock?: string | null; // ISO 3166-1 alpha-2 country code for region lock
+  restock_info?: { enabled: boolean; mode?: 'auto' | 'manual'; manual_type?: 'hours' | 'date'; interval_hours: number; restock_amount: number; next_restock_time?: string | null; second_restock_time?: string | null } | null;
 };
 
 // Seeded random function for deterministic gradient generation
@@ -381,6 +382,7 @@ export default function SchedulePage() {
     limit_per_user: 1,
     ugc_code: '',
     region_lock: null,
+    restock_info: null,
   });
 
   const [scheduledItems, setScheduledItems] = useState<UGCItem[]>([]); // Typed correctly
@@ -453,7 +455,41 @@ export default function SchedulePage() {
       // Convert to ISO string (which is always UTC with 'Z' suffix)
       utcDate = localDate.toISOString();
     }
-    const stockValue = isUnknownStock ? -1 : formData.stock;
+    let restockPayload = null;
+    if (formData.restock_info?.enabled) {
+      const mode = formData.restock_info.mode === 'manual' ? 'manual' : 'auto';
+      const manual_type = formData.restock_info.manual_type === 'date' ? 'date' : 'hours';
+      let utcNextRestock: string | null = null;
+      if (mode === 'manual' && formData.restock_info.next_restock_time) {
+        const localRestockDate = new Date(formData.restock_info.next_restock_time);
+        if (!isNaN(localRestockDate.getTime())) {
+          utcNextRestock = localRestockDate.toISOString();
+        }
+      }
+      let utcSecondRestock: string | null = null;
+      if (mode === 'manual' && manual_type === 'date' && formData.restock_info.second_restock_time) {
+        const localSecondDate = new Date(formData.restock_info.second_restock_time);
+        if (!isNaN(localSecondDate.getTime())) {
+          utcSecondRestock = localSecondDate.toISOString();
+        }
+      }
+      let interval = formData.restock_info.interval_hours || 0;
+      if (mode === 'manual' && manual_type === 'date' && utcNextRestock && utcSecondRestock) {
+        const d1 = new Date(utcNextRestock).getTime();
+        const d2 = new Date(utcSecondRestock).getTime();
+        if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+          interval = Number(((d2 - d1) / 3600000).toFixed(2));
+        }
+      }
+      restockPayload = {
+        ...formData.restock_info,
+        mode,
+        manual_type,
+        interval_hours: interval,
+        next_restock_time: utcNextRestock,
+        second_restock_time: utcSecondRestock,
+      };
+    }
 
     const payload = {
       ...formData,
@@ -469,6 +505,7 @@ export default function SchedulePage() {
       game_link: (formData.game_links && formData.game_links.length > 0) ? formData.game_links[0] : formData.game_link,
       screenshots: formData.screenshots || [],
       region_lock: formData.region_lock || null,
+      restock_info: restockPayload,
     };
 
     try {
@@ -577,6 +614,13 @@ export default function SchedulePage() {
       limit_per_user: isUnlimited ? 1 : (item.limit_per_user || 1),
       ugc_code: item.ugc_code || '',
       region_lock: item.region_lock || null,
+      restock_info: item.restock_info ? {
+        ...item.restock_info,
+        mode: item.restock_info.mode || (item.restock_info.next_restock_time ? 'manual' : 'auto'),
+        manual_type: item.restock_info.manual_type || (item.restock_info.second_restock_time ? 'date' : 'hours'),
+        next_restock_time: item.restock_info.next_restock_time ? toLocalInputString(item.restock_info.next_restock_time) : '',
+        second_restock_time: item.restock_info.second_restock_time ? toLocalInputString(item.restock_info.second_restock_time) : '',
+      } : null,
     });
     // Open edit modal instead of scrolling
     setIsEditModalOpen(true);
@@ -611,6 +655,7 @@ export default function SchedulePage() {
       limit_per_user: 1,
       ugc_code: '',
       region_lock: null,
+      restock_info: null,
     });
   };
 
@@ -655,6 +700,26 @@ export default function SchedulePage() {
     setIsDeleteModalOpen(false);
     setItemToDelete(null);
     document.body.style.overflow = 'unset';
+  };
+
+  const handleToggleSoldOut = async (item: UGCItem) => {
+    const targetId = String(item.uuid || item.id);
+    if (!targetId) return;
+    setIsLoading(true);
+    const newSoldOut = !item.sold_out;
+    try {
+      const result = await updateScheduledItem(targetId, { sold_out: newSoldOut } as any);
+      if (result) {
+        setScheduledItems(prev => prev.map(i => (String(i.uuid || i.id) === targetId ? { ...i, sold_out: newSoldOut } : i)));
+        addToast(`Item marked as ${newSoldOut ? 'SOLD OUT' : 'AVAILABLE'}!`, 'success');
+      } else {
+        addToast('Failed to update sold out status.', 'error');
+      }
+    } catch (e) {
+      addToast('Error updating status.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleMethod = (methodVal: UGCMethod) => {
@@ -847,7 +912,7 @@ export default function SchedulePage() {
         <ThemeSwitcher inline={true} />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 relative z-10">
+      <div className="max-w-[88rem] mx-auto px-4 relative z-10">
         {/* Header */}
         <div className="mb-12 text-center space-y-4 pop-in">
           <h1 className="text-6xl md:text-7xl font-black rainbow-text drop-shadow-2xl">
@@ -881,216 +946,121 @@ export default function SchedulePage() {
         )}
 
         {/* Creation Form - Always for creating new items */}
-        <div ref={formRef} className="mb-12 p-8 theme-bg-card rounded-2xl shadow-2xl blocky-shadow space-y-6" style={{ border: '2px solid var(--theme-primary)' }}>
-          <h2 className="text-3xl font-black theme-text-primary">➕ Create New Schedule</h2>
+        <div ref={formRef} className="mb-8 p-6 theme-bg-card rounded-2xl shadow-2xl blocky-shadow space-y-5" style={{ border: '2px solid var(--theme-primary)' }}>
+          <h2 className="text-2xl font-black theme-text-primary">➕ Create New Schedule</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Item Name */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Item Name</label>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Item Name</label>
               <input
                 type="text"
                 value={formData.item_name}
                 onChange={(e) => handleFormChange('item_name', e.target.value)}
                 placeholder="e.g., Red Valkyrie Helm"
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-gradient-1)' }}
               />
             </div>
 
             {/* Creator */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Creator Name</label>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Creator Name</label>
               <input
                 type="text"
                 value={formData.creator}
                 onChange={(e) => handleFormChange('creator', e.target.value)}
                 placeholder="e.g., RobloxianCreations"
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-gradient-2)' }}
               />
             </div>
 
             {/* Release Date & Time */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Release Date & Time</label>
-              <div className="flex gap-4 items-center">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Release Date & Time</label>
+              <div className="flex gap-2 items-center">
                 <input
                   type="datetime-local"
                   step="1"
                   value={formData.release_date_time}
                   onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                   disabled={isUnknownSchedule}
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                  className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
                   style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
                 />
                 {/* Unknown Schedule Checkbox */}
-                <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
+                <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
                   <input
                     type="checkbox"
                     id="unknown-schedule-check"
                     checked={isUnknownSchedule}
                     onChange={(e) => setIsUnknownSchedule(e.target.checked)}
-                    className="w-5 h-5 accent-orange-600"
+                    className="w-4 h-4 accent-orange-600"
                   />
-                  <label htmlFor="unknown-schedule-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
+                  <label htmlFor="unknown-schedule-check" className="text-xs font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
                 </div>
               </div>
-              <p className="text-xs theme-text-secondary mt-1">
-                {isUnknownSchedule ? 'Release time not yet announced' : `Equivalent UTC: ${formData.release_date_time ? new Date(formData.release_date_time).toUTCString() : 'Set a date'}`}
-              </p>
             </div>
 
             {/* Stock */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Stock Amount</label>
-              <div className="flex gap-4 items-center">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Stock Amount</label>
+              <div className="flex gap-2 items-center">
                 <input
                   type="number"
                   value={typeof formData.stock === 'number' ? formData.stock : 0}
                   onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                   disabled={isUnknownStock}
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                  className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
                   style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
                 />
                 {/* Unknown Stock Checkbox */}
-                <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                   <input
                     type="checkbox"
                     id="unknown-stock-check"
                     checked={isUnknownStock}
                     onChange={(e) => setIsUnknownStock(e.target.checked)}
-                    className="w-5 h-5 accent-orange-600"
+                    className="w-4 h-4 accent-orange-600"
                   />
-                  <label htmlFor="unknown-stock-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
+                  <label htmlFor="unknown-stock-check" className="text-xs font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
                 </div>
               </div>
-              <p className="text-xs theme-text-secondary mt-1">
-                {isUnknownStock ? 'Stock quantity not yet announced' : 'Expected stock quantity when published'}
-              </p>
-
-              {/* Sold Out Confirmation */}
-              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2 theme-bg-card" style={{ borderColor: '#ef4444' }}>
-                <input
-                  type="checkbox"
-                  id="sold-out-check"
-                  checked={isSoldOut}
-                  onChange={(e) => setIsSoldOut(e.target.checked)}
-                  className="w-5 h-5 accent-red-600"
-                />
-                <label htmlFor="sold-out-check" className="text-sm font-bold theme-text-primary cursor-pointer select-none" style={{ color: '#ef4444' }}>
-                  🚫 Mark as SOLD OUT (skip API stock check)
-                </label>
-              </div>
-
-              {/* Abandoned Status */}
-              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-secondary)' }}>
-                <input
-                  type="checkbox"
-                  id="abandoned-check"
-                  checked={isAbandoned}
-                  onChange={(e) => setIsAbandoned(e.target.checked)}
-                  className="w-5 h-5 accent-gray-600"
-                />
-                <label htmlFor="abandoned-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
-                  🏚️ Mark as ABANDONED
-                </label>
-              </div>
-
-              {/* Paid Item Status */}
-              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2" style={{ borderColor: 'var(--theme-gradient-4)', background: 'var(--theme-card-bg)' }}>
-                <input
-                  type="checkbox"
-                  id="paid-check"
-                  checked={isPaid}
-                  onChange={(e) => setIsPaid(e.target.checked)}
-                  className="w-5 h-5 accent-yellow-600"
-                />
-                <label htmlFor="paid-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
-                  💰 Mark as PAID ITEM (not free)
-                </label>
-              </div>
-
-              {/* Regular Item Status */}
-              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2" style={{ borderColor: 'var(--theme-gradient-4)', background: 'var(--theme-card-bg)' }}>
-                <input
-                  type="checkbox"
-                  id="regular-check"
-                  checked={isRegular}
-                  onChange={(e) => setIsRegular(e.target.checked)}
-                  className="w-5 h-5 accent-purple-600"
-                />
-                <label htmlFor="regular-check" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
-                  ♾️ Mark as REGULAR (non-limited)
-                </label>
-              </div>
             </div>
-
-            {/* Method */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Drop Methods</label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 p-4 rounded-lg border-4 theme-bg-card" style={{ borderColor: 'var(--theme-secondary)' }}>
-                {METHOD_OPTIONS.map((opt) => (
-                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={Array.isArray(formData.method) && formData.method.includes(opt.value)}
-                      onChange={() => toggleMethod(opt.value)}
-                      className="w-4 h-4 accent-blue-500"
-                    />
-                    <span className="text-sm font-bold theme-text-primary">{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Code Input (Conditional) */}
-            {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
-              <div className="space-y-2">
-                <label className="block text-sm font-bold theme-text-secondary uppercase">Code</label>
-                <input
-                  type="text"
-                  value={formData.ugc_code || ''}
-                  onChange={(e) => handleFormChange('ugc_code', e.target.value)}
-                  placeholder="Enter Code..."
-                  className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
-                  style={{ borderColor: 'var(--theme-accent)' }}
-                />
-              </div>
-            )}
 
             {/* Limit Per User */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Limit Per User</label>
-              <div className="flex gap-4 items-center">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Limit Per User</label>
+              <div className="flex gap-2 items-center">
                 <input
                   type="number"
                   value={formData.limit_per_user || 1}
                   onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
-                  disabled={isUnlimitedLimit} // Disable if checked
-                  className={`w-full px-4 py-3 rounded-lg border-4 font-bold text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
+                  disabled={isUnlimitedLimit}
+                  className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
                 />
                 {/* The Checkbox Container */}
-                <div className="flex items-center gap-2 whitespace-nowrap bg-gray-50 p-2 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-1.5 whitespace-nowrap bg-gray-50 px-2.5 py-2 rounded-lg border border-gray-200">
                   <input
                     type="checkbox"
                     id="unlimited-check"
                     checked={isUnlimitedLimit}
                     onChange={(e) => setIsUnlimitedLimit(e.target.checked)}
-                    className="w-5 h-5 accent-blue-600"
+                    className="w-4 h-4 accent-blue-600"
                   />
-                  <label htmlFor="unlimited-check" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Unlimited</label>
+                  <label htmlFor="unlimited-check" className="text-xs font-bold text-gray-700 cursor-pointer select-none">Unlimited</label>
                 </div>
               </div>
             </div>
 
             {/* Region Lock */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Region Lock</label>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Region Lock</label>
               <select
                 value={formData.region_lock || ''}
                 onChange={(e) => handleFormChange('region_lock', e.target.value || null)}
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
                 style={{ borderColor: 'var(--theme-accent)' }}
               >
                 <option value="">🌍 Global (No Region Lock)</option>
@@ -1102,10 +1072,331 @@ export default function SchedulePage() {
               </select>
             </div>
 
-            {/* Game Links (Multiple) */}
-            <div className="space-y-2">
+            {/* Item Link */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Item Link</label>
+              <input
+                type="url"
+                value={formData.item_link}
+                onChange={(e) => handleFormChange('item_link', e.target.value)}
+                placeholder="https://www.roblox.com/catalog/..."
+                className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                style={{ borderColor: 'var(--theme-gradient-2)' }}
+              />
+            </div>
+
+            {/* Drop Methods (Spans full width on lg) */}
+            <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Drop Methods</label>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 p-2.5 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-secondary)' }}>
+                {METHOD_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={Array.isArray(formData.method) && formData.method.includes(opt.value)}
+                      onChange={() => toggleMethod(opt.value)}
+                      className="w-4 h-4 accent-blue-500 flex-shrink-0"
+                    />
+                    <span className="text-xs md:text-sm font-bold theme-text-primary">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Code Input (Conditional) */}
+            {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
+              <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3">
+                <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Code Drop Secret</label>
+                <input
+                  type="text"
+                  value={formData.ugc_code || ''}
+                  onChange={(e) => handleFormChange('ugc_code', e.target.value)}
+                  placeholder="Enter Code..."
+                  className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                  style={{ borderColor: 'var(--theme-accent)' }}
+                />
+              </div>
+            )}
+
+            {/* Status Flags Horizontal Row */}
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+              {/* Sold Out */}
+              <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: '#ef4444' }}>
+                <input
+                  type="checkbox"
+                  checked={isSoldOut}
+                  onChange={(e) => setIsSoldOut(e.target.checked)}
+                  className="w-4 h-4 accent-red-600 flex-shrink-0"
+                />
+                <span className="text-xs md:text-sm font-bold truncate" style={{ color: '#ef4444' }}>🚫 Mark SOLD OUT</span>
+              </label>
+
+              {/* Abandoned */}
+              <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: 'var(--theme-secondary)' }}>
+                <input
+                  type="checkbox"
+                  checked={isAbandoned}
+                  onChange={(e) => setIsAbandoned(e.target.checked)}
+                  className="w-4 h-4 accent-gray-600 flex-shrink-0"
+                />
+                <span className="text-xs md:text-sm font-bold theme-text-secondary truncate">🏚️ Mark ABANDONED</span>
+              </label>
+
+              {/* Paid */}
+              <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                <input
+                  type="checkbox"
+                  checked={isPaid}
+                  onChange={(e) => setIsPaid(e.target.checked)}
+                  className="w-4 h-4 accent-yellow-600 flex-shrink-0"
+                />
+                <span className="text-xs md:text-sm font-bold theme-text-secondary truncate">💰 Mark PAID ITEM</span>
+              </label>
+
+              {/* Regular */}
+              <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                <input
+                  type="checkbox"
+                  checked={isRegular}
+                  onChange={(e) => setIsRegular(e.target.checked)}
+                  className="w-4 h-4 accent-purple-600 flex-shrink-0"
+                />
+                <span className="text-xs md:text-sm font-bold theme-text-secondary truncate">♾️ Mark REGULAR</span>
+              </label>
+            </div>
+
+            {/* Restock Configuration */}
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-2 pt-1">
+              <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: 'var(--theme-gradient-2)' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.restock_info?.enabled || false}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleFormChange('restock_info', { enabled: true, interval_hours: 12, restock_amount: 100 });
+                    } else {
+                      handleFormChange('restock_info', null);
+                    }
+                  }}
+                  className="w-4 h-4 accent-green-600 flex-shrink-0"
+                />
+                <span className="text-xs md:text-sm font-bold theme-text-primary">🔄 Enable Restock Schedule</span>
+              </label>
+              {formData.restock_info?.enabled && (() => {
+                const mode = formData.restock_info.mode || (formData.restock_info.next_restock_time ? 'manual' : 'auto');
+                const manual_type = formData.restock_info.manual_type || (formData.restock_info.second_restock_time ? 'date' : 'hours');
+                return (
+                  <div className="p-4 rounded-xl border-2 theme-bg-card space-y-4" style={{ borderColor: 'var(--theme-gradient-2)' }}>
+                    {/* Top Row: Amount & Mode Choice */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b theme-border-secondary">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">📦 Amount Per Restock</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={formData.restock_info.restock_amount}
+                          onChange={(e) => handleFormChange('restock_info', { ...formData.restock_info!, restock_amount: parseInt(e.target.value) || 1 })}
+                          className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                          style={{ borderColor: 'var(--theme-gradient-2)' }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">🛠️ Restock Timing Mode</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleFormChange('restock_info', { ...formData.restock_info!, mode: 'auto', next_restock_time: '', second_restock_time: '' })}
+                            className={`p-2 rounded-lg border-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${mode === 'auto' ? 'theme-bg-secondary text-white border-transparent' : 'theme-bg-card theme-text-secondary border-dashed'}`}
+                            style={mode === 'auto' ? { background: 'var(--theme-gradient-2)' } : { borderColor: 'var(--theme-border-secondary)' }}
+                          >
+                            🔄 Auto from Release
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleFormChange('restock_info', { ...formData.restock_info!, mode: 'manual' })}
+                            className={`p-2 rounded-lg border-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${mode === 'manual' ? 'theme-bg-secondary text-white border-transparent' : 'theme-bg-card theme-text-secondary border-dashed'}`}
+                            style={mode === 'manual' ? { background: 'var(--theme-gradient-2)' } : { borderColor: 'var(--theme-border-secondary)' }}
+                          >
+                            📅 Manual Anchor
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mode Content */}
+                    {mode === 'auto' ? (
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">⏱️ Auto Every (Hours) starting from item release</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          placeholder="e.g. 12 or 24"
+                          value={formData.restock_info.interval_hours || ''}
+                          onChange={(e) => handleFormChange('restock_info', { ...formData.restock_info!, interval_hours: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                          style={{ borderColor: 'var(--theme-gradient-2)' }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">📅 1st Manual Restock Time (Anchor Time)</label>
+                          <input
+                            type="datetime-local"
+                            step="1"
+                            value={formData.restock_info.next_restock_time || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              let calcInterval = formData.restock_info!.interval_hours;
+                              if (manual_type === 'date' && val && formData.restock_info!.second_restock_time) {
+                                const d1 = new Date(val).getTime();
+                                const d2 = new Date(formData.restock_info!.second_restock_time).getTime();
+                                if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+                                  calcInterval = Number(((d2 - d1) / 3600000).toFixed(2));
+                                }
+                              }
+                              handleFormChange('restock_info', { ...formData.restock_info!, next_restock_time: val, interval_hours: calcInterval });
+                            }}
+                            className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                            style={{ borderColor: 'var(--theme-gradient-2)' }}
+                          />
+                        </div>
+
+                        {/* Recurring Condition Branch */}
+                        <div className="p-3 rounded-lg border theme-border-secondary theme-bg-card space-y-3">
+                          <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">🔁 Recurring Condition (Subsequent Restocks)</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleFormChange('restock_info', { ...formData.restock_info!, manual_type: 'hours', second_restock_time: '' })}
+                              className={`p-2 rounded border text-xs font-bold transition-all ${manual_type === 'hours' ? 'theme-text-primary border-2' : 'theme-text-secondary opacity-70 border'}`}
+                              style={manual_type === 'hours' ? { borderColor: 'var(--theme-gradient-2)' } : {}}
+                            >
+                              ⏱️ Auto Every (Hours)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleFormChange('restock_info', { ...formData.restock_info!, manual_type: 'date' })}
+                              className={`p-2 rounded border text-xs font-bold transition-all ${manual_type === 'date' ? 'theme-text-primary border-2' : 'theme-text-secondary opacity-70 border'}`}
+                              style={manual_type === 'date' ? { borderColor: 'var(--theme-gradient-2)' } : {}}
+                            >
+                              📅 2nd Manual Date
+                            </button>
+                          </div>
+
+                          {manual_type === 'hours' ? (
+                            <div className="space-y-1 pt-1">
+                              <label className="block text-xs font-bold theme-text-secondary">⏱️ Repeat Every (Hours) e.g. 24h loops identical time next day</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                placeholder="e.g. 24"
+                                value={formData.restock_info.interval_hours || ''}
+                                onChange={(e) => handleFormChange('restock_info', { ...formData.restock_info!, interval_hours: parseFloat(e.target.value) || 0 })}
+                                className="w-full px-3 py-2 rounded border-2 font-bold text-sm theme-text-primary focus:outline-none theme-bg-card"
+                                style={{ borderColor: 'var(--theme-gradient-2)' }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="space-y-1 pt-1">
+                              <label className="block text-xs font-bold theme-text-secondary">📅 2nd Restock Time (Calculates interval automatically)</label>
+                              <input
+                                type="datetime-local"
+                                step="1"
+                                disabled={!formData.restock_info.next_restock_time}
+                                value={formData.restock_info.second_restock_time || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  let calcInterval = formData.restock_info!.interval_hours;
+                                  if (formData.restock_info!.next_restock_time && val) {
+                                    const d1 = new Date(formData.restock_info!.next_restock_time).getTime();
+                                    const d2 = new Date(val).getTime();
+                                    if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+                                      calcInterval = Number(((d2 - d1) / 3600000).toFixed(2));
+                                    }
+                                  }
+                                  handleFormChange('restock_info', { ...formData.restock_info!, second_restock_time: val, interval_hours: calcInterval });
+                                }}
+                                className="w-full px-3 py-2 rounded border-2 font-bold text-sm theme-text-primary focus:outline-none theme-bg-card"
+                                style={{ borderColor: 'var(--theme-gradient-2)' }}
+                              />
+                              {formData.restock_info.interval_hours > 0 && (
+                                <p className="text-xs font-bold theme-text-secondary mt-1">✓ Calculated Interval: <span style={{ color: 'var(--theme-gradient-2)' }}>Every {formData.restock_info.interval_hours} hours</span></p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Next Restock Preview */}
+                    <div className="pt-2 border-t theme-border-secondary flex items-center justify-between">
+                      <span className="text-xs font-bold theme-text-secondary uppercase tracking-wider">🕐 Next Restock Preview:</span>
+                      <span className="text-sm font-bold" style={{ color: 'var(--theme-gradient-2)' }}>
+                        {(() => {
+                          const now = new Date();
+                          if (mode === 'manual') {
+                            if (!formData.restock_info.next_restock_time) return '⚠️ Pick 1st manual time';
+                            if (!formData.restock_info.interval_hours || formData.restock_info.interval_hours <= 0) return '⚠️ Set recurring hours / 2nd date';
+                            const manualDate = new Date(formData.restock_info.next_restock_time);
+                            if (isNaN(manualDate.getTime())) return '⚠️ Invalid date';
+                            const diff = manualDate.getTime() - now.getTime();
+                            if (diff > 0) {
+                              const h = Math.floor(diff / 3600000);
+                              const m = Math.floor((diff % 3600000) / 60000);
+                              const s = Math.floor((diff % 60000) / 1000);
+                              const parts = [];
+                              if (h > 0) parts.push(`${h}h`);
+                              parts.push(`${m}m`);
+                              parts.push(`${s}s`);
+                              return `in ${parts.join(' ')} (Loops every ${formData.restock_info.interval_hours}h)`;
+                            } else {
+                              const intervalMs = formData.restock_info.interval_hours * 3600000;
+                              const elapsed = now.getTime() - manualDate.getTime();
+                              const cyclesPassed = Math.floor(elapsed / intervalMs);
+                              const nextRestock = new Date(manualDate.getTime() + (cyclesPassed + 1) * intervalMs);
+                              const nextDiff = nextRestock.getTime() - now.getTime();
+                              const h = Math.floor(nextDiff / 3600000);
+                              const m = Math.floor((nextDiff % 3600000) / 60000);
+                              const s = Math.floor((nextDiff % 60000) / 1000);
+                              const parts = [];
+                              if (h > 0) parts.push(`${h}h`);
+                              parts.push(`${m}m`);
+                              parts.push(`${s}s`);
+                              return `in ${parts.join(' ')} (Loops every ${formData.restock_info.interval_hours}h)`;
+                            }
+                          }
+                          if (!formData.release_date_time || isUnknownSchedule) return '❓ Unknown (no release date)';
+                          const release = new Date(formData.release_date_time);
+                          const intervalMs = (formData.restock_info.interval_hours || 0) * 3600000;
+                          if (intervalMs <= 0) return '⚠️ Enter auto hours';
+                          if (release > now) return `After release (every ${formData.restock_info.interval_hours}h)`;
+                          const elapsed = now.getTime() - release.getTime();
+                          const cyclesPassed = Math.floor(elapsed / intervalMs);
+                          const nextRestock = new Date(release.getTime() + (cyclesPassed + 1) * intervalMs);
+                          const diff = nextRestock.getTime() - now.getTime();
+                          const h = Math.floor(diff / 3600000);
+                          const m = Math.floor((diff % 3600000) / 60000);
+                          const s = Math.floor((diff % 60000) / 1000);
+                          const parts = [];
+                          if (h > 0) parts.push(`${h}h`);
+                          parts.push(`${m}m`);
+                          parts.push(`${s}s`);
+                          return `in ${parts.join(' ')}`;
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Game Links (Full Width) */}
+            <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3">
               <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold theme-text-secondary uppercase">🎮 Game Links</label>
+                <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">🎮 Game Links</label>
                 <button
                   type="button"
                   onClick={addGameLink}
@@ -1118,77 +1409,68 @@ export default function SchedulePage() {
               {(formData.game_links || []).length === 0 && (
                 <p className="text-xs theme-text-secondary italic">No game links added yet. Click &quot;+ Add Link&quot; to add one.</p>
               )}
-              {(formData.game_links || []).map((link, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <span className="text-xs font-bold theme-text-secondary w-6 text-center">{idx + 1}.</span>
-                  <input
-                    type="url"
-                    value={link}
-                    onChange={(e) => updateGameLink(idx, e.target.value)}
-                    placeholder="https://www.roblox.com/games/..."
-                    className="flex-1 px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
-                    style={{ borderColor: 'var(--theme-gradient-1)' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeGameLink(idx)}
-                    className="text-red-500 hover:text-red-700 font-bold text-lg px-2 transition-all hover:scale-110"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(formData.game_links || []).map((link, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <span className="text-xs font-bold theme-text-secondary w-5 text-center flex-shrink-0">{idx + 1}.</span>
+                    <input
+                      type="url"
+                      value={link}
+                      onChange={(e) => updateGameLink(idx, e.target.value)}
+                      placeholder="https://www.roblox.com/games/..."
+                      className="flex-1 px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card min-w-0"
+                      style={{ borderColor: 'var(--theme-gradient-1)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeGameLink(idx)}
+                      className="text-red-500 hover:text-red-700 font-bold text-base px-2 transition-all hover:scale-110 flex-shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Side-by-Side How to Get It & Image Upload */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
+            {/* Instructions */}
+            <div className="space-y-1.5 flex flex-col">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">How to Get It</label>
+              <textarea
+                value={formData.instruction}
+                onChange={(e) => handleFormChange('instruction', e.target.value)}
+                placeholder="Instructions for obtaining the item..."
+                className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none h-32 resize-y theme-bg-card flex-1"
+                style={{ borderColor: 'var(--theme-gradient-3)' }}
+              />
             </div>
 
-            {/* Item Link */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold theme-text-secondary uppercase">Item Link</label>
-              <input
-                type="url"
-                value={formData.item_link}
-                onChange={(e) => handleFormChange('item_link', e.target.value)}
-                placeholder="https://www.roblox.com/catalog/..."
-                className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
-                style={{ borderColor: 'var(--theme-gradient-2)' }}
+            {/* Image Upload */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">📷 Item Image</label>
+              <CloudinaryUpload
+                onImageChange={(url) => handleFormChange('image_url', url)}
+                currentImageUrl={formData.image_url}
               />
             </div>
           </div>
 
-          {/* Instructions */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold theme-text-secondary uppercase">How to Get It</label>
-            <textarea
-              value={formData.instruction}
-              onChange={(e) => handleFormChange('instruction', e.target.value)}
-              placeholder="Instructions for obtaining the item..."
-              className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none h-40 resize-y theme-bg-card"
-              style={{ borderColor: 'var(--theme-gradient-3)' }}
-            />
-          </div>
-
-          {/* Image Upload */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold theme-text-secondary uppercase">📷 Item Image</label>
-            <CloudinaryUpload
-              onImageChange={(url) => handleFormChange('image_url', url)}
-              currentImageUrl={formData.image_url}
-            />
-          </div>
-
           {/* Screenshots Upload */}
-          <div className="space-y-3">
-            <label className="block text-sm font-bold theme-text-secondary uppercase">🖼️ Screenshots</label>
+          <div className="space-y-2 pt-2">
+            <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">🖼️ Screenshots</label>
             <div
-              className="p-6 rounded-xl border-4 border-dashed theme-bg-card transition-all cursor-pointer hover:opacity-80 text-center"
+              className="p-4 rounded-xl border-2 border-dashed theme-bg-card transition-all cursor-pointer hover:opacity-80 text-center"
               style={{ borderColor: 'var(--theme-gradient-4)' }}
               onPaste={handleScreenshotPaste}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
               onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files.length > 0) handleScreenshotFiles(e.dataTransfer.files); }}
               tabIndex={0}
             >
-              <p className="theme-text-secondary font-bold text-sm">📋 Paste from clipboard (Ctrl+V) or drag & drop images here</p>
-              <p className="theme-text-secondary text-xs mt-1 opacity-75">Supports PNG, JPG, GIF, WebP</p>
-              <label className="mt-3 inline-block px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-all hover:scale-105 text-white"
+              <p className="theme-text-secondary font-bold text-xs md:text-sm">📋 Paste from clipboard (Ctrl+V) or drag & drop images here</p>
+              <label className="mt-2 inline-block px-3 py-1.5 rounded-lg font-bold text-xs md:text-sm cursor-pointer transition-all hover:scale-105 text-white shadow"
                 style={{ background: 'linear-gradient(135deg, var(--theme-gradient-3), var(--theme-gradient-4))' }}
               >
                 📁 Browse Files
@@ -1203,25 +1485,22 @@ export default function SchedulePage() {
             </div>
             {/* Screenshot Thumbnails */}
             {(formData.screenshots || []).length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
                 {(formData.screenshots || []).map((url, idx) => (
                   <div key={idx} className="relative group rounded-lg overflow-hidden border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                     <img
                       src={url}
                       alt={`Screenshot ${idx + 1}`}
-                      className="w-full h-auto object-contain cursor-pointer transition-all hover:scale-105"
+                      className="w-full h-16 object-contain cursor-pointer transition-all hover:scale-105"
                       onClick={() => openImageViewer(url)}
                     />
                     <button
                       type="button"
                       onClick={() => removeScreenshot(idx)}
-                      className="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                      className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                     >
                       ✕
                     </button>
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-0.5 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                      Click to preview
-                    </div>
                   </div>
                 ))}
               </div>
@@ -1230,29 +1509,29 @@ export default function SchedulePage() {
 
           {/* Preview */}
           {formData.item_name && (
-            <div className="p-6 theme-bg-card rounded-xl border-4 border-dashed space-y-3" style={{ borderColor: 'var(--theme-secondary)' }}>
-              <p className="text-sm font-bold theme-text-secondary uppercase">Preview</p>
-              <div className="flex items-center gap-4">
+            <div className="p-4 theme-bg-card rounded-xl border-2 border-dashed space-y-2" style={{ borderColor: 'var(--theme-secondary)' }}>
+              <p className="text-xs font-bold theme-text-secondary uppercase tracking-wider">Preview</p>
+              <div className="flex items-center gap-3">
                 <img
                   src={formData.image_url}
                   alt="Preview"
-                  className="w-24 h-24 object-contain rounded-lg border-2" style={{ borderColor: 'var(--theme-secondary)' }}
+                  className="w-16 h-16 object-contain rounded-lg border" style={{ borderColor: 'var(--theme-secondary)' }}
                 />
-                <div>
-                  <p className="font-black text-lg theme-text-primary">{formData.item_name}</p>
-                  <p className="text-sm theme-text-secondary">by {formData.creator}</p>
-                  <p className="text-xs theme-text-secondary mt-2">{formatLocalDateTime(formData.release_date_time)}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-black text-base theme-text-primary truncate">{formData.item_name}</p>
+                  <p className="text-xs font-bold theme-text-secondary truncate">by {formData.creator}</p>
+                  <p className="text-xs theme-text-secondary mt-1">{formatLocalDateTime(formData.release_date_time)}</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* Add Button - Creation only */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 pt-2">
             <button
               onClick={handleAddSchedule}
               disabled={isLoading || editingId !== null}
-              className="flex-1 gradient-button px-8 py-4 text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="flex-1 gradient-button px-6 py-3 text-base rounded-xl font-black uppercase tracking-wider blocky-shadow-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isLoading ? '⏳ Processing...' : '✨ Add to Schedule ✨'}
             </button>
@@ -1509,269 +1788,309 @@ export default function SchedulePage() {
                         }}
                       ></div>
 
-                      <div className="p-6 flex-1 flex flex-col">
-                        {/* Item Image */}
-                        <div className="flex justify-center mb-4">
+                      <div className="p-4 flex-1 flex flex-col gap-3">
+                        {/* Compact Header: Image + Title/Creator */}
+                        <div className="flex items-center gap-3">
                           <div
-                            className="p-4 rounded-lg border-4"
-                            style={{
-                              borderColor: primaryColor,
-                              backgroundColor: 'var(--theme-card-bg)',
-                            }}
+                            className="p-1.5 rounded-lg border-2 flex-shrink-0"
+                            style={{ borderColor: primaryColor, backgroundColor: 'var(--theme-card-bg)' }}
                           >
                             <img
                               src={item.image_url}
                               alt={item.item_name}
-                              className="w-32 h-32 object-contain rounded"
-                              width={128}
-                              height={128}
+                              className="w-14 h-14 object-contain rounded"
+                              width={56}
+                              height={56}
                             />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            {item.item_link ? (
+                              <Link href={item.item_link} target="_blank" rel="noopener noreferrer">
+                                <h2
+                                  className="text-lg font-black leading-tight hover:underline cursor-pointer truncate"
+                                  style={{ color: primaryColor }}
+                                  title={item.item_name}
+                                >
+                                  {item.item_name}
+                                </h2>
+                              </Link>
+                            ) : (
+                              <h2
+                                className="text-lg font-black leading-tight truncate"
+                                style={{ color: primaryColor }}
+                                title={item.item_name}
+                              >
+                                {item.item_name}
+                              </h2>
+                            )}
+                            <p className="text-xs font-bold theme-text-secondary truncate mt-0.5">
+                              by <span style={{ color: primaryColor }}>{item.creator}</span>
+                            </p>
                           </div>
                         </div>
 
-                        {/* Item Title */}
-                        {item.item_link ? (
-                          <Link href={item.item_link} target="_blank" rel="noopener noreferrer">
-                            <h2
-                              className="text-2xl font-black mb-1 text-center hover:underline cursor-pointer transition-all break-words overflow-hidden"
-                              style={{ color: primaryColor }}
-                            >
-                              {item.item_name}
-                            </h2>
-                          </Link>
-                        ) : (
-                          <h2
-                            className="text-2xl font-black mb-1 text-center transition-all break-words overflow-hidden"
-                            style={{ color: primaryColor }}
-                          >
-                            {item.item_name}
-                          </h2>
-                        )}
-
-                        {/* Creator */}
-                        <p className="text-center text-sm font-bold theme-text-secondary mb-4">
-                          by <span style={{ color: primaryColor }}>{item.creator}</span>
-                        </p>
-
-                        {/* Data Grid */}
-                        <div className="grid grid-cols-2 gap-3 mb-6">
+                        {/* Compact Data Grid */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                           {/* Stock */}
-                          <div
-                            className="p-3 rounded-lg border-2 theme-bg-card"
-                            style={{ borderColor: shuffledColors[0] }}
-                          >
-                            <p className="text-xs font-bold theme-text-secondary uppercase">📦 Stock</p>
-                            <p className="font-black text-sm mt-1 truncate" style={{ color: item.sold_out ? 'var(--theme-text-secondary)' : shuffledColors[0] }}>
+                          <div className="p-2 rounded border theme-bg-card flex justify-between items-center" style={{ borderColor: shuffledColors[0] }}>
+                            <span className="font-bold theme-text-secondary">📦 Stock:</span>
+                            <span className="font-black truncate" style={{ color: item.sold_out ? 'var(--theme-text-secondary)' : shuffledColors[0] }}>
                               {item.sold_out ? `0/${item.stock || '?'}` : (typeof item.stock === 'number' ? item.stock : 'OUT')}
-                            </p>
+                            </span>
                           </div>
 
                           {/* Relative Time */}
-                          <div
-                            className="p-3 rounded-lg border-2 theme-bg-card"
-                            style={{ borderColor: shuffledColors[1] }}
-                          >
-                            <p className="text-xs font-bold theme-text-secondary uppercase">⏰ In</p>
-                            <p className="font-black text-xs mt-1 leading-snug" style={{ color: shuffledColors[1] }}>
+                          <div className="p-2 rounded border theme-bg-card flex justify-between items-center" style={{ borderColor: shuffledColors[1] }}>
+                            <span className="font-bold theme-text-secondary">⏰ In:</span>
+                            <span className="font-black truncate" style={{ color: shuffledColors[1] }}>
                               {formatRelativeTime(item.release_date_time)}
-                            </p>
+                            </span>
                           </div>
 
                           {/* Method */}
-                          <div
-                            className="p-3 rounded-lg border-2 theme-bg-card flex flex-col justify-center"
-                            style={{ borderColor: shuffledColors[2] }}
-                          >
-                            <p className="text-xs font-bold theme-text-secondary uppercase">🎯 Method</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {(Array.isArray(item.method) ? item.method : [item.method || UGCMethod.Unknown]).map((m, idx) => {
-                                let shortName = '❓';
-                                if (m === UGCMethod.WebDrop) shortName = '🌐 Web';
-                                else if (m === UGCMethod.InGame) shortName = '🎮 Game';
-                                else if (m === UGCMethod.CodeDrop) shortName = '🗝️ Code';
-                                else if (m === UGCMethod.Quest) shortName = '🏰 Quest';
-                                else if (m === UGCMethod.Launcher) shortName = '🚀 Launch';
-                                else if (m === UGCMethod.JoinAndClaim) shortName = '🤝 J&C';
-                                else if (m === UGCMethod.TwitchPoints) shortName = '🟪 Twitch';
-                                else shortName = `❓ ${m}`;
-
-                                return (
-                                  <span key={idx} className="font-black text-xs whitespace-nowrap" style={{ color: shuffledColors[2] }}>
-                                    {shortName}
-                                  </span>
-                                );
-                              })}
-                            </div>
+                          <div className="p-2 rounded border theme-bg-card flex justify-between items-center" style={{ borderColor: shuffledColors[2] }}>
+                            <span className="font-bold theme-text-secondary">🎯 Method:</span>
+                            <span className="font-black truncate" style={{ color: shuffledColors[2] }}>
+                              {(Array.isArray(item.method) ? item.method : [item.method || UGCMethod.Unknown]).map(m => {
+                                if (m === UGCMethod.WebDrop) return '🌐 Web';
+                                if (m === UGCMethod.InGame) return '🎮 Game';
+                                if (m === UGCMethod.CodeDrop) return '🗝️ Code';
+                                if (m === UGCMethod.Quest) return '🏰 Quest';
+                                if (m === UGCMethod.Launcher) return '🚀 Launch';
+                                if (m === UGCMethod.JoinAndClaim) return '🤝 J&C';
+                                if (m === UGCMethod.TwitchPoints) return '🟪 Twitch';
+                                return `❓ ${m}`;
+                              }).join(', ')}
+                            </span>
                           </div>
 
                           {/* Limit */}
-                          <div
-                            className="p-3 rounded-lg border-2 theme-bg-card"
-                            style={{ borderColor: shuffledColors[3] }}
-                          >
-                            <p className="text-xs font-bold theme-text-secondary uppercase">🔢 Limit</p>
-                            <p className="font-black text-sm mt-1 truncate" style={{ color: shuffledColors[3] }}>
+                          <div className="p-2 rounded border theme-bg-card flex justify-between items-center" style={{ borderColor: shuffledColors[3] }}>
+                            <span className="font-bold theme-text-secondary">🔢 Limit:</span>
+                            <span className="font-black truncate" style={{ color: shuffledColors[3] }}>
                               {(item.limit_per_user === null || item.limit_per_user === -1) ? '∞' : `${item.limit_per_user}x`}
-                            </p>
+                            </span>
                           </div>
                         </div>
 
-                        {/* Exact Date & Time */}
-                        <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[0] }}>
-                          <p className="text-xs font-bold theme-text-secondary uppercase mb-2">📅 Exact Time</p>
-                          <p className="theme-text-primary text-sm font-medium">
-                            {formatLocalDateTime(item.release_date_time)}
-                          </p>
-                        </div>
-
-                        {/* Region Lock */}
-                        {item.region_lock && (
-                          <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[2] }}>
-                            <p className="text-xs font-bold theme-text-secondary uppercase mb-2">🌍 Region Lock</p>
-                            <p className="theme-text-primary text-sm font-medium flex items-center gap-2">
-                              {(() => {
-                                const country = COUNTRY_OPTIONS.find(c => c.code === item.region_lock);
-                                return country ? `${country.flag} ${country.name}` : `Locked to: ${item.region_lock}`;
-                              })()}
-                            </p>
+                        {/* Restock Info (if enabled) */}
+                        {item.restock_info?.enabled && (
+                          <div className="p-2 rounded border theme-bg-card text-xs flex flex-col gap-1" style={{ borderColor: shuffledColors[1] }}>
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold theme-text-secondary">🔄 Restock:</span>
+                              <span className="font-black" style={{ color: shuffledColors[1] }}>
+                                {item.restock_info.next_restock_time ? 'Manual Time' : `Every ${item.restock_info.interval_hours}h`} · {item.restock_info.restock_amount} units
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center pt-1 border-t theme-border-secondary">
+                              <span className="font-bold theme-text-secondary">🕐 Next:</span>
+                              <span className="font-black" style={{ color: shuffledColors[2] }}>
+                                {(() => {
+                                  const now = new Date();
+                                  if (item.restock_info.next_restock_time) {
+                                    let manualStr = item.restock_info.next_restock_time;
+                                    if (!manualStr.endsWith('Z') && !manualStr.includes('+') && !manualStr.includes('-', 10)) {
+                                      manualStr = manualStr.replace(' ', 'T') + 'Z';
+                                    }
+                                    const manualDate = new Date(manualStr);
+                                    if (isNaN(manualDate.getTime())) return '⚠️';
+                                    const diff = manualDate.getTime() - now.getTime();
+                                    if (diff > 0) {
+                                      const h = Math.floor(diff / 3600000);
+                                      const m = Math.floor((diff % 3600000) / 60000);
+                                      const s = Math.floor((diff % 60000) / 1000);
+                                      const parts = [];
+                                      if (h > 0) parts.push(`${h}h`);
+                                      parts.push(`${m}m`);
+                                      parts.push(`${s}s`);
+                                      return `in ${parts.join(' ')}`;
+                                    } else {
+                                      const intervalMs = (item.restock_info.interval_hours || 0) * 3600000;
+                                      if (intervalMs <= 0) return 'Passed';
+                                      const elapsed = now.getTime() - manualDate.getTime();
+                                      const cyclesPassed = Math.floor(elapsed / intervalMs);
+                                      const nextRestock = new Date(manualDate.getTime() + (cyclesPassed + 1) * intervalMs);
+                                      const nextDiff = nextRestock.getTime() - now.getTime();
+                                      const h = Math.floor(nextDiff / 3600000);
+                                      const m = Math.floor((nextDiff % 3600000) / 60000);
+                                      const s = Math.floor((nextDiff % 60000) / 1000);
+                                      const parts = [];
+                                      if (h > 0) parts.push(`${h}h`);
+                                      parts.push(`${m}m`);
+                                      parts.push(`${s}s`);
+                                      return `in ${parts.join(' ')}`;
+                                    }
+                                  }
+                                  if (!item.release_date_time || item.release_date_time.startsWith('9999')) return '❓';
+                                  let dateStr = item.release_date_time;
+                                  if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+                                    dateStr = dateStr.replace(' ', 'T') + 'Z';
+                                  }
+                                  const release = new Date(dateStr);
+                                  const intervalMs = item.restock_info.interval_hours * 3600000;
+                                  if (intervalMs <= 0) return '⚠️';
+                                  if (release > now) return 'After release';
+                                  const elapsed = now.getTime() - release.getTime();
+                                  const cyclesPassed = Math.floor(elapsed / intervalMs);
+                                  const nextRestock = new Date(release.getTime() + (cyclesPassed + 1) * intervalMs);
+                                  const diff = nextRestock.getTime() - now.getTime();
+                                  const h = Math.floor(diff / 3600000);
+                                  const m = Math.floor((diff % 3600000) / 60000);
+                                  const s = Math.floor((diff % 60000) / 1000);
+                                  const parts = [];
+                                  if (h > 0) parts.push(`${h}h`);
+                                  parts.push(`${m}m`);
+                                  parts.push(`${s}s`);
+                                  return `in ${parts.join(' ')}`;
+                                })()}
+                              </span>
+                            </div>
                           </div>
                         )}
 
-                        {/* Game Links */}
-                        <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[1] }}>
-                          <p className="text-xs font-bold theme-text-secondary uppercase mb-2">🔗 Game Links</p>
-                          {(() => {
-                            const links = Array.isArray(item.game_links) && item.game_links.length > 0
-                              ? item.game_links
-                              : (item.game_link ? [item.game_link] : []);
-                            if (links.length === 0) {
-                              return (
-                                <div className="border-2 border-dashed rounded p-3 text-center" style={{ borderColor: 'var(--theme-text-secondary)' }}>
-                                  <p className="text-sm font-semibold theme-text-secondary">⚠️ Link Status</p>
-                                  <p className="text-xs theme-text-secondary mt-1">Game not yet published</p>
-                                </div>
-                              );
-                            }
+                        {/* Exact Time & Region Lock inline */}
+                        <div className="p-2 rounded border theme-bg-card text-xs flex flex-col gap-1" style={{ borderColor: shuffledColors[0] }}>
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold theme-text-secondary">📅 Exact:</span>
+                            <span className="theme-text-primary font-medium truncate">{formatLocalDateTime(item.release_date_time)}</span>
+                          </div>
+                          {item.region_lock && (
+                            <div className="flex justify-between items-center pt-1 border-t theme-border-secondary">
+                              <span className="font-bold theme-text-secondary">🌍 Region:</span>
+                              <span className="theme-text-primary font-medium">
+                                {(() => {
+                                  const country = COUNTRY_OPTIONS.find(c => c.code === item.region_lock);
+                                  return country ? `${country.flag} ${country.name}` : item.region_lock;
+                                })()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Game Links (Compact) */}
+                        {(() => {
+                          const links = Array.isArray(item.game_links) && item.game_links.length > 0
+                            ? item.game_links.filter(l => l && l.length > 0)
+                            : (item.game_link ? [item.game_link] : []);
+                          if (links.length > 0) {
                             return (
-                              <div className="space-y-1.5">
-                                {links.filter(l => l && l.length > 0).map((link, idx) => (
+                              <div className="p-2 rounded border theme-bg-card text-xs space-y-1" style={{ borderColor: shuffledColors[1] }}>
+                                <span className="font-bold theme-text-secondary block">🔗 Game Links ({links.length}):</span>
+                                {links.map((link, idx) => (
                                   <a
                                     key={idx}
                                     href={link}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-sm font-bold break-all hover:underline flex items-center gap-1.5 overflow-hidden"
+                                    className="font-bold truncate hover:underline block text-blue-500"
                                     style={{ color: primaryColor }}
                                   >
-                                    <span className="text-xs theme-text-secondary flex-shrink-0">{idx + 1}.</span>
-                                    <span className="truncate">{link}</span>
+                                    {idx + 1}. {link}
                                   </a>
                                 ))}
                               </div>
                             );
-                          })()}
-                        </div>
+                          }
+                          return null;
+                        })()}
 
-                        {/* Screenshots */}
-                        {Array.isArray(item.screenshots) && item.screenshots.length > 0 && (
-                          <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[3] }}>
-                            <p className="text-xs font-bold theme-text-secondary uppercase mb-2">🖼️ Screenshots ({item.screenshots.length})</p>
-                            <div className="grid grid-cols-2 gap-2">
-                              {item.screenshots.map((url, idx) => (
-                                <img
-                                  key={idx}
-                                  src={url}
-                                  alt={`Screenshot ${idx + 1}`}
-                                  className="w-full h-auto object-contain rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-lg border"
-                                  style={{ borderColor: shuffledColors[3] }}
-                                  onClick={() => openImageViewer(url)}
-                                />
-                              ))}
+                        {/* Instructions (Collapsible/Compact) */}
+                        {item.instruction && (
+                          <div className="p-2 rounded border theme-bg-card text-xs" style={{ borderColor: shuffledColors[2] }}>
+                            <span className="font-bold theme-text-secondary block mb-1">📖 How to Get It:</span>
+                            <div className="theme-text-primary font-medium line-clamp-2 whitespace-pre-wrap">
+                              <ClickableInstructions text={item.instruction} color={primaryColor} />
                             </div>
                           </div>
                         )}
 
-                        {/* Instructions */}
-                        <div className="mb-6 p-4 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[2] }}>
-                          <p className="text-xs font-bold theme-text-secondary uppercase mb-2">📖 How to Get It</p>
-                          <div className="theme-text-primary text-sm font-medium break-words whitespace-pre-wrap select-text cursor-text">
-                            <ClickableInstructions text={item.instruction || ''} color={primaryColor} />
+                        {/* Screenshots (Compact thumbnails) */}
+                        {Array.isArray(item.screenshots) && item.screenshots.length > 0 && (
+                          <div className="flex gap-1.5 overflow-x-auto py-1">
+                            {item.screenshots.map((url, idx) => (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt={`Screenshot ${idx + 1}`}
+                                className="w-12 h-12 object-cover rounded cursor-pointer border hover:scale-110 transition-all flex-shrink-0"
+                                style={{ borderColor: shuffledColors[3] }}
+                                onClick={() => openImageViewer(url)}
+                              />
+                            ))}
                           </div>
-                        </div>
+                        )}
 
-                        {/* Action Buttons */}
-                        <div className="flex flex-col gap-3 mt-auto">
-                          {item.item_link ? (
-                            <Link href={item.item_link} target="_blank" rel="noopener noreferrer" className="w-full">
+                        {/* Action Buttons (Compact & Sticky at bottom) */}
+                        <div className="flex flex-col gap-1.5 mt-auto pt-2 border-t theme-border-secondary">
+                          {/* Quick Mark Sold Out Toggle */}
+                          <button
+                            onClick={() => handleToggleSoldOut(item)}
+                            className={`w-full py-1.5 px-3 text-white font-black rounded transition-all text-xs uppercase tracking-wide shadow ${
+                              item.sold_out ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'
+                            }`}
+                          >
+                            {item.sold_out ? '✅ Unmark Sold Out' : '🚫 Mark as Sold Out'}
+                          </button>
+
+                          <div className="flex gap-1.5">
+                            {item.item_link ? (
+                              <Link href={item.item_link} target="_blank" rel="noopener noreferrer" className="flex-1">
+                                <button
+                                  className="w-full py-1.5 px-2 text-white font-black rounded transition-all text-xs uppercase tracking-wide truncate"
+                                  style={{ background: gradientStr }}
+                                >
+                                  🛍️ View Item
+                                </button>
+                              </Link>
+                            ) : (
                               <button
-                                className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
-                                style={{
-                                  background: gradientStr,
-                                }}
+                                disabled
+                                className="flex-1 py-1.5 px-2 theme-text-secondary font-black rounded text-xs uppercase tracking-wide theme-bg-card cursor-not-allowed opacity-50 border truncate"
+                                style={{ borderColor: 'var(--theme-secondary)' }}
                               >
                                 🛍️ View Item
                               </button>
-                            </Link>
-                          ) : (
-                            <button
-                              disabled
-                              className="w-full px-4 py-3 theme-text-secondary font-black rounded-lg text-sm uppercase tracking-wide theme-bg-card cursor-not-allowed opacity-50 border-2"
-                              style={{ borderColor: 'var(--theme-secondary)' }}
-                            >
-                              🛍️ View Item
-                            </button>
-                          )}
+                            )}
 
-                          {/* Multi Join Game Buttons */}
-                          {(() => {
-                            const links = Array.isArray(item.game_links) && item.game_links.length > 0
-                              ? item.game_links.filter(l => l && l.length > 0)
-                              : (item.game_link ? [item.game_link] : []);
-                            if (links.length === 0) {
-                              return (
-                                <button
-                                  disabled
-                                  className="w-full px-4 py-3 theme-text-secondary font-black rounded-lg text-sm uppercase tracking-wide theme-bg-card cursor-not-allowed opacity-50 border-2"
-                                  style={{ borderColor: 'var(--theme-secondary)' }}
-                                >
-                                  🎮 Join Game
-                                </button>
-                              );
-                            }
-                            if (links.length === 1) {
-                              return (
-                                <Link href={links[0]} target="_blank" rel="noopener noreferrer" className="w-full">
+                            {/* Join Game Button */}
+                            {(() => {
+                              const links = Array.isArray(item.game_links) && item.game_links.length > 0
+                                ? item.game_links.filter(l => l && l.length > 0)
+                                : (item.game_link ? [item.game_link] : []);
+                              if (links.length === 0) {
+                                return (
                                   <button
-                                    className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
+                                    disabled
+                                    className="flex-1 py-1.5 px-2 theme-text-secondary font-black rounded text-xs uppercase tracking-wide theme-bg-card cursor-not-allowed opacity-50 border truncate"
+                                    style={{ borderColor: 'var(--theme-secondary)' }}
+                                  >
+                                    🎮 Join
+                                  </button>
+                                );
+                              }
+                              return (
+                                <Link href={links[0]} target="_blank" rel="noopener noreferrer" className="flex-1">
+                                  <button
+                                    className="w-full py-1.5 px-2 text-white font-black rounded transition-all text-xs uppercase tracking-wide truncate"
                                     style={{ background: gradientStr }}
                                   >
-                                    🎮 Join Game
+                                    🎮 Join
                                   </button>
                                 </Link>
                               );
-                            }
-                            return links.map((link, idx) => (
-                              <Link key={idx} href={link} target="_blank" rel="noopener noreferrer" className="w-full">
-                                <button
-                                  className="w-full px-4 py-3 text-white font-black rounded-lg transition-all duration-300 transform hover:scale-105 text-sm uppercase tracking-wide"
-                                  style={{ background: gradientStr }}
-                                >
-                                  🎮 Join Game {idx + 1}
-                                </button>
-                              </Link>
-                            ));
-                          })()}
+                            })()}
+                          </div>
 
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <button
                               onClick={() => handleEditSchedule(item)}
-                              className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-blue-600 hover:bg-blue-700"
+                              className="flex-1 py-1.5 px-2 text-white font-black rounded transition-all text-xs uppercase tracking-wide bg-blue-600 hover:bg-blue-700 truncate"
                             >
                               ✏️ Edit
                             </button>
                             <button
                               onClick={() => handleRemoveSchedule(String(item.uuid || item.id || ''))}
-                              className="flex-1 px-4 py-3 text-white font-black rounded-lg transition-all duration-300 text-sm uppercase tracking-wide bg-red-600 hover:bg-red-700"
+                              className="flex-1 py-1.5 px-2 text-white font-black rounded transition-all text-xs uppercase tracking-wide bg-red-600 hover:bg-red-700 truncate"
                             >
                               🗑️ Remove
                             </button>
@@ -1819,204 +2138,117 @@ export default function SchedulePage() {
             </div>
 
             {/* Modal Form */}
-            <div className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Item Name */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Item Name</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Item Name</label>
                   <input
                     type="text"
                     value={formData.item_name}
                     onChange={(e) => handleFormChange('item_name', e.target.value)}
                     placeholder="e.g., Red Valkyrie Helm"
-                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-pink font-bold theme-text-primary theme-bg-card focus:outline-none focus:border-noob-cyan"
+                    className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary theme-bg-card focus:outline-none"
+                    style={{ borderColor: 'var(--theme-gradient-1)' }}
                   />
                 </div>
 
                 {/* Creator */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Creator Name</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Creator Name</label>
                   <input
                     type="text"
                     value={formData.creator}
                     onChange={(e) => handleFormChange('creator', e.target.value)}
                     placeholder="e.g., RobloxianCreations"
-                    className="w-full px-4 py-3 rounded-lg border-4 border-noob-cyan font-bold theme-text-primary theme-bg-card focus:outline-none focus:border-noob-pink"
+                    className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary theme-bg-card focus:outline-none"
+                    style={{ borderColor: 'var(--theme-gradient-2)' }}
                   />
                 </div>
 
                 {/* Release Date & Time */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Release Date & Time</label>
-                  <div className="flex gap-4 items-center">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Release Date & Time</label>
+                  <div className="flex gap-2 items-center">
                     <input
                       type="datetime-local"
                       step="1"
                       value={formData.release_date_time}
                       onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                       disabled={isUnknownSchedule}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 theme-text-secondary' : ''}`}
-                      style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : { borderColor: 'var(--theme-text-secondary)' }}
+                      className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                      style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
                     />
-                    <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
+                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
                       <input
                         type="checkbox"
                         id="modal-unknown-schedule"
                         checked={isUnknownSchedule}
                         onChange={(e) => setIsUnknownSchedule(e.target.checked)}
-                        className="w-5 h-5 accent-orange-600"
+                        className="w-4 h-4 accent-orange-600"
                       />
-                      <label htmlFor="modal-unknown-schedule" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
+                      <label htmlFor="modal-unknown-schedule" className="text-xs font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
                     </div>
                   </div>
                 </div>
 
                 {/* Stock */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Stock Amount</label>
-                  <div className="flex gap-4 items-center">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Stock Amount</label>
+                  <div className="flex gap-2 items-center">
                     <input
                       type="number"
                       value={typeof formData.stock === 'number' ? formData.stock : 0}
                       onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                       disabled={isUnknownStock}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 theme-text-secondary' : ''}`}
-                      style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : { borderColor: 'var(--theme-text-secondary)' }}
+                      className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                      style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
                     />
-                    <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                       <input
                         type="checkbox"
                         id="modal-unknown-stock"
                         checked={isUnknownStock}
                         onChange={(e) => setIsUnknownStock(e.target.checked)}
-                        className="w-5 h-5 accent-orange-600"
+                        className="w-4 h-4 accent-orange-600"
                       />
-                      <label htmlFor="modal-unknown-stock" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
+                      <label htmlFor="modal-unknown-stock" className="text-xs font-bold theme-text-secondary cursor-pointer select-none">Unknown</label>
                     </div>
                   </div>
-
-                  {/* Sold Out Confirmation */}
-                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2 theme-bg-card" style={{ borderColor: '#ef4444' }}>
-                    <input
-                      type="checkbox"
-                      id="modal-sold-out"
-                      checked={isSoldOut}
-                      onChange={(e) => setIsSoldOut(e.target.checked)}
-                      className="w-5 h-5 accent-red-600"
-                    />
-                    <label htmlFor="modal-sold-out" className="text-sm font-bold theme-text-primary cursor-pointer select-none" style={{ color: '#ef4444' }}>
-                      🚫 Mark as SOLD OUT
-                    </label>
-                  </div>
-
-                  {/* Abandoned Status */}
-                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-secondary)' }}>
-                    <input
-                      type="checkbox"
-                      id="modal-abandoned"
-                      checked={isAbandoned}
-                      onChange={(e) => setIsAbandoned(e.target.checked)}
-                      className="w-5 h-5 accent-gray-600"
-                    />
-                    <label htmlFor="modal-abandoned" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
-                      🏚️ Mark as ABANDONED
-                    </label>
-                  </div>
-
-                  {/* Paid Item Status */}
-                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2" style={{ borderColor: 'var(--theme-gradient-4)', background: 'var(--theme-card-bg)' }}>
-                    <input
-                      type="checkbox"
-                      id="modal-paid"
-                      checked={isPaid}
-                      onChange={(e) => setIsPaid(e.target.checked)}
-                      className="w-5 h-5 accent-yellow-600"
-                    />
-                    <label htmlFor="modal-paid" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
-                      💰 Mark as PAID ITEM (not free)
-                    </label>
-                  </div>
-
-                  {/* Regular Item Status */}
-                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg border-2" style={{ borderColor: 'var(--theme-gradient-4)', background: 'var(--theme-card-bg)' }}>
-                    <input
-                      type="checkbox"
-                      id="modal-regular"
-                      checked={isRegular}
-                      onChange={(e) => setIsRegular(e.target.checked)}
-                      className="w-5 h-5 accent-purple-600"
-                    />
-                    <label htmlFor="modal-regular" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">
-                      ♾️ Mark as REGULAR (non-limited)
-                    </label>
-                  </div>
                 </div>
-
-                {/* Method */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Drop Methods</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 p-4 rounded-lg border-4 border-noob-orange theme-bg-card">
-                    {METHOD_OPTIONS.map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={Array.isArray(formData.method) && formData.method.includes(opt.value)}
-                          onChange={() => toggleMethod(opt.value)}
-                          className="w-4 h-4 accent-blue-500"
-                        />
-                        <span className="text-sm font-bold theme-text-primary">{opt.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Code Input (Conditional) */}
-                {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold theme-text-secondary uppercase">Code</label>
-                    <input
-                      type="text"
-                      value={formData.ugc_code || ''}
-                      onChange={(e) => handleFormChange('ugc_code', e.target.value)}
-                      placeholder="Enter Code..."
-                      className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
-                      style={{ borderColor: 'var(--theme-accent)' }}
-                    />
-                  </div>
-                )}
 
                 {/* Limit Per User */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Limit Per User</label>
-                  <div className="flex gap-4 items-center">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Limit Per User</label>
+                  <div className="flex gap-2 items-center">
                     <input
                       type="number"
                       value={formData.limit_per_user || 1}
                       onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
                       disabled={isUnlimitedLimit}
-                      className={`w-full px-4 py-3 rounded-lg border-4 font-bold focus:outline-none ${isUnlimitedLimit ? 'theme-bg-card border-gray-500 theme-text-secondary opacity-50' : 'theme-bg-card theme-text-primary'}`}
+                      className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base focus:outline-none ${isUnlimitedLimit ? 'theme-bg-card border-gray-500 theme-text-secondary opacity-50' : 'theme-bg-card theme-text-primary'}`}
                       style={{ borderColor: isUnlimitedLimit ? 'gray' : 'var(--theme-gradient-4)' }}
                     />
-                    <div className="flex items-center gap-2 whitespace-nowrap p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                       <input
                         type="checkbox"
                         id="modal-unlimited"
                         checked={isUnlimitedLimit}
                         onChange={(e) => setIsUnlimitedLimit(e.target.checked)}
-                        className="w-5 h-5 accent-blue-600"
+                        className="w-4 h-4 accent-blue-600"
                       />
-                      <label htmlFor="modal-unlimited" className="text-sm font-bold theme-text-secondary cursor-pointer select-none">Unlimited</label>
+                      <label htmlFor="modal-unlimited" className="text-xs font-bold theme-text-secondary cursor-pointer select-none">Unlimited</label>
                     </div>
                   </div>
                 </div>
 
                 {/* Region Lock */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Region Lock</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Region Lock</label>
                   <select
                     value={formData.region_lock || ''}
                     onChange={(e) => handleFormChange('region_lock', e.target.value || null)}
-                    className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary focus:outline-none theme-bg-card"
+                    className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
                     style={{ borderColor: 'var(--theme-accent)' }}
                   >
                     <option value="">🌍 Global (No Region Lock)</option>
@@ -2028,10 +2260,331 @@ export default function SchedulePage() {
                   </select>
                 </div>
 
-                {/* Game Links (Multiple) */}
-                <div className="space-y-2">
+                {/* Item Link */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Item Link</label>
+                  <input
+                    type="url"
+                    value={formData.item_link}
+                    onChange={(e) => handleFormChange('item_link', e.target.value)}
+                    placeholder="https://www.roblox.com/catalog/..."
+                    className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary theme-bg-card focus:outline-none"
+                    style={{ borderColor: 'var(--theme-gradient-3)' }}
+                  />
+                </div>
+
+                {/* Drop Methods (Spans full width on lg) */}
+                <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Drop Methods</label>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 p-2.5 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-secondary)' }}>
+                    {METHOD_OPTIONS.map((opt) => (
+                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={Array.isArray(formData.method) && formData.method.includes(opt.value)}
+                          onChange={() => toggleMethod(opt.value)}
+                          className="w-4 h-4 accent-blue-500 flex-shrink-0"
+                        />
+                        <span className="text-xs md:text-sm font-bold theme-text-primary">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Code Input (Conditional) */}
+                {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
+                  <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3">
+                    <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Code Drop Secret</label>
+                    <input
+                      type="text"
+                      value={formData.ugc_code || ''}
+                      onChange={(e) => handleFormChange('ugc_code', e.target.value)}
+                      placeholder="Enter Code..."
+                      className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                      style={{ borderColor: 'var(--theme-accent)' }}
+                    />
+                  </div>
+                )}
+
+                {/* Status Flags Horizontal Row */}
+                <div className="col-span-1 md:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+                  {/* Sold Out */}
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: '#ef4444' }}>
+                    <input
+                      type="checkbox"
+                      checked={isSoldOut}
+                      onChange={(e) => setIsSoldOut(e.target.checked)}
+                      className="w-4 h-4 accent-red-600 flex-shrink-0"
+                    />
+                    <span className="text-xs md:text-sm font-bold truncate" style={{ color: '#ef4444' }}>🚫 Mark SOLD OUT</span>
+                  </label>
+
+                  {/* Abandoned */}
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: 'var(--theme-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={isAbandoned}
+                      onChange={(e) => setIsAbandoned(e.target.checked)}
+                      className="w-4 h-4 accent-gray-600 flex-shrink-0"
+                    />
+                    <span className="text-xs md:text-sm font-bold theme-text-secondary truncate">🏚️ Mark ABANDONED</span>
+                  </label>
+
+                  {/* Paid */}
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                    <input
+                      type="checkbox"
+                      checked={isPaid}
+                      onChange={(e) => setIsPaid(e.target.checked)}
+                      className="w-4 h-4 accent-yellow-600 flex-shrink-0"
+                    />
+                    <span className="text-xs md:text-sm font-bold theme-text-secondary truncate">💰 Mark PAID ITEM</span>
+                  </label>
+
+                  {/* Regular */}
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                    <input
+                      type="checkbox"
+                      checked={isRegular}
+                      onChange={(e) => setIsRegular(e.target.checked)}
+                      className="w-4 h-4 accent-purple-600 flex-shrink-0"
+                    />
+                    <span className="text-xs md:text-sm font-bold theme-text-secondary truncate">♾️ Mark REGULAR</span>
+                  </label>
+                </div>
+
+                {/* Restock Configuration */}
+                <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-2 pt-1">
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg border-2 theme-bg-card cursor-pointer select-none transition-all hover:opacity-90" style={{ borderColor: 'var(--theme-gradient-2)' }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.restock_info?.enabled || false}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          handleFormChange('restock_info', { enabled: true, interval_hours: 12, restock_amount: 100 });
+                        } else {
+                          handleFormChange('restock_info', null);
+                        }
+                      }}
+                      className="w-4 h-4 accent-green-600 flex-shrink-0"
+                    />
+                    <span className="text-xs md:text-sm font-bold theme-text-primary">🔄 Enable Restock Schedule</span>
+                  </label>
+                  {formData.restock_info?.enabled && (() => {
+                    const mode = formData.restock_info.mode || (formData.restock_info.next_restock_time ? 'manual' : 'auto');
+                    const manual_type = formData.restock_info.manual_type || (formData.restock_info.second_restock_time ? 'date' : 'hours');
+                    return (
+                      <div className="p-4 rounded-xl border-2 theme-bg-card space-y-4" style={{ borderColor: 'var(--theme-gradient-2)' }}>
+                        {/* Top Row: Amount & Mode Choice */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b theme-border-secondary">
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">📦 Amount Per Restock</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={formData.restock_info.restock_amount}
+                              onChange={(e) => handleFormChange('restock_info', { ...formData.restock_info!, restock_amount: parseInt(e.target.value) || 1 })}
+                              className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                              style={{ borderColor: 'var(--theme-gradient-2)' }}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">🛠️ Restock Timing Mode</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleFormChange('restock_info', { ...formData.restock_info!, mode: 'auto', next_restock_time: '', second_restock_time: '' })}
+                                className={`p-2 rounded-lg border-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${mode === 'auto' ? 'theme-bg-secondary text-white border-transparent' : 'theme-bg-card theme-text-secondary border-dashed'}`}
+                                style={mode === 'auto' ? { background: 'var(--theme-gradient-2)' } : { borderColor: 'var(--theme-border-secondary)' }}
+                              >
+                                🔄 Auto from Release
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleFormChange('restock_info', { ...formData.restock_info!, mode: 'manual' })}
+                                className={`p-2 rounded-lg border-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${mode === 'manual' ? 'theme-bg-secondary text-white border-transparent' : 'theme-bg-card theme-text-secondary border-dashed'}`}
+                                style={mode === 'manual' ? { background: 'var(--theme-gradient-2)' } : { borderColor: 'var(--theme-border-secondary)' }}
+                              >
+                                📅 Manual Anchor
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mode Content */}
+                        {mode === 'auto' ? (
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">⏱️ Auto Every (Hours) starting from item release</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              placeholder="e.g. 12 or 24"
+                              value={formData.restock_info.interval_hours || ''}
+                              onChange={(e) => handleFormChange('restock_info', { ...formData.restock_info!, interval_hours: parseFloat(e.target.value) || 0 })}
+                              className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                              style={{ borderColor: 'var(--theme-gradient-2)' }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">📅 1st Manual Restock Time (Anchor Time)</label>
+                              <input
+                                type="datetime-local"
+                                step="1"
+                                value={formData.restock_info.next_restock_time || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  let calcInterval = formData.restock_info!.interval_hours;
+                                  if (manual_type === 'date' && val && formData.restock_info!.second_restock_time) {
+                                    const d1 = new Date(val).getTime();
+                                    const d2 = new Date(formData.restock_info!.second_restock_time).getTime();
+                                    if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+                                      calcInterval = Number(((d2 - d1) / 3600000).toFixed(2));
+                                    }
+                                  }
+                                  handleFormChange('restock_info', { ...formData.restock_info!, next_restock_time: val, interval_hours: calcInterval });
+                                }}
+                                className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
+                                style={{ borderColor: 'var(--theme-gradient-2)' }}
+                              />
+                            </div>
+
+                            {/* Recurring Condition Branch */}
+                            <div className="p-3 rounded-lg border theme-border-secondary theme-bg-card space-y-3">
+                              <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">🔁 Recurring Condition (Subsequent Restocks)</label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleFormChange('restock_info', { ...formData.restock_info!, manual_type: 'hours', second_restock_time: '' })}
+                                  className={`p-2 rounded border text-xs font-bold transition-all ${manual_type === 'hours' ? 'theme-text-primary border-2' : 'theme-text-secondary opacity-70 border'}`}
+                                  style={manual_type === 'hours' ? { borderColor: 'var(--theme-gradient-2)' } : {}}
+                                >
+                                  ⏱️ Auto Every (Hours)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFormChange('restock_info', { ...formData.restock_info!, manual_type: 'date' })}
+                                  className={`p-2 rounded border text-xs font-bold transition-all ${manual_type === 'date' ? 'theme-text-primary border-2' : 'theme-text-secondary opacity-70 border'}`}
+                                  style={manual_type === 'date' ? { borderColor: 'var(--theme-gradient-2)' } : {}}
+                                >
+                                  📅 2nd Manual Date
+                                </button>
+                              </div>
+
+                              {manual_type === 'hours' ? (
+                                <div className="space-y-1 pt-1">
+                                  <label className="block text-xs font-bold theme-text-secondary">⏱️ Repeat Every (Hours) e.g. 24h loops identical time next day</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.5"
+                                    placeholder="e.g. 24"
+                                    value={formData.restock_info.interval_hours || ''}
+                                    onChange={(e) => handleFormChange('restock_info', { ...formData.restock_info!, interval_hours: parseFloat(e.target.value) || 0 })}
+                                    className="w-full px-3 py-2 rounded border-2 font-bold text-sm theme-text-primary focus:outline-none theme-bg-card"
+                                    style={{ borderColor: 'var(--theme-gradient-2)' }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="space-y-1 pt-1">
+                                  <label className="block text-xs font-bold theme-text-secondary">📅 2nd Restock Time (Calculates interval automatically)</label>
+                                  <input
+                                    type="datetime-local"
+                                    step="1"
+                                    disabled={!formData.restock_info.next_restock_time}
+                                    value={formData.restock_info.second_restock_time || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      let calcInterval = formData.restock_info!.interval_hours;
+                                      if (formData.restock_info!.next_restock_time && val) {
+                                        const d1 = new Date(formData.restock_info!.next_restock_time).getTime();
+                                        const d2 = new Date(val).getTime();
+                                        if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+                                          calcInterval = Number(((d2 - d1) / 3600000).toFixed(2));
+                                        }
+                                      }
+                                      handleFormChange('restock_info', { ...formData.restock_info!, second_restock_time: val, interval_hours: calcInterval });
+                                    }}
+                                    className="w-full px-3 py-2 rounded border-2 font-bold text-sm theme-text-primary focus:outline-none theme-bg-card"
+                                    style={{ borderColor: 'var(--theme-gradient-2)' }}
+                                  />
+                                  {formData.restock_info.interval_hours > 0 && (
+                                    <p className="text-xs font-bold theme-text-secondary mt-1">✓ Calculated Interval: <span style={{ color: 'var(--theme-gradient-2)' }}>Every {formData.restock_info.interval_hours} hours</span></p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Next Restock Preview */}
+                        <div className="pt-2 border-t theme-border-secondary flex items-center justify-between">
+                          <span className="text-xs font-bold theme-text-secondary uppercase tracking-wider">🕐 Next Restock Preview:</span>
+                          <span className="text-sm font-bold" style={{ color: 'var(--theme-gradient-2)' }}>
+                            {(() => {
+                              const now = new Date();
+                              if (mode === 'manual') {
+                                if (!formData.restock_info.next_restock_time) return '⚠️ Pick 1st manual time';
+                                if (!formData.restock_info.interval_hours || formData.restock_info.interval_hours <= 0) return '⚠️ Set recurring hours / 2nd date';
+                                const manualDate = new Date(formData.restock_info.next_restock_time);
+                                if (isNaN(manualDate.getTime())) return '⚠️ Invalid date';
+                                const diff = manualDate.getTime() - now.getTime();
+                                if (diff > 0) {
+                                  const h = Math.floor(diff / 3600000);
+                                  const m = Math.floor((diff % 3600000) / 60000);
+                                  const s = Math.floor((diff % 60000) / 1000);
+                                  const parts = [];
+                                  if (h > 0) parts.push(`${h}h`);
+                                  parts.push(`${m}m`);
+                                  parts.push(`${s}s`);
+                                  return `in ${parts.join(' ')} (Loops every ${formData.restock_info.interval_hours}h)`;
+                                } else {
+                                  const intervalMs = formData.restock_info.interval_hours * 3600000;
+                                  const elapsed = now.getTime() - manualDate.getTime();
+                                  const cyclesPassed = Math.floor(elapsed / intervalMs);
+                                  const nextRestock = new Date(manualDate.getTime() + (cyclesPassed + 1) * intervalMs);
+                                  const nextDiff = nextRestock.getTime() - now.getTime();
+                                  const h = Math.floor(nextDiff / 3600000);
+                                  const m = Math.floor((nextDiff % 3600000) / 60000);
+                                  const s = Math.floor((nextDiff % 60000) / 1000);
+                                  const parts = [];
+                                  if (h > 0) parts.push(`${h}h`);
+                                  parts.push(`${m}m`);
+                                  parts.push(`${s}s`);
+                                  return `in ${parts.join(' ')} (Loops every ${formData.restock_info.interval_hours}h)`;
+                                }
+                              }
+                              if (!formData.release_date_time || isUnknownSchedule) return '❓ Unknown (no release date)';
+                              const release = new Date(formData.release_date_time);
+                              const intervalMs = (formData.restock_info.interval_hours || 0) * 3600000;
+                              if (intervalMs <= 0) return '⚠️ Enter auto hours';
+                              if (release > now) return `After release (every ${formData.restock_info.interval_hours}h)`;
+                              const elapsed = now.getTime() - release.getTime();
+                              const cyclesPassed = Math.floor(elapsed / intervalMs);
+                              const nextRestock = new Date(release.getTime() + (cyclesPassed + 1) * intervalMs);
+                              const diff = nextRestock.getTime() - now.getTime();
+                              const h = Math.floor(diff / 3600000);
+                              const m = Math.floor((diff % 3600000) / 60000);
+                              const s = Math.floor((diff % 60000) / 1000);
+                              const parts = [];
+                              if (h > 0) parts.push(`${h}h`);
+                              parts.push(`${m}m`);
+                              parts.push(`${s}s`);
+                              return `in ${parts.join(' ')}`;
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Game Links (Full Width) */}
+                <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3">
                   <div className="flex items-center justify-between">
-                    <label className="block text-sm font-bold theme-text-secondary uppercase">🎮 Game Links</label>
+                    <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">🎮 Game Links</label>
                     <button
                       type="button"
                       onClick={addGameLink}
@@ -2044,77 +2597,68 @@ export default function SchedulePage() {
                   {(formData.game_links || []).length === 0 && (
                     <p className="text-xs theme-text-secondary italic">No game links. Click &quot;+ Add Link&quot;.</p>
                   )}
-                  {(formData.game_links || []).map((link, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                      <span className="text-xs font-bold theme-text-secondary w-6 text-center">{idx + 1}.</span>
-                      <input
-                        type="url"
-                        value={link}
-                        onChange={(e) => updateGameLink(idx, e.target.value)}
-                        placeholder="https://www.roblox.com/games/..."
-                        className="flex-1 px-4 py-3 rounded-lg border-4 font-bold theme-text-primary theme-bg-card focus:outline-none"
-                        style={{ borderColor: 'var(--theme-gradient-2)' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeGameLink(idx)}
-                        className="text-red-500 hover:text-red-700 font-bold text-lg px-2 transition-all hover:scale-110"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {(formData.game_links || []).map((link, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <span className="text-xs font-bold theme-text-secondary w-5 text-center flex-shrink-0">{idx + 1}.</span>
+                        <input
+                          type="url"
+                          value={link}
+                          onChange={(e) => updateGameLink(idx, e.target.value)}
+                          placeholder="https://www.roblox.com/games/..."
+                          className="flex-1 px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary theme-bg-card focus:outline-none min-w-0"
+                          style={{ borderColor: 'var(--theme-gradient-2)' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeGameLink(idx)}
+                          className="text-red-500 hover:text-red-700 font-bold text-base px-2 transition-all hover:scale-110 flex-shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Side-by-Side How to Get It & Image Upload */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
+                {/* Instructions */}
+                <div className="space-y-1.5 flex flex-col">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">How to Get It</label>
+                  <textarea
+                    value={formData.instruction}
+                    onChange={(e) => handleFormChange('instruction', e.target.value)}
+                    placeholder="Instructions for obtaining the item..."
+                    className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary theme-bg-card focus:outline-none h-32 resize-y flex-1"
+                    style={{ borderColor: 'var(--theme-primary)' }}
+                  />
                 </div>
 
-                {/* Item Link */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold theme-text-secondary uppercase">Item Link</label>
-                  <input
-                    type="url"
-                    value={formData.item_link}
-                    onChange={(e) => handleFormChange('item_link', e.target.value)}
-                    placeholder="https://www.roblox.com/catalog/..."
-                    className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary theme-bg-card focus:outline-none"
-                    style={{ borderColor: 'var(--theme-gradient-3)' }}
+                {/* Image Upload */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">📷 Item Image</label>
+                  <CloudinaryUpload
+                    onImageChange={(url) => handleFormChange('image_url', url)}
+                    currentImageUrl={formData.image_url}
                   />
                 </div>
               </div>
 
-              {/* Instructions */}
-              <div className="space-y-2">
-                <label className="block text-sm font-bold theme-text-secondary uppercase">How to Get It</label>
-                <textarea
-                  value={formData.instruction}
-                  onChange={(e) => handleFormChange('instruction', e.target.value)}
-                  placeholder="Instructions for obtaining the item..."
-                  className="w-full px-4 py-3 rounded-lg border-4 font-bold theme-text-primary theme-bg-card focus:outline-none h-24 resize-none"
-                  style={{ borderColor: 'var(--theme-primary)' }}
-                />
-              </div>
-
-              {/* Image Upload */}
-              <div className="space-y-2">
-                <label className="block text-sm font-bold theme-text-secondary uppercase">📷 Item Image</label>
-                <CloudinaryUpload
-                  onImageChange={(url) => handleFormChange('image_url', url)}
-                  currentImageUrl={formData.image_url}
-                />
-              </div>
-
               {/* Screenshots Upload */}
-              <div className="space-y-3">
-                <label className="block text-sm font-bold theme-text-secondary uppercase">🖼️ Screenshots</label>
+              <div className="space-y-2 pt-2">
+                <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">🖼️ Screenshots</label>
                 <div
-                  className="p-6 rounded-xl border-4 border-dashed theme-bg-card transition-all cursor-pointer hover:opacity-80 text-center"
+                  className="p-4 rounded-xl border-2 border-dashed theme-bg-card transition-all cursor-pointer hover:opacity-80 text-center"
                   style={{ borderColor: 'var(--theme-gradient-4)' }}
                   onPaste={handleScreenshotPaste}
                   onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                   onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files.length > 0) handleScreenshotFiles(e.dataTransfer.files); }}
                   tabIndex={0}
                 >
-                  <p className="theme-text-secondary font-bold text-sm">📋 Paste from clipboard (Ctrl+V) or drag & drop</p>
-                  <p className="theme-text-secondary text-xs mt-1 opacity-75">PNG, JPG, GIF, WebP</p>
-                  <label className="mt-3 inline-block px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-all hover:scale-105 text-white"
+                  <p className="theme-text-secondary font-bold text-xs md:text-sm">📋 Paste from clipboard (Ctrl+V) or drag & drop</p>
+                  <label className="mt-2 inline-block px-3 py-1.5 rounded-lg font-bold text-xs md:text-sm cursor-pointer transition-all hover:scale-105 text-white shadow"
                     style={{ background: 'linear-gradient(135deg, var(--theme-gradient-3), var(--theme-gradient-4))' }}
                   >
                     📁 Browse Files
@@ -2128,25 +2672,22 @@ export default function SchedulePage() {
                   </label>
                 </div>
                 {(formData.screenshots || []).length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
                     {(formData.screenshots || []).map((url, idx) => (
                       <div key={idx} className="relative group rounded-lg overflow-hidden border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                         <img
                           src={url}
                           alt={`Screenshot ${idx + 1}`}
-                          className="w-full h-auto object-contain cursor-pointer transition-all hover:scale-105"
+                          className="w-full h-16 object-contain cursor-pointer transition-all hover:scale-105"
                           onClick={() => openImageViewer(url)}
                         />
                         <button
                           type="button"
                           onClick={() => removeScreenshot(idx)}
-                          className="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                         >
                           ✕
                         </button>
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-0.5 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                          Click to preview
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -2155,37 +2696,37 @@ export default function SchedulePage() {
 
               {/* Preview */}
               {formData.item_name && (
-                <div className="p-6 rounded-xl border-4 border-dashed space-y-3 theme-bg-card" style={{ borderColor: 'var(--theme-primary)' }}>
-                  <p className="text-sm font-bold theme-text-secondary uppercase">Preview</p>
-                  <div className="flex items-center gap-4">
+                <div className="p-4 rounded-xl border-2 border-dashed space-y-2 theme-bg-card" style={{ borderColor: 'var(--theme-primary)' }}>
+                  <p className="text-xs font-bold theme-text-secondary uppercase tracking-wider">Preview</p>
+                  <div className="flex items-center gap-3">
                     <img
                       src={formData.image_url}
                       alt="Preview"
-                      className="w-24 h-24 object-contain rounded-lg border-2"
+                      className="w-16 h-16 object-contain rounded-lg border"
                       style={{ borderColor: 'var(--theme-secondary)' }}
                     />
-                    <div>
-                      <p className="font-black text-lg theme-text-primary">{formData.item_name}</p>
-                      <p className="text-sm theme-text-secondary">by {formData.creator}</p>
-                      <p className="text-xs theme-text-secondary mt-2 opacity-75">{formatLocalDateTime(formData.release_date_time)}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-black text-base theme-text-primary truncate">{formData.item_name}</p>
+                      <p className="text-xs font-bold theme-text-secondary truncate">by {formData.creator}</p>
+                      <p className="text-xs theme-text-secondary mt-1 opacity-75">{formatLocalDateTime(formData.release_date_time)}</p>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-4 pt-2">
                 <button
                   onClick={handleAddSchedule}
                   disabled={isLoading}
-                  className="flex-1 gradient-button px-8 py-4 text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="flex-1 gradient-button px-6 py-3 text-base rounded-xl font-black uppercase tracking-wider blocky-shadow-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isLoading ? '⏳ Saving...' : '💾 Save Changes'}
                 </button>
                 <button
                   onClick={handleCancelEdit}
                   disabled={isLoading}
-                  className="px-8 py-4 bg-gray-400 hover:bg-gray-500 text-white text-lg rounded-xl font-black uppercase tracking-wider blocky-shadow-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-gray-400 hover:bg-gray-500 text-white text-base rounded-xl font-black uppercase tracking-wider blocky-shadow-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ❌ Cancel
                 </button>

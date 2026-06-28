@@ -86,7 +86,8 @@ export async function PUT(
       'is_abandoned',
       'is_paid',
       'is_regular',
-      'region_lock'
+      'region_lock',
+      'restock_info'
     ];
 
     // Fields that need text sanitization
@@ -151,6 +152,34 @@ export async function PUT(
             updates[field] = null;
           } else if (typeof value === 'string' && value.length <= 2) {
             updates[field] = value.toUpperCase();
+          }
+        } else if (field === 'restock_info') {
+          // Validate restock_info is a proper object
+          if (value && typeof value === 'object' && value.enabled) {
+            const mode = value.mode === 'manual' ? 'manual' : 'auto';
+            const manual_type = value.manual_type === 'date' ? 'date' : 'hours';
+            let interval = typeof value.interval_hours === 'number' && value.interval_hours > 0 ? value.interval_hours : 0;
+            const t1Str = mode === 'manual' && value.next_restock_time && typeof value.next_restock_time === 'string' ? value.next_restock_time : null;
+            const t2Str = mode === 'manual' && manual_type === 'date' && value.second_restock_time && typeof value.second_restock_time === 'string' ? value.second_restock_time : null;
+            
+            if (mode === 'manual' && manual_type === 'date' && t1Str && t2Str) {
+              const d1 = new Date(t1Str).getTime();
+              const d2 = new Date(t2Str).getTime();
+              if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+                interval = Number(((d2 - d1) / 3600000).toFixed(2));
+              }
+            }
+            updates[field] = JSON.stringify({
+              enabled: true,
+              mode,
+              manual_type,
+              interval_hours: interval,
+              restock_amount: typeof value.restock_amount === 'number' && value.restock_amount > 0 ? value.restock_amount : 0,
+              next_restock_time: t1Str,
+              second_restock_time: t2Str,
+            });
+          } else {
+            updates[field] = null;
           }
         } else if (value !== null && value !== '') {
           updates[field] = value;

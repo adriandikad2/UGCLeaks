@@ -59,6 +59,7 @@ type UGCItem = {
   isPaid?: boolean; // Paid item status (not free)
   isRegular?: boolean; // Regular item status (unlimited/event)
   regionLock?: string | null; // Region lock country code
+  restockInfo?: { enabled: boolean; mode?: 'auto' | 'manual'; manual_type?: 'hours' | 'date'; interval_hours: number; restock_amount: number; next_restock_time?: string | null; second_restock_time?: string | null } | null; // Restock info
 };
 
 // ISO 3166-1 alpha-2 country codes with names
@@ -400,6 +401,7 @@ export default function LeaksPage() {
           isPaid: item.is_paid, // Paid item status
           isRegular: item.is_regular, // Regular item status
           regionLock: item.region_lock, // Region lock
+          restockInfo: item.restock_info, // Restock configuration
         }));
         setScheduledItems(converted);
 
@@ -631,7 +633,7 @@ export default function LeaksPage() {
       {/* --- TOAST NOTIFICATIONS --- */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-[88rem] mx-auto space-y-8">
         <div className="text-center space-y-4 pop-in">
           <h1 className="text-5xl md:text-6xl font-black rainbow-text drop-shadow-2xl">
             🔥 UGC LEAKS 🔥
@@ -955,6 +957,76 @@ export default function LeaksPage() {
                         {(() => {
                           const country = COUNTRY_OPTIONS.find(c => c.code === item.regionLock);
                           return country ? `${country.flag} ${country.name}` : `Locked to: ${item.regionLock}`;
+                        })()}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Restock Info */}
+                  {item.restockInfo?.enabled && (
+                    <div className="mb-3 p-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: shuffledColors[1] }}>
+                      <p className="text-xs font-bold theme-text-secondary uppercase">🔄 Restock</p>
+                      <p className="font-black text-xs mt-1" style={{ color: shuffledColors[1] }}>
+                        {item.restockInfo.next_restock_time ? 'Manual Exact Time' : `Every ${item.restockInfo.interval_hours}h`} · {item.restockInfo.restock_amount} units
+                      </p>
+                      <p className="text-[10px] font-bold theme-text-secondary mt-0.5 leading-tight">
+                        🕐 Next: {(() => {
+                          const now = new Date();
+                          if (item.restockInfo.next_restock_time) {
+                            let manualStr = item.restockInfo.next_restock_time;
+                            if (!manualStr.endsWith('Z') && !manualStr.includes('+') && !manualStr.includes('-', 10)) {
+                              manualStr = manualStr.replace(' ', 'T') + 'Z';
+                            }
+                            const manualDate = new Date(manualStr);
+                            if (isNaN(manualDate.getTime())) return '⚠️ Invalid manual date';
+                            const diff = manualDate.getTime() - now.getTime();
+                            if (diff > 0) {
+                              const h = Math.floor(diff / 3600000);
+                              const m = Math.floor((diff % 3600000) / 60000);
+                              const s = Math.floor((diff % 60000) / 1000);
+                              const parts = [];
+                              if (h > 0) parts.push(`${h}h`);
+                              parts.push(`${m}m`);
+                              parts.push(`${s}s`);
+                              return `in ${parts.join(' ')}`;
+                            } else {
+                              const intervalMs = (item.restockInfo.interval_hours || 0) * 3600000;
+                              if (intervalMs <= 0) return 'Passed';
+                              const elapsed = now.getTime() - manualDate.getTime();
+                              const cyclesPassed = Math.floor(elapsed / intervalMs);
+                              const nextRestock = new Date(manualDate.getTime() + (cyclesPassed + 1) * intervalMs);
+                              const nextDiff = nextRestock.getTime() - now.getTime();
+                              const h = Math.floor(nextDiff / 3600000);
+                              const m = Math.floor((nextDiff % 3600000) / 60000);
+                              const s = Math.floor((nextDiff % 60000) / 1000);
+                              const parts = [];
+                              if (h > 0) parts.push(`${h}h`);
+                              parts.push(`${m}m`);
+                              parts.push(`${s}s`);
+                              return `in ${parts.join(' ')}`;
+                            }
+                          }
+                          if (!item.releaseDateTime || item.releaseDateTime.startsWith('9999')) return '❓ Unknown';
+                          let dateStr = item.releaseDateTime;
+                          if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+                            dateStr = dateStr.replace(' ', 'T') + 'Z';
+                          }
+                          const release = new Date(dateStr);
+                          const intervalMs = item.restockInfo.interval_hours * 3600000;
+                          if (intervalMs <= 0) return '⚠️ Invalid';
+                          if (release > now) return 'After release';
+                          const elapsed = now.getTime() - release.getTime();
+                          const cyclesPassed = Math.floor(elapsed / intervalMs);
+                          const nextRestock = new Date(release.getTime() + (cyclesPassed + 1) * intervalMs);
+                          const diff = nextRestock.getTime() - now.getTime();
+                          const h = Math.floor(diff / 3600000);
+                          const m = Math.floor((diff % 3600000) / 60000);
+                          const s = Math.floor((diff % 60000) / 1000);
+                          const parts = [];
+                          if (h > 0) parts.push(`${h}h`);
+                          parts.push(`${m}m`);
+                          parts.push(`${s}s`);
+                          return `in ${parts.join(' ')}`;
                         })()}
                       </p>
                     </div>
