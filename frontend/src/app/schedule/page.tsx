@@ -455,6 +455,7 @@ export default function SchedulePage() {
       // Convert to ISO string (which is always UTC with 'Z' suffix)
       utcDate = localDate.toISOString();
     }
+    const stockValue = isUnknownStock ? -1 : (formData.stock || 0);
     let restockPayload = null;
     if (formData.restock_info?.enabled) {
       const mode = formData.restock_info.mode === 'manual' ? 'manual' : 'auto';
