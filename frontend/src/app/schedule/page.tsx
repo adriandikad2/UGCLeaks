@@ -980,18 +980,18 @@ export default function SchedulePage() {
             {/* Release Date & Time */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Release Date & Time</label>
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                 <input
                   type="datetime-local"
                   step="1"
                   value={formData.release_date_time}
                   onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                   disabled={isUnknownSchedule}
-                  className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                  className={`w-full min-w-0 flex-1 px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
                   style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
                 />
                 {/* Unknown Schedule Checkbox */}
-                <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
+                <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card flex-shrink-0" style={{ borderColor: 'var(--theme-gradient-3)' }}>
                   <input
                     type="checkbox"
                     id="unknown-schedule-check"
@@ -1007,17 +1007,17 @@ export default function SchedulePage() {
             {/* Stock */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Stock Amount</label>
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                 <input
                   type="number"
                   value={typeof formData.stock === 'number' ? formData.stock : 0}
                   onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                   disabled={isUnknownStock}
-                  className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                  className={`w-full min-w-0 flex-1 px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
                   style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
                 />
                 {/* Unknown Stock Checkbox */}
-                <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card flex-shrink-0" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                   <input
                     type="checkbox"
                     id="unknown-stock-check"
@@ -1033,16 +1033,16 @@ export default function SchedulePage() {
             {/* Limit Per User */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Limit Per User</label>
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                 <input
                   type="number"
                   value={formData.limit_per_user || 1}
                   onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
                   disabled={isUnlimitedLimit}
-                  className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
+                  className={`w-full min-w-0 flex-1 px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base text-gray-900 focus:outline-none ${isUnlimitedLimit ? 'bg-gray-100 border-gray-300 text-gray-400' : 'border-blue-500'}`}
                 />
                 {/* The Checkbox Container */}
-                <div className="flex items-center gap-1.5 whitespace-nowrap bg-gray-50 px-2.5 py-2 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-1.5 whitespace-nowrap bg-gray-50 px-2.5 py-2 rounded-lg border border-gray-200 flex-shrink-0">
                   <input
                     type="checkbox"
                     id="unlimited-check"
@@ -1638,7 +1638,7 @@ export default function SchedulePage() {
                   style={viewMode === 'upcoming' ? { background: 'linear-gradient(to right, var(--theme-gradient-3), var(--theme-gradient-4))' } : {}}
                 >
                   ⏳ Upcoming ({scheduledItems.filter(i => {
-                    if (i.is_abandoned || i.is_paid) return false;
+                    if (i.is_abandoned || i.is_paid || i.is_regular) return false;
                     if (!i.release_date_time || i.release_date_time.startsWith('9999')) return true;
                     return new Date(i.release_date_time) > new Date();
                   }).length})
@@ -1652,7 +1652,7 @@ export default function SchedulePage() {
                   style={viewMode === 'active' ? { background: 'linear-gradient(to right, var(--theme-gradient-1), var(--theme-gradient-2))' } : {}}
                 >
                   🚀 Active ({scheduledItems.filter(i => {
-                    if (i.is_abandoned || i.is_paid) return false;
+                    if (i.is_abandoned || i.is_paid || i.is_regular) return false;
                     if (!i.release_date_time || i.release_date_time.startsWith('9999')) return false;
                     return new Date(i.release_date_time) <= new Date();
                   }).length})
@@ -2175,17 +2175,17 @@ export default function SchedulePage() {
                 {/* Release Date & Time */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Release Date & Time</label>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                     <input
                       type="datetime-local"
                       step="1"
                       value={formData.release_date_time}
                       onChange={(e) => handleFormChange('release_date_time', e.target.value)}
                       disabled={isUnknownSchedule}
-                      className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                      className={`w-full min-w-0 flex-1 px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownSchedule ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
                       style={!isUnknownSchedule ? { borderColor: 'var(--theme-gradient-3)' } : {}}
                     />
-                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-3)' }}>
+                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card flex-shrink-0" style={{ borderColor: 'var(--theme-gradient-3)' }}>
                       <input
                         type="checkbox"
                         id="modal-unknown-schedule"
@@ -2201,16 +2201,16 @@ export default function SchedulePage() {
                 {/* Stock */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Stock Amount</label>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                     <input
                       type="number"
                       value={typeof formData.stock === 'number' ? formData.stock : 0}
                       onChange={(e) => handleFormChange('stock', parseInt(e.target.value))}
                       disabled={isUnknownStock}
-                      className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
+                      className={`w-full min-w-0 flex-1 px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card ${isUnknownStock ? 'opacity-50 border-gray-500 theme-text-secondary' : ''}`}
                       style={!isUnknownStock ? { borderColor: 'var(--theme-gradient-4)' } : {}}
                     />
-                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card flex-shrink-0" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                       <input
                         type="checkbox"
                         id="modal-unknown-stock"
@@ -2226,16 +2226,16 @@ export default function SchedulePage() {
                 {/* Limit Per User */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Limit Per User</label>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                     <input
                       type="number"
                       value={formData.limit_per_user || 1}
                       onChange={(e) => handleFormChange('limit_per_user', parseInt(e.target.value))}
                       disabled={isUnlimitedLimit}
-                      className={`w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base focus:outline-none ${isUnlimitedLimit ? 'theme-bg-card border-gray-500 theme-text-secondary opacity-50' : 'theme-bg-card theme-text-primary'}`}
+                      className={`w-full min-w-0 flex-1 px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base focus:outline-none ${isUnlimitedLimit ? 'theme-bg-card border-gray-500 theme-text-secondary opacity-50' : 'theme-bg-card theme-text-primary'}`}
                       style={{ borderColor: isUnlimitedLimit ? 'gray' : 'var(--theme-gradient-4)' }}
                     />
-                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                    <div className="flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 rounded-lg border-2 theme-bg-card flex-shrink-0" style={{ borderColor: 'var(--theme-gradient-4)' }}>
                       <input
                         type="checkbox"
                         id="modal-unlimited"
