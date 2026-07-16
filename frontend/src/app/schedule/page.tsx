@@ -256,6 +256,7 @@ type UGCItem = {
   final_current_stock?: number; // Persisted current stock when item sold out
   final_total_stock?: number; // Persisted total stock when item sold out
   ugc_code?: string; // Code for Code Drop items
+  codes_info?: { code: string; uses: number | null }[] | null; // Structured codes with uses
   is_abandoned?: boolean; // Abandoned status
   is_paid?: boolean; // Paid item status (not free)
   is_regular?: boolean; // Regular item status (unlimited/event)
@@ -381,6 +382,7 @@ export default function SchedulePage() {
     screenshots: [],
     limit_per_user: 1,
     ugc_code: '',
+    codes_info: [],
     region_lock: null,
     restock_info: null,
   });
@@ -505,6 +507,8 @@ export default function SchedulePage() {
       game_links: formData.game_links || [],
       game_link: (formData.game_links && formData.game_links.length > 0) ? formData.game_links[0] : formData.game_link,
       screenshots: formData.screenshots || [],
+      ugc_code: Array.isArray(formData.codes_info) && formData.codes_info.length > 0 ? formData.codes_info.map(c => c.code).join(', ') : (formData.ugc_code || ''),
+      codes_info: Array.isArray(formData.codes_info) && formData.codes_info.length > 0 ? formData.codes_info : (formData.ugc_code ? [{ code: formData.ugc_code, uses: null }] : null),
       region_lock: formData.region_lock || null,
       restock_info: restockPayload,
     };
@@ -614,6 +618,7 @@ export default function SchedulePage() {
       screenshots: Array.isArray(item.screenshots) ? item.screenshots : [],
       limit_per_user: isUnlimited ? 1 : (item.limit_per_user || 1),
       ugc_code: item.ugc_code || '',
+      codes_info: Array.isArray(item.codes_info) && item.codes_info.length > 0 ? item.codes_info : (item.ugc_code ? [{ code: item.ugc_code, uses: null }] : []),
       region_lock: item.region_lock || null,
       restock_info: item.restock_info ? {
         ...item.restock_info,
@@ -655,6 +660,7 @@ export default function SchedulePage() {
       screenshots: [],
       limit_per_user: 1,
       ugc_code: '',
+      codes_info: [],
       region_lock: null,
       restock_info: null,
     });
@@ -1106,16 +1112,99 @@ export default function SchedulePage() {
 
             {/* Code Input (Conditional) */}
             {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
-              <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Code Drop Secret</label>
-                <input
-                  type="text"
-                  value={formData.ugc_code || ''}
-                  onChange={(e) => handleFormChange('ugc_code', e.target.value)}
-                  placeholder="Enter Code..."
-                  className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
-                  style={{ borderColor: 'var(--theme-accent)' }}
-                />
+              <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3 p-3.5 rounded-xl border-2 theme-bg-card" style={{ borderColor: 'var(--theme-accent)' }}>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black theme-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🗝️ Code Drop Secrets & Uses</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold theme-bg-elevated theme-text-primary border border-black/10 dark:border-white/10">
+                      {(formData.codes_info || []).length} {((formData.codes_info || []).length === 1 ? 'Code' : 'Codes')}
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentCodes = Array.isArray(formData.codes_info) ? [...formData.codes_info] : [];
+                      const updated = [...currentCodes, { code: '', uses: null }];
+                      setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:opacity-90 flex items-center gap-1 text-white"
+                    style={{ background: 'var(--theme-gradient-2)' }}
+                  >
+                    + Add Code
+                  </button>
+                </div>
+
+                {(!formData.codes_info || formData.codes_info.length === 0) ? (
+                  <div className="text-center py-4 border-2 border-dashed rounded-lg theme-text-secondary text-xs font-medium" style={{ borderColor: 'var(--theme-accent)' }}>
+                    No codes added yet. Click &quot;+ Add Code&quot; to add your first code drop and specify usage limits!
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {formData.codes_info.map((codeItem, index) => (
+                      <div key={index} className="flex flex-wrap sm:flex-nowrap gap-2 items-center p-2 rounded-lg border theme-bg-elevated border-black/10 dark:border-white/10">
+                        <div className="flex-1 min-w-[140px] flex items-center gap-2">
+                          <span className="text-xs font-black theme-text-secondary select-none">#{index + 1}</span>
+                          <input
+                            type="text"
+                            value={codeItem.code}
+                            onChange={(e) => {
+                              const updated = [...formData.codes_info!];
+                              updated[index] = { ...updated[index], code: e.target.value };
+                              setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
+                            }}
+                            placeholder="Secret Code (e.g. FREEVALK)..."
+                            className="w-full px-3 py-1.5 rounded-md border font-bold text-xs sm:text-sm theme-text-primary focus:outline-none theme-bg-card"
+                            style={{ borderColor: 'var(--theme-accent)' }}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={codeItem.uses === null}
+                            value={codeItem.uses !== null ? codeItem.uses : ''}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              const updated = [...formData.codes_info!];
+                              updated[index] = { ...updated[index], uses: isNaN(val) ? 1 : val };
+                              setFormData({ ...formData, codes_info: updated });
+                            }}
+                            placeholder={codeItem.uses === null ? 'Unlimited' : 'Uses'}
+                            className={`w-24 px-2.5 py-1.5 rounded-md border font-bold text-xs sm:text-sm text-center focus:outline-none ${codeItem.uses === null ? 'opacity-50 theme-bg-card theme-text-secondary border-gray-400' : 'theme-bg-card theme-text-primary'}`}
+                            style={{ borderColor: codeItem.uses !== null ? 'var(--theme-accent)' : undefined }}
+                          />
+                          
+                          <label className="flex items-center gap-1 whitespace-nowrap px-2 py-1.5 rounded-md border theme-bg-card cursor-pointer select-none text-xs font-bold theme-text-secondary" style={{ borderColor: 'var(--theme-accent)' }}>
+                            <input
+                              type="checkbox"
+                              checked={codeItem.uses === null}
+                              onChange={(e) => {
+                                const updated = [...formData.codes_info!];
+                                updated[index] = { ...updated[index], uses: e.target.checked ? null : 100 };
+                                setFormData({ ...formData, codes_info: updated });
+                              }}
+                              className="w-3.5 h-3.5 accent-orange-600 rounded flex-shrink-0"
+                            />
+                            <span>Unlimited</span>
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = formData.codes_info!.filter((_, i) => i !== index);
+                              setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
+                            }}
+                            className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors flex-shrink-0 font-bold"
+                            title="Remove Code"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2299,16 +2388,99 @@ export default function SchedulePage() {
 
                 {/* Code Input (Conditional) */}
                 {Array.isArray(formData.method) && formData.method.includes(UGCMethod.CodeDrop) && (
-                  <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3">
-                    <label className="block text-xs font-bold theme-text-secondary uppercase tracking-wider">Code Drop Secret</label>
-                    <input
-                      type="text"
-                      value={formData.ugc_code || ''}
-                      onChange={(e) => handleFormChange('ugc_code', e.target.value)}
-                      placeholder="Enter Code..."
-                      className="w-full px-3 py-2 rounded-lg border-2 font-bold text-sm md:text-base theme-text-primary focus:outline-none theme-bg-card"
-                      style={{ borderColor: 'var(--theme-accent)' }}
-                    />
+                  <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3 p-3.5 rounded-xl border-2 theme-bg-card" style={{ borderColor: 'var(--theme-accent)' }}>
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-black theme-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                        <span>🗝️ Code Drop Secrets & Uses</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold theme-bg-elevated theme-text-primary border border-black/10 dark:border-white/10">
+                          {(formData.codes_info || []).length} {((formData.codes_info || []).length === 1 ? 'Code' : 'Codes')}
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentCodes = Array.isArray(formData.codes_info) ? [...formData.codes_info] : [];
+                          const updated = [...currentCodes, { code: '', uses: null }];
+                          setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:opacity-90 flex items-center gap-1 text-white"
+                        style={{ background: 'var(--theme-gradient-2)' }}
+                      >
+                        + Add Code
+                      </button>
+                    </div>
+
+                    {(!formData.codes_info || formData.codes_info.length === 0) ? (
+                      <div className="text-center py-4 border-2 border-dashed rounded-lg theme-text-secondary text-xs font-medium" style={{ borderColor: 'var(--theme-accent)' }}>
+                        No codes added yet. Click &quot;+ Add Code&quot; to add your first code drop and specify usage limits!
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {formData.codes_info.map((codeItem, index) => (
+                          <div key={index} className="flex flex-wrap sm:flex-nowrap gap-2 items-center p-2 rounded-lg border theme-bg-elevated border-black/10 dark:border-white/10">
+                            <div className="flex-1 min-w-[140px] flex items-center gap-2">
+                              <span className="text-xs font-black theme-text-secondary select-none">#{index + 1}</span>
+                              <input
+                                type="text"
+                                value={codeItem.code}
+                                onChange={(e) => {
+                                  const updated = [...formData.codes_info!];
+                                  updated[index] = { ...updated[index], code: e.target.value };
+                                  setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
+                                }}
+                                placeholder="Secret Code (e.g. FREEVALK)..."
+                                className="w-full px-3 py-1.5 rounded-md border font-bold text-xs sm:text-sm theme-text-primary focus:outline-none theme-bg-card"
+                                style={{ borderColor: 'var(--theme-accent)' }}
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <input
+                                type="number"
+                                min="1"
+                                disabled={codeItem.uses === null}
+                                value={codeItem.uses !== null ? codeItem.uses : ''}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value);
+                                  const updated = [...formData.codes_info!];
+                                  updated[index] = { ...updated[index], uses: isNaN(val) ? 1 : val };
+                                  setFormData({ ...formData, codes_info: updated });
+                                }}
+                                placeholder={codeItem.uses === null ? 'Unlimited' : 'Uses'}
+                                className={`w-24 px-2.5 py-1.5 rounded-md border font-bold text-xs sm:text-sm text-center focus:outline-none ${codeItem.uses === null ? 'opacity-50 theme-bg-card theme-text-secondary border-gray-400' : 'theme-bg-card theme-text-primary'}`}
+                                style={{ borderColor: codeItem.uses !== null ? 'var(--theme-accent)' : undefined }}
+                              />
+                              
+                              <label className="flex items-center gap-1 whitespace-nowrap px-2 py-1.5 rounded-md border theme-bg-card cursor-pointer select-none text-xs font-bold theme-text-secondary" style={{ borderColor: 'var(--theme-accent)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={codeItem.uses === null}
+                                  onChange={(e) => {
+                                    const updated = [...formData.codes_info!];
+                                    updated[index] = { ...updated[index], uses: e.target.checked ? null : 100 };
+                                    setFormData({ ...formData, codes_info: updated });
+                                  }}
+                                  className="w-3.5 h-3.5 accent-orange-600 rounded flex-shrink-0"
+                                />
+                                <span>Unlimited</span>
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = formData.codes_info!.filter((_, i) => i !== index);
+                                  setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
+                                }}
+                                className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors flex-shrink-0 font-bold"
+                                title="Remove Code"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

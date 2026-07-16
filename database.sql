@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS scheduled_items (
   final_current_stock INTEGER, -- Final stock count after drop
   final_total_stock INTEGER, -- Final total stock after drop
   restock_info JSONB, -- Restock configuration: {enabled, interval_hours, restock_amount}
+  codes_info JSONB, -- Structured code drops with uses: [{code, uses}]
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

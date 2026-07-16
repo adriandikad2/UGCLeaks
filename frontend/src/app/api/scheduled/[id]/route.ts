@@ -62,6 +62,9 @@ export async function PUT(
   }
 
   try {
+    // Ensure codes_info column exists without throwing on migration
+    await pool.query('ALTER TABLE scheduled_items ADD COLUMN IF NOT EXISTS codes_info JSONB').catch((e: any) => console.error('Migration notice:', e.message));
+
     const { id } = params;
     const body = await request.json();
     const updates: any = {};
@@ -83,6 +86,7 @@ export async function PUT(
       'final_current_stock',
       'final_total_stock',
       'ugc_code',
+      'codes_info',
       'is_abandoned',
       'is_paid',
       'is_regular',
@@ -152,6 +156,21 @@ export async function PUT(
             updates[field] = null;
           } else if (typeof value === 'string' && value.length <= 2) {
             updates[field] = value.toUpperCase();
+          }
+        } else if (field === 'codes_info') {
+          if (Array.isArray(value) && value.length > 0) {
+            const validCodes = value
+              .map((c: any) => ({
+                code: typeof c?.code === 'string' ? sanitizeString(c.code).trim() : (typeof c === 'string' ? sanitizeString(c).trim() : ''),
+                uses: typeof c?.uses === 'number' && c.uses > 0 ? c.uses : (c?.uses === 'Unlimited' || c?.uses === null || c?.uses === -1 ? null : null)
+              }))
+              .filter((c: any) => c.code.length > 0);
+            updates[field] = validCodes.length > 0 ? JSON.stringify(validCodes) : null;
+            if (validCodes.length > 0) {
+              updates['ugc_code'] = truncateField(validCodes.map((c: any) => c.code).join(', '), FIELD_LIMITS.ugc_code);
+            }
+          } else {
+            updates[field] = null;
           }
         } else if (field === 'restock_info') {
           // Validate restock_info is a proper object

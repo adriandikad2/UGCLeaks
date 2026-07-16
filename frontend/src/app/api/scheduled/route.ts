@@ -14,11 +14,14 @@ export async function GET(request: Request) {
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
 
+    // Ensure codes_info column exists without throwing on migration
+    await pool.query('ALTER TABLE scheduled_items ADD COLUMN IF NOT EXISTS codes_info JSONB').catch((e: any) => console.error('Migration notice:', e.message));
+
     // Cast release_date_time to text to prevent pg driver from treating it as local time
     // The database stores UTC times, but 'timestamp without time zone' is interpreted as local by the driver
     let query = `SELECT uuid, title, item_name, creator, stock, 
       release_date_time, method, instruction, game_link, game_links, item_link, 
-      image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, sold_out,
+      image_url, screenshots, limit_per_user, ugc_code, codes_info, is_abandoned, is_paid, is_regular, sold_out,
       final_current_stock, final_total_stock, region_lock, restock_info,
       TO_CHAR(release_date_time, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as release_date_time_utc 
       FROM scheduled_items ORDER BY release_date_time ASC`;
@@ -76,6 +79,7 @@ export async function POST(request: Request) {
       screenshots,
       limit_per_user,
       ugc_code,
+      codes_info,
       is_abandoned,
       is_paid,
       is_regular,
@@ -92,12 +96,24 @@ export async function POST(request: Request) {
 
     const uuid = uuidv4();
 
+    // Sanitize codes_info array: Array<{ code: string; uses: number | null }>
+    let sanitizedCodesInfo: any = null;
+    if (Array.isArray(codes_info) && codes_info.length > 0) {
+      sanitizedCodesInfo = codes_info
+        .map((c: any) => ({
+          code: typeof c?.code === 'string' ? sanitizeString(c.code).trim() : (typeof c === 'string' ? sanitizeString(c).trim() : ''),
+          uses: typeof c?.uses === 'number' && c.uses > 0 ? c.uses : (c?.uses === 'Unlimited' || c?.uses === null || c?.uses === -1 ? null : null)
+        }))
+        .filter((c: any) => c.code.length > 0);
+      if (sanitizedCodesInfo.length === 0) sanitizedCodesInfo = null;
+    }
+
     // Sanitize all text inputs
     const sanitizedTitle = truncateField(sanitizeString(title), FIELD_LIMITS.title);
     const sanitizedItemName = truncateField(sanitizeString(item_name), FIELD_LIMITS.item_name);
     const sanitizedCreator = truncateField(sanitizeString(creator), FIELD_LIMITS.creator);
     const sanitizedInstruction = truncateField(sanitizeString(instruction), FIELD_LIMITS.instruction);
-    const sanitizedUgcCode = ugc_code ? truncateField(sanitizeString(ugc_code), FIELD_LIMITS.ugc_code) : null;
+    const sanitizedUgcCode = sanitizedCodesInfo ? truncateField(sanitizedCodesInfo.map((c: any) => c.code).join(', '), FIELD_LIMITS.ugc_code) : (ugc_code ? truncateField(sanitizeString(ugc_code), FIELD_LIMITS.ugc_code) : null);
 
     // Validate and sanitize URLs
     const sanitizedGameLink = sanitizeUrl(game_link);
@@ -175,8 +191,8 @@ export async function POST(request: Request) {
       `INSERT INTO scheduled_items (
         uuid, title, item_name, creator, stock, 
         release_date_time, method, instruction, game_link, game_links, item_link, 
-        image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, region_lock, restock_info
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        image_url, screenshots, limit_per_user, ugc_code, is_abandoned, is_paid, is_regular, region_lock, restock_info, codes_info
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *`,
       [
         uuid,
@@ -198,7 +214,8 @@ export async function POST(request: Request) {
         is_paid || false,
         is_regular || false,
         sanitizedRegionLock,
-        sanitizedRestockInfo ? JSON.stringify(sanitizedRestockInfo) : null
+        sanitizedRestockInfo ? JSON.stringify(sanitizedRestockInfo) : null,
+        sanitizedCodesInfo ? JSON.stringify(sanitizedCodesInfo) : null
       ]
     );
 

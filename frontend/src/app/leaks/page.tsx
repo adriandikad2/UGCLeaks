@@ -55,6 +55,7 @@ type UGCItem = {
   finalCurrentStock?: number; // Persisted current stock when item sold out
   finalTotalStock?: number; // Persisted total stock when item sold out
   ugcCode?: string; // Code for Code Drop items
+  codesInfo?: { code: string; uses: number | null }[] | null; // Structured codes with uses
   isAbandoned?: boolean; // Abandoned status
   isPaid?: boolean; // Paid item status (not free)
   isRegular?: boolean; // Regular item status (unlimited/event)
@@ -397,6 +398,7 @@ export default function LeaksPage() {
           finalCurrentStock: item.final_current_stock, // Persisted current stock
           finalTotalStock: item.final_total_stock, // Persisted total stock
           ugcCode: item.ugc_code, // Code if applicable
+          codesInfo: item.codes_info, // Structured codes with uses
           isAbandoned: item.is_abandoned, // Abandoned status
           isPaid: item.is_paid, // Paid item status
           isRegular: item.is_regular, // Regular item status
@@ -937,16 +939,48 @@ export default function LeaksPage() {
                   </div>
 
                   {/* Code Display for CodeDrop items */}
-                  {(Array.isArray(item.method) ? item.method : [item.method]).includes(UGCMethod.CodeDrop) && item.ugcCode && (
-                    <div
-                      className="mb-3 p-2 rounded-lg border-2 border-dashed flex flex-col items-center justify-center theme-bg-card w-full overflow-hidden"
-                      style={{ borderColor: shuffledColors[1] }}
-                    >
-                      <p className="text-xs font-bold text-gray-500 uppercase mb-1">🔑 Code</p>
-                      <p className="font-black text-lg tracking-widest select-all break-all text-center w-full" style={{ color: shuffledColors[1] }}>
-                        {item.ugcCode}
-                      </p>
-                    </div>
+                  {(Array.isArray(item.method) ? item.method : [item.method]).includes(UGCMethod.CodeDrop) && (
+                    ((Array.isArray(item.codesInfo) && item.codesInfo.length > 0) || item.ugcCode) && (
+                      <div
+                        className="mb-3 p-3 rounded-xl border-2 border-dashed flex flex-col items-center justify-center theme-bg-card w-full overflow-hidden"
+                        style={{ borderColor: shuffledColors[1] }}
+                      >
+                        <div className="flex items-center justify-between w-full mb-2 pb-1.5 border-b" style={{ borderColor: `${shuffledColors[1]}40` }}>
+                          <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: shuffledColors[1] }}>
+                            <span>🔑 Code Drop</span>
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase" style={{ background: shuffledColors[1], color: '#fff' }}>
+                            {Array.isArray(item.codesInfo) && item.codesInfo.length > 0 ? `${item.codesInfo.length} ${item.codesInfo.length === 1 ? 'Code' : 'Codes'}` : '1 Code'}
+                          </span>
+                        </div>
+
+                        <div className="w-full space-y-2">
+                          {Array.isArray(item.codesInfo) && item.codesInfo.length > 0 ? (
+                            item.codesInfo.map((codeObj, idx) => (
+                              <div key={idx} className="flex flex-col sm:flex-row items-center justify-between gap-1.5 p-2 rounded-lg theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                                <span className="font-black text-base sm:text-lg tracking-widest select-all break-all text-center sm:text-left min-w-0 flex-1" style={{ color: shuffledColors[1] }}>
+                                  {codeObj.code}
+                                </span>
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-md whitespace-nowrap flex-shrink-0" style={{ background: `${shuffledColors[1]}20`, color: shuffledColors[1] }}>
+                                  🎟️ {codeObj.uses !== null && typeof codeObj.uses === 'number' ? `${codeObj.uses} Uses` : 'Unlimited Uses'}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            item.ugcCode ? (
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 p-2 rounded-lg theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                                <span className="font-black text-base sm:text-lg tracking-widest select-all break-all text-center sm:text-left min-w-0 flex-1" style={{ color: shuffledColors[1] }}>
+                                  {item.ugcCode}
+                                </span>
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-md whitespace-nowrap flex-shrink-0" style={{ background: `${shuffledColors[1]}20`, color: shuffledColors[1] }}>
+                                  🎟️ Unlimited Uses
+                                </span>
+                              </div>
+                            ) : null
+                          )}
+                        </div>
+                      </div>
+                    )
                   )}
 
                   {/* Region Lock */}

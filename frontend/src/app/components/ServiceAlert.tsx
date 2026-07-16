@@ -3,6 +3,10 @@
 import { useState } from 'react';
 
 export default function ServiceAlert() {
+  // Alert disabled - data successfully migrated
+  return null;
+
+  /*
   const [isVisible, setIsVisible] = useState(true);
 
   if (!isVisible) return null;
@@ -31,4 +35,5 @@ export default function ServiceAlert() {
       </div>
     </div>
   );
+  */
 }

@@ -30,6 +30,8 @@ export interface UGCItem {
   sold_out?: boolean; // Manual sold out confirmation by scheduler
   final_current_stock?: number; // Persisted current stock when item sold out
   final_total_stock?: number; // Persisted total stock when item sold out
+  ugc_code?: string; // Code for Code Drop items
+  codes_info?: { code: string; uses: number | null }[] | null; // Structured codes with uses
 }
 
 /**
