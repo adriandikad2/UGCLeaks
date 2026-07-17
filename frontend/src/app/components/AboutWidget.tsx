@@ -33,7 +33,7 @@ const teamMembers: TeamMember[] = [
     {
         id: 'creator',
         name: '0k_fr (_.ok)',
-        role: 'Co-Founder, Developer / Creator',
+        role: 'Founder, Developer / Creator',
         image: '',
         bio: 'This is your captain speaking 🛫 Welcome aboard UGC Leaks! Feel free to unbuckle your seats and roam the cabin for the latest Free Limited UGC drops. ✈️ To keep our trajectory steady, I’d appreciate your support in submitting a follow on my Roblox profile. Enjoy the flight!',
         robloxLink: 'https://www.roblox.com/users/959262997/profile',
