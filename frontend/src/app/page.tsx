@@ -43,7 +43,7 @@ export default function Home() {
       <ThemeSwitcher />
 
       {/* --- AUTH BUTTONS --- */}
-      <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50 flex gap-2 md:gap-3">
+      <div className="fixed top-4 left-4 md:top-6 md:left-6 z-50 flex gap-2 md:gap-3">
         {authenticated ? (
           <button
             onClick={handleSignout}

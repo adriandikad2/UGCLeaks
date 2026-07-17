@@ -15,7 +15,7 @@ export default function ServiceAlert() {
   const discordUrl = 'https://discord.gg/2hX4sZfEhk';
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 pt-14 sm:pt-16 pb-2 relative z-20">
+    <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 pt-20 sm:pt-24 pb-2 relative z-20">
       <div
         className="rounded-2xl overflow-hidden shadow-2xl border-2 border-white/30 text-white transition-all duration-300"
         style={{
@@ -23,11 +23,11 @@ export default function ServiceAlert() {
         }}
       >
         {/* Top Header Bar / Compact View */}
-        <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-black/20 backdrop-blur-md">
+        <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3.5 sm:gap-3 bg-black/20 backdrop-blur-md">
           {/* Left Title & Status */}
-          <div className="flex items-center gap-2.5 text-center sm:text-left">
-            <span className="text-2xl sm:text-3xl animate-pulse">🔥</span>
-            <div>
+          <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 text-center sm:text-left w-full sm:w-auto">
+            <span className="text-3xl animate-pulse">🔥</span>
+            <div className="flex flex-col items-center sm:items-start w-full">
               <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
                 <span className="font-black text-xs sm:text-sm uppercase tracking-wider bg-black/40 px-2.5 py-0.5 rounded-md border border-white/20 shadow">
                   UGC Grinders Discord!
@@ -36,7 +36,7 @@ export default function ServiceAlert() {
                   Best Leaks in the Town
                 </span>
               </div>
-              <p className="font-black text-sm sm:text-base text-white drop-shadow-md mt-0.5">
+              <p className="font-black text-xs sm:text-base text-white drop-shadow-md mt-1 max-w-md">
                 Increase your chances in getting free ugc limiteds earlier than anyone can ever get!
               </p>
             </div>
@@ -58,7 +58,7 @@ export default function ServiceAlert() {
               onClick={() => setIsExpanded(!isExpanded)}
               className="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-black text-xs uppercase tracking-wider transition-all border border-white/20 shadow whitespace-nowrap"
             >
-              {isExpanded ? '▲ Less Info' : '▼ Better Leaks Info'}
+              {isExpanded ? '▲ Tap Me' : '▼ Tap Me'}
             </button>
 
             <button
@@ -74,9 +74,9 @@ export default function ServiceAlert() {
 
         {/* Embedded Stationary Feature Showcase (Collapsible) */}
         {isExpanded && (
-          <div className="p-4 sm:p-6 bg-gray-950/90 backdrop-blur-xl border-t border-white/20 space-y-4 text-left">
+          <div className="p-4 sm:p-6 bg-gray-950/90 backdrop-blur-xl border-t border-white/20 space-y-4 text-center sm:text-left">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col gap-1 hover:border-[#2398FC]/60 transition-colors">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col items-center sm:items-start text-center sm:text-left gap-1 hover:border-[#2398FC]/60 transition-colors">
                 <div className="text-xl">⚡</div>
                 <h4 className="font-black text-xs sm:text-sm text-[#2398FC] uppercase tracking-wide">90% FASTEST Pings</h4>
                 <p className="text-xs text-gray-300 leading-relaxed">
@@ -84,7 +84,7 @@ export default function ServiceAlert() {
                 </p>
               </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col gap-1 hover:border-[#E509FC]/60 transition-colors">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col items-center sm:items-start text-center sm:text-left gap-1 hover:border-[#E509FC]/60 transition-colors">
                 <div className="text-xl">🎟️</div>
                 <h4 className="font-black text-xs sm:text-sm text-[#E509FC] uppercase tracking-wide">FASTEST Leaks</h4>
                 <p className="text-xs text-gray-300 leading-relaxed">
@@ -92,7 +92,7 @@ export default function ServiceAlert() {
                 </p>
               </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col gap-1 hover:border-[#2398FC]/60 transition-colors">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col items-center sm:items-start text-center sm:text-left gap-1 hover:border-[#2398FC]/60 transition-colors">
                 <div className="text-xl">🗣️</div>
                 <h4 className="font-black text-xs sm:text-sm text-[#2398FC] uppercase tracking-wide">Active Chat</h4>
                 <p className="text-xs text-gray-300 leading-relaxed">
@@ -100,7 +100,7 @@ export default function ServiceAlert() {
                 </p>
               </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col gap-1 hover:border-[#E509FC]/60 transition-colors">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col items-center sm:items-start text-center sm:text-left gap-1 hover:border-[#E509FC]/60 transition-colors">
                 <div className="text-xl">🎉</div>
                 <h4 className="font-black text-xs sm:text-sm text-[#E509FC] uppercase tracking-wide">Giveaways</h4>
                 <p className="text-xs text-gray-300 leading-relaxed">
@@ -123,7 +123,7 @@ export default function ServiceAlert() {
                   background: 'linear-gradient(135deg, #2398FC, #E509FC)',
                 }}
               >
-                🚀 Join Official Discord Server -&gt;
+                Join UGC Grinders NOW
               </a>
             </div>
           </div>
