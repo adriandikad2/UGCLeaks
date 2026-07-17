@@ -11,15 +11,40 @@ const LANGUAGES = [
     { code: 'de', name: 'Deutsch', emoji: '🇩🇪' },
     { code: 'ja', name: '日本語', emoji: '🇯🇵' },
     { code: 'ko', name: '한국어', emoji: '🇰🇷' },
-    { code: 'zh-CN', name: '中文', emoji: '🇨🇳' },
+    { code: 'zh-CN', name: '中文 (Simplified)', emoji: '🇨🇳' },
+    { code: 'zh-TW', name: '繁體中文 (Traditional)', emoji: '🇹🇼' },
     { code: 'ru', name: 'Русский', emoji: '🇷🇺' },
     { code: 'pt', name: 'Português', emoji: '🇧🇷' },
+    { code: 'it', name: 'Italiano', emoji: '🇮🇹' },
+    { code: 'pl', name: 'Polski', emoji: '🇵🇱' },
+    { code: 'nl', name: 'Nederlands', emoji: '🇳🇱' },
+    { code: 'tr', name: 'Türkçe', emoji: '🇹🇷' },
+    { code: 'ar', name: 'العربية', emoji: '🇸🇦' },
+    { code: 'th', name: 'ไทย', emoji: '🇹🇭' },
+    { code: 'vi', name: 'Tiếng Việt', emoji: '🇻🇳' },
+    { code: 'ms', name: 'Bahasa Melayu', emoji: '🇲🇾' },
+    { code: 'tl', name: 'Filipino (Tagalog)', emoji: '🇵🇭' },
+    { code: 'hi', name: 'हिन्दी', emoji: '🇮🇳' },
+    { code: 'sv', name: 'Svenska', emoji: '🇸🇪' },
+    { code: 'da', name: 'Dansk', emoji: '🇩🇰' },
+    { code: 'fi', name: 'Suomi', emoji: '🇫🇮' },
+    { code: 'no', name: 'Norsk', emoji: '🇳🇴' },
+    { code: 'cs', name: 'Čeština', emoji: '🇨🇿' },
+    { code: 'el', name: 'Ελληνικά', emoji: '🇬🇷' },
+    { code: 'uk', name: 'Українська', emoji: '🇺🇦' },
+    { code: 'ro', name: 'Română', emoji: '🇷🇴' },
+    { code: 'hu', name: 'Magyar', emoji: '🇭🇺' },
+    { code: 'he', name: 'עברית', emoji: '🇮🇱' },
+    { code: 'fa', name: 'فارسی', emoji: '🇮🇷' },
+    { code: 'ur', name: 'اردو', emoji: '🇵🇰' },
+    { code: 'bn', name: 'বাংলা', emoji: '🇧🇩' },
 ];
 
 export default function TranslateWidget({ inline = false }: { inline?: boolean }) {
     const { currentTheme } = useTheme();
     const [isExpanded, setIsExpanded] = useState(false);
     const [currentLang, setCurrentLang] = useState(LANGUAGES[0]);
+    const [searchQuery, setSearchQuery] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -64,6 +89,11 @@ export default function TranslateWidget({ inline = false }: { inline?: boolean }
         window.location.reload();
     };
 
+    const filteredLanguages = LANGUAGES.filter(l => 
+        l.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        l.code.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <div
             ref={containerRef}
@@ -74,7 +104,10 @@ export default function TranslateWidget({ inline = false }: { inline?: boolean }
 
             {/* Custom UI Button */}
             <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => {
+                    setIsExpanded(!isExpanded);
+                    if (!isExpanded) setSearchQuery('');
+                }}
                 className="relative px-4 py-3 rounded-2xl border-2 backdrop-blur-md font-bold tracking-wide transition-all duration-300 group overflow-hidden"
                 style={{
                     borderColor: currentTheme.colors.primary,
@@ -113,49 +146,69 @@ export default function TranslateWidget({ inline = false }: { inline?: boolean }
                     }`}
             >
                 <div
-                    className="p-4 rounded-2xl backdrop-blur-xl border-2 shadow-2xl min-w-[280px]"
+                    className="p-4 rounded-2xl backdrop-blur-xl border-2 shadow-2xl min-w-[300px] sm:min-w-[340px]"
                     style={{
                         background: `linear-gradient(135deg, ${currentTheme.colors.cardBg}f0, ${currentTheme.colors.cardBg}e0)`,
                         borderColor: currentTheme.colors.primary + '40',
                     }}
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-3">
                         <h3
                             className="font-black text-sm uppercase tracking-widest"
                             style={{ color: currentTheme.colors.textPrimary }}
                         >
-                            🌍 Translate
+                            🌍 Translate ({LANGUAGES.length})
                         </h3>
                     </div>
 
+                    {/* Search Language Bar */}
+                    <div className="mb-3">
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="🔍 Search language..."
+                            className="w-full px-3 py-1.5 rounded-xl border font-bold text-xs focus:outline-none transition-all bg-black/20 text-white placeholder-gray-400"
+                            style={{
+                                borderColor: currentTheme.colors.primary + '60',
+                            }}
+                        />
+                    </div>
+
                     {/* Language Grid */}
-                    <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {LANGUAGES.map((lang) => {
-                            const isActive = lang.code === currentLang.code;
-                            return (
-                                <button
-                                    key={lang.code}
-                                    onClick={() => handleTranslate(lang.code)}
-                                    className={`group relative flex items-center gap-3 p-3 rounded-xl transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105 hover:bg-white/5'
-                                        }`}
-                                    style={{
-                                        background: isActive
-                                            ? `linear-gradient(135deg, ${currentTheme.colors.primary}30, ${currentTheme.colors.secondary}30)`
-                                            : 'transparent',
-                                        border: isActive ? `2px solid ${currentTheme.colors.primary}` : '2px solid transparent',
-                                    }}
-                                >
-                                    <span className="text-2xl drop-shadow-md">{lang.emoji}</span>
-                                    <span
-                                        className="text-sm font-bold truncate"
-                                        style={{ color: isActive ? currentTheme.colors.primary : currentTheme.colors.textSecondary }}
+                    <div className="grid grid-cols-2 gap-2.5 max-h-[320px] overflow-y-auto pr-1.5 custom-scrollbar">
+                        {filteredLanguages.length > 0 ? (
+                            filteredLanguages.map((lang) => {
+                                const isActive = lang.code === currentLang.code;
+                                return (
+                                    <button
+                                        key={lang.code}
+                                        onClick={() => handleTranslate(lang.code)}
+                                        className={`group relative flex items-center gap-2.5 p-2.5 rounded-xl transition-all duration-300 text-left ${isActive ? 'scale-105 shadow-md' : 'hover:scale-105 hover:bg-white/10'
+                                            }`}
+                                        style={{
+                                            background: isActive
+                                                ? `linear-gradient(135deg, ${currentTheme.colors.primary}40, ${currentTheme.colors.secondary}40)`
+                                                : 'transparent',
+                                            border: isActive ? `2px solid ${currentTheme.colors.primary}` : '2px solid transparent',
+                                        }}
                                     >
-                                        {lang.name}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                                        <span className="text-xl drop-shadow-md flex-shrink-0">{lang.emoji}</span>
+                                        <span
+                                            className="text-xs font-bold truncate"
+                                            style={{ color: isActive ? currentTheme.colors.primary : currentTheme.colors.textPrimary }}
+                                        >
+                                            {lang.name}
+                                        </span>
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="col-span-2 text-center py-6 text-xs font-bold text-gray-400">
+                                No language found matching &quot;{searchQuery}&quot;
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
