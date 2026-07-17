@@ -957,22 +957,22 @@ export default function LeaksPage() {
                         <div className="w-full space-y-2">
                           {Array.isArray(item.codesInfo) && item.codesInfo.length > 0 ? (
                             item.codesInfo.map((codeObj, idx) => (
-                              <div key={idx} className="flex flex-col sm:flex-row items-center justify-between gap-1.5 p-2 rounded-lg theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
-                                <span className="font-black text-base sm:text-lg tracking-widest select-all break-all text-center sm:text-left min-w-0 flex-1" style={{ color: shuffledColors[1] }}>
+                              <div key={idx} className="flex flex-col items-start gap-1.5 p-2.5 rounded-lg theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                                <span className="font-mono font-black text-sm sm:text-base tracking-wider select-all break-all w-full text-left" style={{ color: shuffledColors[1] }}>
                                   {codeObj.code}
                                 </span>
-                                <span className="text-xs font-bold px-2.5 py-1 rounded-md whitespace-nowrap flex-shrink-0" style={{ background: `${shuffledColors[1]}20`, color: shuffledColors[1] }}>
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-md whitespace-nowrap self-start" style={{ background: `${shuffledColors[1]}20`, color: shuffledColors[1] }}>
                                   🎟️ {codeObj.uses !== null && typeof codeObj.uses === 'number' ? `${codeObj.uses} Uses` : 'Unlimited Uses'}
                                 </span>
                               </div>
                             ))
                           ) : (
                             item.ugcCode ? (
-                              <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 p-2 rounded-lg theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
-                                <span className="font-black text-base sm:text-lg tracking-widest select-all break-all text-center sm:text-left min-w-0 flex-1" style={{ color: shuffledColors[1] }}>
+                              <div className="flex flex-col items-start gap-1.5 p-2.5 rounded-lg theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                                <span className="font-mono font-black text-sm sm:text-base tracking-wider select-all break-all w-full text-left" style={{ color: shuffledColors[1] }}>
                                   {item.ugcCode}
                                 </span>
-                                <span className="text-xs font-bold px-2.5 py-1 rounded-md whitespace-nowrap flex-shrink-0" style={{ background: `${shuffledColors[1]}20`, color: shuffledColors[1] }}>
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-md whitespace-nowrap self-start" style={{ background: `${shuffledColors[1]}20`, color: shuffledColors[1] }}>
                                   🎟️ Unlimited Uses
                                 </span>
                               </div>
@@ -1147,6 +1147,48 @@ export default function LeaksPage() {
                     {timers[selectedItem.id] || 'Updating...'}
                   </p>
                 </div>
+
+                {/* Code Drop Display in Popup Modal */}
+                {(Array.isArray(selectedItem.method) ? selectedItem.method : [selectedItem.method]).includes(UGCMethod.CodeDrop) && (
+                  ((Array.isArray(selectedItem.codesInfo) && selectedItem.codesInfo.length > 0) || selectedItem.ugcCode) && (
+                    <div className="theme-bg-card border-2 p-6 rounded-xl text-left" style={{ borderColor: 'var(--theme-gradient-1)' }}>
+                      <div className="flex items-center justify-between mb-4 pb-2 border-b theme-border-secondary">
+                        <h3 className="text-lg font-black theme-text-primary flex items-center gap-2">
+                          <span>🔑 Code Drop Secrets & Usages</span>
+                        </h3>
+                        <span className="text-xs font-black px-3 py-1 rounded-full text-white" style={{ background: 'var(--theme-gradient-1)' }}>
+                          {Array.isArray(selectedItem.codesInfo) && selectedItem.codesInfo.length > 0 ? `${selectedItem.codesInfo.length} ${selectedItem.codesInfo.length === 1 ? 'Code' : 'Codes'}` : '1 Code'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {Array.isArray(selectedItem.codesInfo) && selectedItem.codesInfo.length > 0 ? (
+                          selectedItem.codesInfo.map((codeObj, idx) => (
+                            <div key={idx} className="flex flex-col items-start gap-2 p-3 rounded-xl theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                              <span className="font-mono font-black text-lg sm:text-xl tracking-wider select-all break-all w-full text-left" style={{ color: 'var(--theme-gradient-1)' }}>
+                                {codeObj.code}
+                              </span>
+                              <span className="text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap self-start" style={{ background: 'rgba(35, 152, 252, 0.2)', color: 'var(--theme-gradient-1)' }}>
+                                🎟️ {codeObj.uses !== null && typeof codeObj.uses === 'number' ? `${codeObj.uses} Uses` : 'Unlimited Uses'}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          selectedItem.ugcCode ? (
+                            <div className="flex flex-col items-start gap-2 p-3 rounded-xl theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                              <span className="font-mono font-black text-lg sm:text-xl tracking-wider select-all break-all w-full text-left" style={{ color: 'var(--theme-gradient-1)' }}>
+                                {selectedItem.ugcCode}
+                              </span>
+                              <span className="text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap self-start" style={{ background: 'rgba(35, 152, 252, 0.2)', color: 'var(--theme-gradient-1)' }}>
+                                🎟️ Unlimited Uses
+                              </span>
+                            </div>
+                          ) : null
+                        )}
+                      </div>
+                    </div>
+                  )
+                )}
 
                 {/* Full Description / Instruction */}
                 <div className="theme-bg-card border-l-8 p-6 rounded-r-xl text-left" style={{ borderColor: 'var(--theme-gradient-2)' }}>

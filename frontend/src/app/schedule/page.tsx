@@ -366,6 +366,8 @@ export default function SchedulePage() {
   // Image viewer modal state
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [viewerZoom, setViewerZoom] = useState(1);
+  // Schedule item detail popup modal state
+  const [selectedScheduleItem, setSelectedScheduleItem] = useState<UGCItem | null>(null);
 
   const [formData, setFormData] = useState<UGCItem>({
     title: '',
@@ -1141,8 +1143,8 @@ export default function SchedulePage() {
                 ) : (
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                     {formData.codes_info.map((codeItem, index) => (
-                      <div key={index} className="flex flex-wrap sm:flex-nowrap gap-2 items-center p-2 rounded-lg border theme-bg-elevated border-black/10 dark:border-white/10">
-                        <div className="flex-1 min-w-[140px] flex items-center gap-2">
+                      <div key={index} className="flex flex-col gap-2 p-2.5 rounded-lg border theme-bg-elevated border-black/10 dark:border-white/10 w-full">
+                        <div className="w-full flex items-center gap-2">
                           <span className="text-xs font-black theme-text-secondary select-none">#{index + 1}</span>
                           <input
                             type="text"
@@ -1153,41 +1155,44 @@ export default function SchedulePage() {
                               setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
                             }}
                             placeholder="Secret Code (e.g. FREEVALK)..."
-                            className="w-full px-3 py-1.5 rounded-md border font-bold text-xs sm:text-sm theme-text-primary focus:outline-none theme-bg-card"
+                            className="w-full px-3 py-1.5 rounded-md border font-bold text-xs sm:text-sm theme-text-primary focus:outline-none theme-bg-card font-mono"
                             style={{ borderColor: 'var(--theme-accent)' }}
                           />
                         </div>
 
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <input
-                            type="number"
-                            min="1"
-                            disabled={codeItem.uses === null}
-                            value={codeItem.uses !== null ? codeItem.uses : ''}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              const updated = [...formData.codes_info!];
-                              updated[index] = { ...updated[index], uses: isNaN(val) ? 1 : val };
-                              setFormData({ ...formData, codes_info: updated });
-                            }}
-                            placeholder={codeItem.uses === null ? 'Unlimited' : 'Uses'}
-                            className={`w-24 px-2.5 py-1.5 rounded-md border font-bold text-xs sm:text-sm text-center focus:outline-none ${codeItem.uses === null ? 'opacity-50 theme-bg-card theme-text-secondary border-gray-400' : 'theme-bg-card theme-text-primary'}`}
-                            style={{ borderColor: codeItem.uses !== null ? 'var(--theme-accent)' : undefined }}
-                          />
-                          
-                          <label className="flex items-center gap-1 whitespace-nowrap px-2 py-1.5 rounded-md border theme-bg-card cursor-pointer select-none text-xs font-bold theme-text-secondary" style={{ borderColor: 'var(--theme-accent)' }}>
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-black/5 dark:border-white/5 w-full">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold theme-text-secondary">Usages:</span>
                             <input
-                              type="checkbox"
-                              checked={codeItem.uses === null}
+                              type="number"
+                              min="1"
+                              disabled={codeItem.uses === null}
+                              value={codeItem.uses !== null ? codeItem.uses : ''}
                               onChange={(e) => {
+                                const val = parseInt(e.target.value);
                                 const updated = [...formData.codes_info!];
-                                updated[index] = { ...updated[index], uses: e.target.checked ? null : 100 };
+                                updated[index] = { ...updated[index], uses: isNaN(val) ? 1 : val };
                                 setFormData({ ...formData, codes_info: updated });
                               }}
-                              className="w-3.5 h-3.5 accent-orange-600 rounded flex-shrink-0"
+                              placeholder={codeItem.uses === null ? 'Unlimited' : 'Uses'}
+                              className={`w-24 px-2.5 py-1 rounded-md border font-bold text-xs sm:text-sm text-center focus:outline-none ${codeItem.uses === null ? 'opacity-50 theme-bg-card theme-text-secondary border-gray-400' : 'theme-bg-card theme-text-primary'}`}
+                              style={{ borderColor: codeItem.uses !== null ? 'var(--theme-accent)' : undefined }}
                             />
-                            <span>Unlimited</span>
-                          </label>
+                            
+                            <label className="flex items-center gap-1 whitespace-nowrap px-2 py-1 rounded-md border theme-bg-card cursor-pointer select-none text-xs font-bold theme-text-secondary" style={{ borderColor: 'var(--theme-accent)' }}>
+                              <input
+                                type="checkbox"
+                                checked={codeItem.uses === null}
+                                onChange={(e) => {
+                                  const updated = [...formData.codes_info!];
+                                  updated[index] = { ...updated[index], uses: e.target.checked ? null : 100 };
+                                  setFormData({ ...formData, codes_info: updated });
+                                }}
+                                className="w-3.5 h-3.5 accent-orange-600 rounded flex-shrink-0"
+                              />
+                              <span>Unlimited</span>
+                            </label>
+                          </div>
 
                           <button
                             type="button"
@@ -1195,10 +1200,10 @@ export default function SchedulePage() {
                               const updated = formData.codes_info!.filter((_, i) => i !== index);
                               setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
                             }}
-                            className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors flex-shrink-0 font-bold"
+                            className="px-2.5 py-1 rounded-md hover:bg-red-500/20 text-red-500 transition-colors flex items-center gap-1 text-xs font-bold"
                             title="Remove Code"
                           >
-                            ✕
+                            <span>✕ Delete</span>
                           </button>
                         </div>
                       </div>
@@ -1863,7 +1868,11 @@ export default function SchedulePage() {
                   return (
                     <div
                       key={item.id || item.uuid}
-                      className="pop-in rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:scale-105 theme-bg-card"
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest('button, a, input, [data-no-modal]')) return;
+                        setSelectedScheduleItem(item);
+                      }}
+                      className="pop-in rounded-xl overflow-hidden border-4 shadow-2xl blocky-shadow-hover flex flex-col h-full transition-all duration-300 hover:scale-105 theme-bg-card cursor-pointer"
                       style={{
                         borderColor: primaryColor,
                       }}
@@ -2061,6 +2070,51 @@ export default function SchedulePage() {
                             </div>
                           )}
                         </div>
+
+                        {/* Code Display for CodeDrop items */}
+                        {(Array.isArray(item.method) ? item.method : [item.method]).includes(UGCMethod.CodeDrop) && (
+                          ((Array.isArray(item.codes_info) && item.codes_info.length > 0) || item.ugc_code) && (
+                            <div
+                              className="p-2.5 rounded border theme-bg-card flex flex-col items-center justify-center w-full overflow-hidden"
+                              style={{ borderColor: shuffledColors[1] }}
+                            >
+                              <div className="flex items-center justify-between w-full mb-2 pb-1 border-b" style={{ borderColor: `${shuffledColors[1]}40` }}>
+                                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: shuffledColors[1] }}>
+                                  <span>🔑 Code Drop</span>
+                                </span>
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase" style={{ background: shuffledColors[1], color: '#fff' }}>
+                                  {Array.isArray(item.codes_info) && item.codes_info.length > 0 ? `${item.codes_info.length} ${item.codes_info.length === 1 ? 'Code' : 'Codes'}` : '1 Code'}
+                                </span>
+                              </div>
+
+                              <div className="w-full space-y-1.5">
+                                {Array.isArray(item.codes_info) && item.codes_info.length > 0 ? (
+                                  item.codes_info.map((codeObj, idx) => (
+                                    <div key={idx} className="flex flex-col items-start gap-1 p-2 rounded theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                                      <span className="font-mono font-black text-xs sm:text-sm tracking-widest select-all break-all w-full text-left" style={{ color: shuffledColors[1] }}>
+                                        {codeObj.code}
+                                      </span>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap self-start" style={{ background: `${shuffledColors[1]}20`, color: shuffledColors[1] }}>
+                                        🎟️ {codeObj.uses !== null && typeof codeObj.uses === 'number' ? `${codeObj.uses} Uses` : 'Unlimited Uses'}
+                                      </span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  item.ugc_code ? (
+                                    <div className="flex flex-col items-start gap-1 p-2 rounded theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                                      <span className="font-mono font-black text-xs sm:text-sm tracking-widest select-all break-all w-full text-left" style={{ color: shuffledColors[1] }}>
+                                        {item.ugc_code}
+                                      </span>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap self-start" style={{ background: `${shuffledColors[1]}20`, color: shuffledColors[1] }}>
+                                        🎟️ Unlimited Uses
+                                      </span>
+                                    </div>
+                                  ) : null
+                                )}
+                              </div>
+                            </div>
+                          )
+                        )}
 
                         {/* Game Links (Compact) */}
                         {(() => {
@@ -2417,8 +2471,8 @@ export default function SchedulePage() {
                     ) : (
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                         {formData.codes_info.map((codeItem, index) => (
-                          <div key={index} className="flex flex-wrap sm:flex-nowrap gap-2 items-center p-2 rounded-lg border theme-bg-elevated border-black/10 dark:border-white/10">
-                            <div className="flex-1 min-w-[140px] flex items-center gap-2">
+                          <div key={index} className="flex flex-col gap-2 p-2.5 rounded-lg border theme-bg-elevated border-black/10 dark:border-white/10 w-full">
+                            <div className="w-full flex items-center gap-2">
                               <span className="text-xs font-black theme-text-secondary select-none">#{index + 1}</span>
                               <input
                                 type="text"
@@ -2429,41 +2483,44 @@ export default function SchedulePage() {
                                   setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
                                 }}
                                 placeholder="Secret Code (e.g. FREEVALK)..."
-                                className="w-full px-3 py-1.5 rounded-md border font-bold text-xs sm:text-sm theme-text-primary focus:outline-none theme-bg-card"
+                                className="w-full px-3 py-1.5 rounded-md border font-bold text-xs sm:text-sm theme-text-primary focus:outline-none theme-bg-card font-mono"
                                 style={{ borderColor: 'var(--theme-accent)' }}
                               />
                             </div>
 
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <input
-                                type="number"
-                                min="1"
-                                disabled={codeItem.uses === null}
-                                value={codeItem.uses !== null ? codeItem.uses : ''}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value);
-                                  const updated = [...formData.codes_info!];
-                                  updated[index] = { ...updated[index], uses: isNaN(val) ? 1 : val };
-                                  setFormData({ ...formData, codes_info: updated });
-                                }}
-                                placeholder={codeItem.uses === null ? 'Unlimited' : 'Uses'}
-                                className={`w-24 px-2.5 py-1.5 rounded-md border font-bold text-xs sm:text-sm text-center focus:outline-none ${codeItem.uses === null ? 'opacity-50 theme-bg-card theme-text-secondary border-gray-400' : 'theme-bg-card theme-text-primary'}`}
-                                style={{ borderColor: codeItem.uses !== null ? 'var(--theme-accent)' : undefined }}
-                              />
-                              
-                              <label className="flex items-center gap-1 whitespace-nowrap px-2 py-1.5 rounded-md border theme-bg-card cursor-pointer select-none text-xs font-bold theme-text-secondary" style={{ borderColor: 'var(--theme-accent)' }}>
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-black/5 dark:border-white/5 w-full">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold theme-text-secondary">Usages:</span>
                                 <input
-                                  type="checkbox"
-                                  checked={codeItem.uses === null}
+                                  type="number"
+                                  min="1"
+                                  disabled={codeItem.uses === null}
+                                  value={codeItem.uses !== null ? codeItem.uses : ''}
                                   onChange={(e) => {
+                                    const val = parseInt(e.target.value);
                                     const updated = [...formData.codes_info!];
-                                    updated[index] = { ...updated[index], uses: e.target.checked ? null : 100 };
+                                    updated[index] = { ...updated[index], uses: isNaN(val) ? 1 : val };
                                     setFormData({ ...formData, codes_info: updated });
                                   }}
-                                  className="w-3.5 h-3.5 accent-orange-600 rounded flex-shrink-0"
+                                  placeholder={codeItem.uses === null ? 'Unlimited' : 'Uses'}
+                                  className={`w-24 px-2.5 py-1 rounded-md border font-bold text-xs sm:text-sm text-center focus:outline-none ${codeItem.uses === null ? 'opacity-50 theme-bg-card theme-text-secondary border-gray-400' : 'theme-bg-card theme-text-primary'}`}
+                                  style={{ borderColor: codeItem.uses !== null ? 'var(--theme-accent)' : undefined }}
                                 />
-                                <span>Unlimited</span>
-                              </label>
+                                
+                                <label className="flex items-center gap-1 whitespace-nowrap px-2 py-1 rounded-md border theme-bg-card cursor-pointer select-none text-xs font-bold theme-text-secondary" style={{ borderColor: 'var(--theme-accent)' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={codeItem.uses === null}
+                                    onChange={(e) => {
+                                      const updated = [...formData.codes_info!];
+                                      updated[index] = { ...updated[index], uses: e.target.checked ? null : 100 };
+                                      setFormData({ ...formData, codes_info: updated });
+                                    }}
+                                    className="w-3.5 h-3.5 accent-orange-600 rounded flex-shrink-0"
+                                  />
+                                  <span>Unlimited</span>
+                                </label>
+                              </div>
 
                               <button
                                 type="button"
@@ -2471,10 +2528,10 @@ export default function SchedulePage() {
                                   const updated = formData.codes_info!.filter((_, i) => i !== index);
                                   setFormData({ ...formData, codes_info: updated, ugc_code: updated[0]?.code || '' });
                                 }}
-                                className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors flex-shrink-0 font-bold"
+                                className="px-2.5 py-1 rounded-md hover:bg-red-500/20 text-red-500 transition-colors flex items-center gap-1 text-xs font-bold"
                                 title="Remove Code"
                               >
-                                ✕
+                                <span>✕ Delete</span>
                               </button>
                             </div>
                           </div>
@@ -2937,6 +2994,164 @@ export default function SchedulePage() {
                 <button onClick={confirmDeleteSchedule} className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg uppercase tracking-wide transition-all shadow-lg shadow-red-200">
                   Yes, Delete
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- SCHEDULE ITEM DETAIL MODAL --- */}
+      {selectedScheduleItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setSelectedScheduleItem(null)}
+          ></div>
+
+          <div className="theme-bg-card w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl relative z-10 pop-in animate-float-up">
+            <div
+              className="h-24 w-full relative flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, var(--theme-gradient-1), var(--theme-gradient-2), var(--theme-gradient-3), var(--theme-gradient-4))'
+              }}
+            >
+              <button
+                onClick={() => setSelectedScheduleItem(null)}
+                className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white rounded-full p-2 px-3 text-xs font-black uppercase transition-all"
+              >
+                ✕ Close
+              </button>
+
+              <div className="absolute -bottom-12 p-2 theme-bg-card rounded-xl shadow-lg cursor-pointer transition-transform hover:scale-105" onClick={() => openImageViewer(selectedScheduleItem.image_url || '')}>
+                <img
+                  src={selectedScheduleItem.image_url}
+                  className="w-32 h-32 object-contain rounded-lg"
+                  alt={selectedScheduleItem.item_name}
+                />
+              </div>
+            </div>
+
+            <div className="pt-16 pb-8 px-8 text-center space-y-6">
+              <div>
+                <h2 className="text-3xl font-black theme-text-primary">{selectedScheduleItem.item_name}</h2>
+                <p className="theme-text-secondary font-bold">by {selectedScheduleItem.creator}</p>
+              </div>
+
+              {/* Status & Timing Display */}
+              <div className="flex flex-wrap justify-center gap-4">
+                <div className="theme-bg-card rounded-xl p-4 border-2" style={{ borderColor: 'var(--theme-primary)' }}>
+                  <p className="text-xs font-bold theme-text-secondary uppercase">⏰ Release Status</p>
+                  <p className="text-lg font-black" style={{ color: 'var(--theme-gradient-1)' }}>
+                    {formatRelativeTime(selectedScheduleItem.release_date_time)}
+                  </p>
+                </div>
+
+                <div className="theme-bg-card rounded-xl p-4 border-2" style={{ borderColor: 'var(--theme-secondary)' }}>
+                  <p className="text-xs font-bold theme-text-secondary uppercase">📦 Stock & Limit</p>
+                  <p className="text-lg font-black theme-text-primary">
+                    {selectedScheduleItem.sold_out ? `0/${selectedScheduleItem.stock || '?'}` : (typeof selectedScheduleItem.stock === 'number' ? selectedScheduleItem.stock : 'OUT')}
+                    {' · '}
+                    {(selectedScheduleItem.limit_per_user === null || selectedScheduleItem.limit_per_user === -1) ? '∞ Limit' : `${selectedScheduleItem.limit_per_user}x Limit`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Code Drop Display in Popup Modal */}
+              {(Array.isArray(selectedScheduleItem.method) ? selectedScheduleItem.method : [selectedScheduleItem.method]).includes(UGCMethod.CodeDrop) && (
+                ((Array.isArray(selectedScheduleItem.codes_info) && selectedScheduleItem.codes_info.length > 0) || selectedScheduleItem.ugc_code) && (
+                  <div className="theme-bg-card border-2 p-6 rounded-xl text-left" style={{ borderColor: 'var(--theme-gradient-1)' }}>
+                    <div className="flex items-center justify-between mb-4 pb-2 border-b theme-border-secondary">
+                      <h3 className="text-lg font-black theme-text-primary flex items-center gap-2">
+                        <span>🔑 Code Drop Secrets & Usages</span>
+                      </h3>
+                      <span className="text-xs font-black px-3 py-1 rounded-full text-white" style={{ background: 'var(--theme-gradient-1)' }}>
+                        {Array.isArray(selectedScheduleItem.codes_info) && selectedScheduleItem.codes_info.length > 0 ? `${selectedScheduleItem.codes_info.length} ${selectedScheduleItem.codes_info.length === 1 ? 'Code' : 'Codes'}` : '1 Code'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {Array.isArray(selectedScheduleItem.codes_info) && selectedScheduleItem.codes_info.length > 0 ? (
+                        selectedScheduleItem.codes_info.map((codeObj, idx) => (
+                          <div key={idx} className="flex flex-col items-start gap-2 p-3 rounded-xl theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                            <span className="font-mono font-black text-lg sm:text-xl tracking-wider select-all break-all w-full text-left" style={{ color: 'var(--theme-gradient-1)' }}>
+                              {codeObj.code}
+                            </span>
+                            <span className="text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap self-start" style={{ background: 'rgba(35, 152, 252, 0.2)', color: 'var(--theme-gradient-1)' }}>
+                              🎟️ {codeObj.uses !== null && typeof codeObj.uses === 'number' ? `${codeObj.uses} Uses` : 'Unlimited Uses'}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        selectedScheduleItem.ugc_code ? (
+                          <div className="flex flex-col items-start gap-2 p-3 rounded-xl theme-bg-elevated border border-black/10 dark:border-white/10 w-full">
+                            <span className="font-mono font-black text-lg sm:text-xl tracking-wider select-all break-all w-full text-left" style={{ color: 'var(--theme-gradient-1)' }}>
+                              {selectedScheduleItem.ugc_code}
+                            </span>
+                            <span className="text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap self-start" style={{ background: 'rgba(35, 152, 252, 0.2)', color: 'var(--theme-gradient-1)' }}>
+                              🎟️ Unlimited Uses
+                            </span>
+                          </div>
+                        ) : null
+                      )}
+                    </div>
+                  </div>
+                )
+              )}
+
+              {/* Instructions & Details */}
+              {selectedScheduleItem.instruction && (
+                <div className="theme-bg-card border-l-8 p-6 rounded-r-xl text-left" style={{ borderColor: 'var(--theme-gradient-2)' }}>
+                  <h3 className="text-lg font-black theme-text-primary mb-2">Instructions & Details</h3>
+                  <div className="theme-text-secondary font-medium whitespace-pre-wrap leading-relaxed select-text cursor-text">
+                    <ClickableInstructions text={selectedScheduleItem.instruction} color={'var(--theme-gradient-1)'} />
+                  </div>
+                </div>
+              )}
+
+              {/* Screenshots Gallery */}
+              {Array.isArray(selectedScheduleItem.screenshots) && selectedScheduleItem.screenshots.length > 0 && (
+                <div className="theme-bg-card border-2 p-6 rounded-xl text-left" style={{ borderColor: 'var(--theme-gradient-4)' }}>
+                  <h3 className="text-lg font-black theme-text-primary mb-4">Screenshots ({selectedScheduleItem.screenshots.length})</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {selectedScheduleItem.screenshots.map((url, idx) => (
+                      <img
+                        key={idx}
+                        src={url}
+                        alt={`Screenshot ${idx + 1}`}
+                        className="w-full h-auto object-contain rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-lg border-2"
+                        style={{ borderColor: 'var(--theme-gradient-4)' }}
+                        onClick={() => openImageViewer(url)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t theme-border-secondary">
+                {selectedScheduleItem.item_link && (
+                  <Link href={selectedScheduleItem.item_link} target="_blank" className="flex-1">
+                    <button className="w-full py-3.5 px-6 text-white font-black rounded-xl transition-all text-sm uppercase tracking-wide shadow-lg" style={{ background: 'var(--theme-gradient-1)' }}>
+                      🛍️ View Item on Roblox
+                    </button>
+                  </Link>
+                )}
+
+                {(() => {
+                  const links = Array.isArray(selectedScheduleItem.game_links) && selectedScheduleItem.game_links.length > 0
+                    ? selectedScheduleItem.game_links.filter(l => l && l.length > 0)
+                    : (selectedScheduleItem.game_link ? [selectedScheduleItem.game_link] : []);
+                  if (links.length > 0) {
+                    return (
+                      <Link href={links[0]} target="_blank" className="flex-1">
+                        <button className="w-full py-3.5 px-6 text-white font-black rounded-xl transition-all text-sm uppercase tracking-wide shadow-lg" style={{ background: 'var(--theme-gradient-2)' }}>
+                          🎮 Join Game / Experience
+                        </button>
+                      </Link>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
           </div>
