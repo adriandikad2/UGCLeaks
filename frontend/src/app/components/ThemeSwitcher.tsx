@@ -118,14 +118,14 @@ export default function ThemeSwitcher({ inline = false }: ThemeSwitcherProps) {
                     </div>
 
                     {/* Theme Grid */}
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5 max-h-[55vh] overflow-y-auto pr-1">
                         {themes.map((theme) => {
                             const isActive = theme.name === currentTheme.name;
                             return (
                                 <button
                                     key={theme.name}
                                     onClick={() => handleThemeClick(theme)}
-                                    className={`group relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105'
+                                    className={`group relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105'
                                         }`}
                                     style={{
                                         background: isActive
@@ -133,6 +133,7 @@ export default function ThemeSwitcher({ inline = false }: ThemeSwitcherProps) {
                                             : 'transparent',
                                         border: isActive ? `2px solid ${theme.colors.primary}` : '2px solid transparent',
                                     }}
+                                    title={theme.label}
                                 >
                                     {/* Color Preview Dot */}
                                     <div
@@ -141,10 +142,14 @@ export default function ThemeSwitcher({ inline = false }: ThemeSwitcherProps) {
                                             background: theme.name === 'bw'
                                                 ? 'linear-gradient(135deg, #333 0%, #888 50%, #ccc 100%)'
                                                 : theme.name === 'clean'
-                                                    ? 'linear-gradient(135deg, #f9fafb, #e5e7eb, #ffffff)' // White gradient
+                                                    ? 'linear-gradient(135deg, #f9fafb, #e5e7eb, #ffffff)'
                                                     : theme.name === 'ultradark'
-                                                        ? 'linear-gradient(135deg, #000000, #1a1a1a, #000000)' // Black gradient
-                                                        : `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`,
+                                                        ? 'linear-gradient(135deg, #000000, #1a1a1a, #000000)'
+                                                        : theme.name === 'steamhappy'
+                                                            ? 'linear-gradient(135deg, #ffcc00, #1b2838, #66c0f4)'
+                                                            : theme.name === 'space'
+                                                                ? 'linear-gradient(135deg, #0b0c10, #66fcf1, #ff007f)'
+                                                                : `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`,
                                             boxShadow: isActive ? `0 4px 15px ${theme.colors.primary}60` : 'none',
                                         }}
                                     />

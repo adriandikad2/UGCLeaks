@@ -6,6 +6,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const LOGS = [
     {
+        version: 'v2.3',
+        date: 'July 17, 2026',
+        changes: [
+            '🎨 Added 8 new themes! 😃🪐💻🌊🌅🍭🔥❄️',
+            '🔑 Uses per code is live!',
+            '🦅 Uncle Sam wants YOU for UGC Grinders.'
+        ]
+    },
+    {
         version: 'v2.2',
         date: 'June 28, 2026',
         changes: [

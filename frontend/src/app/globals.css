@@ -158,6 +158,54 @@ body.theme-banana {
   animation: gradientShift 10s ease infinite;
 }
 
+body.theme-steamhappy {
+  background: linear-gradient(135deg, #1b2838 0%, #2a475e 50%, #171a21 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
+}
+
+body.theme-space {
+  background: linear-gradient(135deg, #0b0c10 0%, #1f2833 50%, #120136 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 14s ease infinite;
+}
+
+body.theme-tech {
+  background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #031308 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 10s ease infinite;
+}
+
+body.theme-ocean {
+  background: linear-gradient(135deg, #03045e 0%, #023e8a 50%, #0077b6 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 10s ease infinite;
+}
+
+body.theme-sunset {
+  background: linear-gradient(135deg, #240046 0%, #5a189a 50%, #7b2cbf 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 10s ease infinite;
+}
+
+body.theme-candy {
+  background: linear-gradient(135deg, #fec8d8 0%, #ffdfd3 50%, #d291bc 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 10s ease infinite;
+}
+
+body.theme-inferno {
+  background: linear-gradient(135deg, #1a0505 0%, #370617 50%, #6a040f 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 8s ease infinite;
+}
+
+body.theme-winter {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0c4a6e 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
+}
+
 body.theme-clean {
   background: #f9fafb !important;
   animation: none !important;

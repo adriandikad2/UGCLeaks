@@ -311,12 +311,7 @@ export default function LeaksPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [isHudMinimized, setIsHudMinimized] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('ugc-hud-minimized') === 'true';
-    }
-    return false;
-  });
+  const [isHudMinimized, setIsHudMinimized] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   const [authenticated, setAuthenticated] = useState(false);
@@ -329,8 +324,13 @@ export default function LeaksPage() {
   const isGrayscale = currentTheme.name === 'bw';
 
   useEffect(() => {
+    setIsMounted(true);
     setAuthenticated(isAuthenticated());
     setIsEditor(hasAccess('editor'));
+    const savedHud = localStorage.getItem('ugc-hud-minimized');
+    if (savedHud === 'true') {
+      setIsHudMinimized(true);
+    }
   }, []);
 
   // Scroll detection for sticky header
@@ -342,10 +342,12 @@ export default function LeaksPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Persist HUD minimize state to localStorage
+  // Persist HUD minimize state to localStorage when changed
   useEffect(() => {
-    localStorage.setItem('ugc-hud-minimized', String(isHudMinimized));
-  }, [isHudMinimized]);
+    if (isMounted) {
+      localStorage.setItem('ugc-hud-minimized', String(isHudMinimized));
+    }
+  }, [isHudMinimized, isMounted]);
 
   const handleSignout = async () => {
     await signout();

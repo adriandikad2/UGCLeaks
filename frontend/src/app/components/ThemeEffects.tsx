@@ -263,6 +263,323 @@ function FallingBananas() {
     );
 }
 
+// Steamhappy Effect (:steamhappy: wide-eyed open-mouth emoticons & chaotic steam puffs)
+function SteamEffect() {
+    const steamItems = useMemo(() =>
+        Array.from({ length: 28 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            size: 26 + Math.random() * 32,
+            duration: 8 + Math.random() * 12,
+            delay: Math.random() * 10,
+            swayDuration: 2 + Math.random() * 3,
+            isEmoticon: i % 3 === 0,
+            symbol: ['😃', '🤪', '😁', '🌝', '💨', '⚡', '☁️', '😃'][i % 8],
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {steamItems.map(item => (
+                <div
+                    key={item.id}
+                    className="absolute flex items-center justify-center font-bold select-none"
+                    style={{
+                        left: `${item.x}%`,
+                        bottom: '-12%',
+                        fontSize: `${item.size}px`,
+                        opacity: item.isEmoticon ? 0.75 : 0.45,
+                        animation: `fall-petal ${item.duration}s linear infinite reverse, sway ${item.swayDuration}s ease-in-out infinite alternate`,
+                        animationDelay: `${item.delay}s`,
+                    }}
+                >
+                    {item.isEmoticon ? (
+                        /* Custom chaotic bright yellow wide-eyed open-mouth :steamhappy: face */
+                        <div
+                            className="relative flex items-center justify-center rounded-full shadow-lg transition-transform duration-500"
+                            style={{
+                                width: `${item.size}px`,
+                                height: `${item.size}px`,
+                                background: 'radial-gradient(circle at 35% 35%, #fffb00 0%, #ffcc00 60%, #e6a800 100%)',
+                                border: '2px solid #1b2838',
+                                boxShadow: '0 0 15px rgba(255, 204, 0, 0.5)',
+                            }}
+                            title=":steamhappy:"
+                        >
+                            {/* Wide eyes */}
+                            <div className="absolute top-[22%] left-[18%] w-[26%] h-[28%] bg-white rounded-full border border-[#1b2838] flex items-center justify-center overflow-hidden shadow-inner">
+                                <div className="w-[55%] h-[55%] bg-[#1b2838] rounded-full" />
+                            </div>
+                            <div className="absolute top-[22%] right-[18%] w-[26%] h-[28%] bg-white rounded-full border border-[#1b2838] flex items-center justify-center overflow-hidden shadow-inner">
+                                <div className="w-[55%] h-[55%] bg-[#1b2838] rounded-full" />
+                            </div>
+                            {/* Huge wide open mouth */}
+                            <div
+                                className="absolute bottom-[14%] w-[64%] h-[38%] bg-[#1b2838] rounded-b-full border border-[#1b2838] flex items-top justify-center overflow-hidden"
+                                style={{ borderRadius: '10% 10% 85% 85% / 20% 20% 90% 90%' }}
+                            >
+                                {/* Tongue/inside mouth highlight */}
+                                <div className="w-[60%] h-[50%] bg-[#ff4d4d] rounded-t-full mt-[auto] mb-[-10%]" />
+                            </div>
+                        </div>
+                    ) : (
+                        item.symbol
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Space Effect (Planets, Moons & Rockets drifting around)
+function PlanetsEffect() {
+    const planets = useMemo(() =>
+        Array.from({ length: 25 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            y: Math.random() * 100,
+            size: 24 + Math.random() * 36,
+            duration: 15 + Math.random() * 20,
+            delay: Math.random() * 10,
+            symbol: ['🪐', '🌕', '🚀', '⭐', '🛰️', '✨', '☄️'][i % 7],
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {planets.map(planet => (
+                <div
+                    key={planet.id}
+                    className="absolute"
+                    style={{
+                        left: `${planet.x}%`,
+                        top: `${planet.y}%`,
+                        fontSize: `${planet.size}px`,
+                        opacity: 0.5,
+                        animation: `float-orb ${planet.duration}s ease-in-out infinite`,
+                        animationDelay: `${planet.delay}s`,
+                    }}
+                >
+                    {planet.symbol}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Tech / Matrix Effect (Falling Cyber Code & Binary Rain)
+function MatrixEffect() {
+    const matrixChars = useMemo(() =>
+        Array.from({ length: 35 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            size: 16 + Math.random() * 16,
+            duration: 6 + Math.random() * 8,
+            delay: Math.random() * 8,
+            symbol: ['0', '1', '0101', '⚡', '< />', '{ }', '💻', '1010'][i % 8],
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {matrixChars.map(item => (
+                <div
+                    key={item.id}
+                    className="absolute font-mono font-black tracking-widest text-green-400"
+                    style={{
+                        left: `${item.x}%`,
+                        fontSize: `${item.size}px`,
+                        opacity: 0.6,
+                        textShadow: '0 0 8px #00ff66',
+                        animation: `fall-leaf ${item.duration}s linear infinite`,
+                        animationDelay: `${item.delay}s`,
+                    }}
+                >
+                    {item.symbol}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Ocean Effect (Rising bubbles & sea creatures)
+function BubblesEffect() {
+    const bubbles = useMemo(() =>
+        Array.from({ length: 28 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            size: 20 + Math.random() * 26,
+            duration: 8 + Math.random() * 10,
+            delay: Math.random() * 10,
+            swayDuration: 2 + Math.random() * 3,
+            symbol: ['🫧', '🫧', '🐠', '🐙', '🐚', '🐡'][i % 6],
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {bubbles.map(bubble => (
+                <div
+                    key={bubble.id}
+                    className="absolute"
+                    style={{
+                        left: `${bubble.x}%`,
+                        bottom: '-10%',
+                        fontSize: `${bubble.size}px`,
+                        opacity: 0.6,
+                        animation: `fall-petal ${bubble.duration}s linear infinite reverse, sway ${bubble.swayDuration}s ease-in-out infinite alternate`,
+                        animationDelay: `${bubble.delay}s`,
+                    }}
+                >
+                    {bubble.symbol}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Sunset / Vaporwave Effect
+function VaporwaveEffect() {
+    const vaporItems = useMemo(() =>
+        Array.from({ length: 20 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            y: Math.random() * 100,
+            size: 28 + Math.random() * 28,
+            duration: 12 + Math.random() * 15,
+            delay: Math.random() * 8,
+            symbol: ['🌅', '🌴', '⚡', '💾', '☀️', '✨'][i % 6],
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {vaporItems.map(item => (
+                <div
+                    key={item.id}
+                    className="absolute"
+                    style={{
+                        left: `${item.x}%`,
+                        top: `${item.y}%`,
+                        fontSize: `${item.size}px`,
+                        opacity: 0.55,
+                        animation: `float-orb ${item.duration}s ease-in-out infinite`,
+                        animationDelay: `${item.delay}s`,
+                    }}
+                >
+                    {item.symbol}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Candy Effect (Falling Sweets)
+function SweetsEffect() {
+    const sweets = useMemo(() =>
+        Array.from({ length: 25 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            size: 24 + Math.random() * 20,
+            duration: 10 + Math.random() * 10,
+            delay: Math.random() * 10,
+            rotateDuration: 2 + Math.random() * 4,
+            symbol: ['🍭', '🍬', '🍩', '🧁', '🪅', '🍓'][i % 6],
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {sweets.map(item => (
+                <div
+                    key={item.id}
+                    className="absolute"
+                    style={{
+                        left: `${item.x}%`,
+                        fontSize: `${item.size}px`,
+                        opacity: 0.65,
+                        animation: `fall-leaf ${item.duration}s linear infinite, sway ${item.rotateDuration}s ease-in-out infinite alternate`,
+                        animationDelay: `${item.delay}s`,
+                    }}
+                >
+                    {item.symbol}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Inferno Effect (Rising Embers & Flames)
+function EmbersEffect() {
+    const embers = useMemo(() =>
+        Array.from({ length: 30 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            size: 18 + Math.random() * 24,
+            duration: 6 + Math.random() * 8,
+            delay: Math.random() * 8,
+            swayDuration: 1.5 + Math.random() * 2.5,
+            symbol: ['🔥', '💥', '⚡', '🟠', '✨', '🟡'][i % 6],
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {embers.map(item => (
+                <div
+                    key={item.id}
+                    className="absolute"
+                    style={{
+                        left: `${item.x}%`,
+                        bottom: '-10%',
+                        fontSize: `${item.size}px`,
+                        opacity: 0.7,
+                        animation: `fall-petal ${item.duration}s linear infinite reverse, sway ${item.swayDuration}s ease-in-out infinite alternate`,
+                        animationDelay: `${item.delay}s`,
+                    }}
+                >
+                    {item.symbol}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Winter / Glacial Effect (Falling Snowflakes)
+function SnowEffect() {
+    const snowflakes = useMemo(() =>
+        Array.from({ length: 35 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            size: 16 + Math.random() * 20,
+            duration: 8 + Math.random() * 12,
+            delay: Math.random() * 12,
+            swayDuration: 2 + Math.random() * 3,
+            symbol: ['❄️', '🌨️', '🧊', '✨', '❄️'][i % 5],
+        })), []
+    );
+
+    return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {snowflakes.map(item => (
+                <div
+                    key={item.id}
+                    className="absolute"
+                    style={{
+                        left: `${item.x}%`,
+                        fontSize: `${item.size}px`,
+                        opacity: 0.7,
+                        animation: `fall-leaf ${item.duration}s linear infinite, sway ${item.swayDuration}s ease-in-out infinite alternate`,
+                        animationDelay: `${item.delay}s`,
+                    }}
+                >
+                    {item.symbol}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 // Main ThemeEffects component
 export default function ThemeEffects() {
     const { currentTheme } = useTheme();
@@ -283,6 +600,22 @@ export default function ThemeEffects() {
             return <FallingLeaves />;
         case 'bananas':
             return <FallingBananas />;
+        case 'steam':
+            return <SteamEffect />;
+        case 'planets':
+            return <PlanetsEffect />;
+        case 'matrix':
+            return <MatrixEffect />;
+        case 'bubbles':
+            return <BubblesEffect />;
+        case 'vaporwave':
+            return <VaporwaveEffect />;
+        case 'sweets':
+            return <SweetsEffect />;
+        case 'embers':
+            return <EmbersEffect />;
+        case 'snow':
+            return <SnowEffect />;
         case 'none':
         default:
             return null;

@@ -9,17 +9,24 @@ const TOOLBELT_MINIMIZED_KEY = 'ugc-toolbelt-minimized';
 
 export default function ToolBelt() {
   const { activeTool, setActiveTool, clearElements } = usePlayground();
-  const [isMinimized, setIsMinimized] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(TOOLBELT_MINIMIZED_KEY) === 'true';
-    }
-    return false;
-  });
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Persist minimize state to localStorage
+  // Load minimized state from localStorage after mount to prevent hydration mismatch
   useEffect(() => {
-    localStorage.setItem(TOOLBELT_MINIMIZED_KEY, String(isMinimized));
-  }, [isMinimized]);
+    setIsMounted(true);
+    const saved = localStorage.getItem(TOOLBELT_MINIMIZED_KEY);
+    if (saved === 'true') {
+      setIsMinimized(true);
+    }
+  }, []);
+
+  // Persist minimize state to localStorage when changed
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem(TOOLBELT_MINIMIZED_KEY, String(isMinimized));
+    }
+  }, [isMinimized, isMounted]);
 
   const tools: { id: ToolType; icon: any; label: string; color: string }[] = [
     { id: 'none', icon: MousePointer2, label: 'Cursor', color: 'bg-gray-500' },
