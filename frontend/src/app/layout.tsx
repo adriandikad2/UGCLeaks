@@ -4,7 +4,6 @@ import { Inter } from 'next/font/google';
 import { headers } from 'next/headers';
 import ThemeEffects from './components/ThemeEffects';
 import { ThemeProvider } from './components/ThemeContext';
-import { Analytics } from "@vercel/analytics/next";
 import { PlaygroundProvider } from './components/playground/PlaygroundContext';
 import ToolBelt from './components/playground/ToolBelt';
 import PlaygroundCanvas from './components/playground/PlaygroundCanvas';
@@ -50,7 +49,7 @@ export default async function RootLayout({
             <div className="relative z-10">
               {children}
             </div>
-            {process.env.NODE_ENV === 'production' && <Analytics />}
+            {process.env.NODE_ENV === 'production'}
           </ThemeProvider>
         </PlaygroundProvider>
       </body>
