@@ -1,15 +1,30 @@
 import { Pool } from 'pg';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 let pool: Pool | undefined;
+
+function getConnectionString(): string | undefined {
+  try {
+    const { env } = getCloudflareContext();
+    const hyperdrive = (env as { HYPERDRIVE?: { connectionString?: string } }).HYPERDRIVE;
+    if (hyperdrive?.connectionString) {
+      return hyperdrive.connectionString;
+    }
+  } catch {
+    // Cloudflare context is unavailable during local Next.js development.
+  }
+
+  return process.env.DATABASE_URL;
+}
 
 function getPool(): Pool {
   if (pool) {
     return pool;
   }
 
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = getConnectionString();
   if (!connectionString) {
-    throw new Error('DATABASE_URL is not configured. Set the Supabase Postgres connection string in the deployment environment.');
+    throw new Error('No database connection is configured. Bind HYPERDRIVE in Cloudflare or set DATABASE_URL locally.');
   }
 
   pool = new Pool({
