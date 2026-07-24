@@ -20,6 +20,7 @@
     "next": "^16.2.11",
     "next-cloudinary": "^6.17.5",
     "pg": "^8.16.3",
+    "pg-cloudflare": "^1.4.0",
     "react": "^18",
     "react-dom": "^18",
     "uuid": "^13.0.0"
