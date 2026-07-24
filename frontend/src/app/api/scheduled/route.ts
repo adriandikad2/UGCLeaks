@@ -18,27 +18,23 @@ export async function GET(request: Request) {
     const parsedOffset = offset ? parseInt(offset, 10) : 0;
     const safeOffset = Number.isFinite(parsedOffset) ? Math.max(parsedOffset, 0) : 0;
 
-    // Cast release_date_time to text to prevent pg driver from treating it as local time
-    // The database stores UTC times, but 'timestamp without time zone' is interpreted as local by the driver
-    let query = `SELECT uuid, title, item_name, creator, stock, 
-      release_date_time, method, instruction, game_link, game_links, item_link, 
-      image_url, screenshots, limit_per_user, ugc_code, codes_info, is_abandoned, is_paid, is_regular, sold_out,
-      final_current_stock, final_total_stock, region_lock, restock_info,
-      TO_CHAR(release_date_time, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as release_date_time_utc 
-      FROM scheduled_items ORDER BY release_date_time ASC`;
-    const params: any[] = [];
+    // Clean, direct query — pg driver type parser now handles UTC formatting automatically!
+    const query = `
+      SELECT uuid, title, item_name, creator, stock, 
+        release_date_time, release_date_time as release_date_time_utc,
+        method, instruction, game_link, game_links, item_link, 
+        image_url, screenshots, limit_per_user, ugc_code, codes_info, is_abandoned, is_paid, is_regular, sold_out,
+        final_current_stock, final_total_stock, region_lock, restock_info
+      FROM scheduled_items 
+      ORDER BY release_date_time ASC
+      LIMIT $1 OFFSET $2
+    `;
 
-    query += ' LIMIT $' + (params.length + 1);
-    params.push(safeLimit);
-    query += ' OFFSET $' + (params.length + 1);
-    params.push(safeOffset);
-
-    const result = await pool.query(query, params);
+    const result = await pool.query(query, [safeLimit, safeOffset]);
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error fetching scheduled items:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Database URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
     return NextResponse.json(
       { error: 'Failed to fetch scheduled items', details: errorMessage },
       { status: 500 }

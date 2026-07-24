@@ -1,111 +1,143 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
+
+// Helper to determine if input is an integer or UUID
+function parseIdParam(id: string) {
+  const num = parseInt(id, 10);
+  const isNum = !isNaN(num) && String(num) === id.trim();
+  return { id, isNum, num };
+}
 
 /**
- * GET /api/items
- * Fetch all UGC items with optional filtering
+ * GET /api/items/[id]
  */
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  props: { params: Promise<{ id: string }> }
+) {
   try {
-    const { searchParams } = new URL(request.url);
-    const creator = searchParams.get('creator');
-    const method = searchParams.get('method');
-    const limit = searchParams.get('limit');
-    const offset = searchParams.get('offset');
+    const params = await props.params;
+    const { id, isNum, num } = parseIdParam(params.id);
 
-    let query = 'SELECT * FROM ugc_items WHERE 1=1';
-    const params: any[] = [];
+    // Run targeted query to use single index lookup
+    const query = isNum
+      ? 'SELECT * FROM ugc_items WHERE id = $1'
+      : 'SELECT * FROM ugc_items WHERE uuid = $1';
 
-    if (creator) {
-      query += ' AND creator ILIKE $' + (params.length + 1);
-      params.push(`%${creator}%`);
+    const result = await pool.query(query, [isNum ? num : id]);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
 
-    if (method) {
-      query += ' AND method @> ARRAY[$' + (params.length + 1) + ']::TEXT[]';
-      params.push(method);
-    }
-
-    query += ' ORDER BY release_date_time DESC';
-
-    if (limit) {
-      query += ' LIMIT $' + (params.length + 1);
-      params.push(parseInt(limit));
-    }
-
-    if (offset) {
-      query += ' OFFSET $' + (params.length + 1);
-      params.push(parseInt(offset));
-    }
-
-    const result = await pool.query(query, params);
-    return NextResponse.json(result.rows);
+    return NextResponse.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching items:', error);
-    return NextResponse.json({ error: 'Failed to fetch items' }, { status: 500 });
+    console.error('Error fetching item:', error);
+    return NextResponse.json({ error: 'Failed to fetch item' }, { status: 500 });
   }
 }
 
 /**
- * POST /api/items
- * Create a new UGC item
+ * PUT /api/items/[id]
  */
-export async function POST(request: Request) {
+export async function PUT(
+  request: Request,
+  props: { params: Promise<{ id: string }> }
+) {
   try {
-    const body = await request.json();
-    const {
-      title,
-      item_name,
-      creator,
-      creator_link,
-      stock,
-      release_date_time,
-      method,
-      instruction,
-      game_link,
-      item_link,
-      image_url,
-      limit_per_user,
-      color,
-    } = body;
+    const params = await props.params;
+    const { id, isNum, num } = parseIdParam(params.id);
+    const updates = await request.json();
 
-    if (!title || !item_name || !creator || !release_date_time) {
-      return NextResponse.json(
-        { error: 'Missing required fields: title, item_name, creator, release_date_time' },
-        { status: 400 }
-      );
+    const allowedFields = [
+      'title',
+      'item_name',
+      'creator',
+      'creator_link',
+      'stock',
+      'release_date_time',
+      'method',
+      'instruction',
+      'game_link',
+      'item_link',
+      'image_url',
+      'limit_per_user',
+      'color',
+      'is_published',
+    ];
+
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+    let paramIndex = 1;
+
+    Object.keys(updates).forEach((key) => {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = $${paramIndex}`);
+        if (key === 'method') {
+          const val = updates[key];
+          updateValues.push(Array.isArray(val) ? val : (val ? [val] : ['Unknown']));
+        } else {
+          updateValues.push(updates[key]);
+        }
+        paramIndex++;
+      }
+    });
+
+    if (updateFields.length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    const uuid = uuidv4();
-    const result = await pool.query(
-      `INSERT INTO ugc_items (
-        uuid, title, item_name, creator, creator_link, stock, 
-        release_date_time, method, instruction, game_link, item_link, 
-        image_url, limit_per_user, color
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING *`,
-      [
-        uuid,
-        title,
-        item_name,
-        creator,
-        creator_link || null,
-        stock || 1000,
-        release_date_time,
-        Array.isArray(method) ? method : (method ? [method] : ['Unknown']),
-        instruction || null,
-        game_link || null,
-        item_link || null,
-        image_url || null,
-        limit_per_user || 1,
-        color || null,
-      ]
-    );
+    updateFields.push(`updated_at = $${paramIndex}`);
+    updateValues.push(new Date());
+    paramIndex++;
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    updateValues.push(isNum ? num : id);
+
+    const whereClause = isNum ? `id = $${paramIndex}` : `uuid = $${paramIndex}`;
+    const query = `
+      UPDATE ugc_items 
+      SET ${updateFields.join(', ')}
+      WHERE ${whereClause}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, updateValues);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating item:', error);
-    return NextResponse.json({ error: 'Failed to create item' }, { status: 500 });
+    console.error('Error updating item:', error);
+    return NextResponse.json({ error: 'Failed to update item' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/items/[id]
+ */
+export async function DELETE(
+  request: Request,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    const params = await props.params;
+    const { id, isNum, num } = parseIdParam(params.id);
+
+    const query = isNum
+      ? 'DELETE FROM ugc_items WHERE id = $1 RETURNING *'
+      : 'DELETE FROM ugc_items WHERE uuid = $1 RETURNING *';
+
+    const result = await pool.query(query, [isNum ? num : id]);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Item deleted successfully', item: result.rows[0] });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    return NextResponse.json({ error: 'Failed to delete item' }, { status: 500 });
   }
 }

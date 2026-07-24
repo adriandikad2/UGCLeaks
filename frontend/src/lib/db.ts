@@ -1,5 +1,9 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+
+types.setTypeParser(1114, (stringValue) => {
+  return stringValue ? `${stringValue.replace(' ', 'T')}Z` : null;
+});
 
 function getDbConfig() {
   let connectionString: string | undefined;
