@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,12 +16,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
-    const parsedLimit = limit ? parseInt(limit, 10) : 100;
-    const safeLimit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 1000) : 100;
+
+    // Default to 500 items so all schedules load at once, capped at 1000 for DDoS protection
+    const parsedLimit = limit ? parseInt(limit, 10) : 500;
+    const safeLimit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 1000) : 500;
+    
     const parsedOffset = offset ? parseInt(offset, 10) : 0;
     const safeOffset = Number.isFinite(parsedOffset) ? Math.max(parsedOffset, 0) : 0;
 
-    // Clean, direct query — pg driver type parser now handles UTC formatting automatically!
     const query = `
       SELECT uuid, title, item_name, creator, stock, 
         release_date_time, release_date_time as release_date_time_utc,
