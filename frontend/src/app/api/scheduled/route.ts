@@ -13,9 +13,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
-
-    // Ensure codes_info column exists without throwing on migration
-    await pool.query('ALTER TABLE scheduled_items ADD COLUMN IF NOT EXISTS codes_info JSONB').catch((e: any) => console.error('Migration notice:', e.message));
+    const parsedLimit = limit ? parseInt(limit, 10) : 100;
+    const safeLimit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 1000) : 100;
+    const parsedOffset = offset ? parseInt(offset, 10) : 0;
+    const safeOffset = Number.isFinite(parsedOffset) ? Math.max(parsedOffset, 0) : 0;
 
     // Cast release_date_time to text to prevent pg driver from treating it as local time
     // The database stores UTC times, but 'timestamp without time zone' is interpreted as local by the driver
@@ -27,15 +28,10 @@ export async function GET(request: Request) {
       FROM scheduled_items ORDER BY release_date_time ASC`;
     const params: any[] = [];
 
-    if (limit) {
-      query += ' LIMIT $' + (params.length + 1);
-      params.push(parseInt(limit));
-    }
-
-    if (offset) {
-      query += ' OFFSET $' + (params.length + 1);
-      params.push(parseInt(offset));
-    }
+    query += ' LIMIT $' + (params.length + 1);
+    params.push(safeLimit);
+    query += ' OFFSET $' + (params.length + 1);
+    params.push(safeOffset);
 
     const result = await pool.query(query, params);
     return NextResponse.json(result.rows);

@@ -1,60 +1,53 @@
 import { Pool } from 'pg';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
-let pool: Pool | undefined;
+function getDbConfig() {
+  let connectionString: string | undefined;
+  let isHyperdrive = false;
 
-function getConnectionString(): string | undefined {
   try {
     const { env } = getCloudflareContext();
     const hyperdrive = (env as { HYPERDRIVE?: { connectionString?: string } }).HYPERDRIVE;
     if (hyperdrive?.connectionString) {
-      return hyperdrive.connectionString;
+      connectionString = hyperdrive.connectionString;
+      isHyperdrive = true;
     }
   } catch {
-    // Cloudflare context is unavailable during local Next.js development.
+    // Cloudflare context unavailable (e.g. during local build / dev)
   }
 
-  return process.env.DATABASE_URL;
-}
-
-function getPool(): Pool {
-  if (pool) {
-    return pool;
-  }
-
-  const connectionString = getConnectionString();
   if (!connectionString) {
-    throw new Error('No database connection is configured. Bind HYPERDRIVE in Cloudflare or set DATABASE_URL locally.');
+    connectionString = process.env.DATABASE_URL;
   }
 
-  pool = new Pool({
-    connectionString,
-    ssl: {
-      rejectUnauthorized: false,
-    },
-    max: 1,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
-  });
+  if (!connectionString) {
+    throw new Error(
+      'No database connection configured. Bind HYPERDRIVE in Cloudflare or set DATABASE_URL locally.'
+    );
+  }
 
-  pool.on('error', (err) => {
-    console.error('Pool error:', err);
-  });
-
-  pool.on('connect', () => {
-    console.log('Connected to database');
-  });
-
-  return pool;
+  return { connectionString, isHyperdrive };
 }
 
-// Keep the existing pool.query(...) API while deferring env access until a request runs.
-const lazyPool = new Proxy({} as Pool, {
+export function getDb() {
+  const { connectionString, isHyperdrive } = getDbConfig();
+
+  return new Pool({
+    connectionString,
+    ssl: isHyperdrive ? undefined : { rejectUnauthorized: false },
+    max: 1,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 5000,
+  });
+}
+
+// Proxy that generates a fresh pool per request context
+const db = new Proxy({} as Pool, {
   get(_target, property: string | symbol) {
-    const activePool = getPool();
+    const activePool = getDb();
     const value = activePool[property as keyof Pool];
     return typeof value === 'function' ? value.bind(activePool) : value;
   },
 });
 
-export default lazyPool;
+export default db;
